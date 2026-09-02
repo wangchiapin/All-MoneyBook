@@ -1,0 +1,363 @@
+    :root {
+      --bg-color: #f4f0e8;
+      --card-bg: #fdfbf7;
+      --border-color: #ddd5c4;
+      --text-main: #3c362e;
+      --text-muted: #93897a;
+      --primary: #766c5a;
+      --primary-hover: #5c5445;
+      --danger: #a8543d;
+      --selection-bg: rgba(118, 108, 90, 0.14);
+      --selection-border: #766c5a;
+
+      --sec-bank: #eef0e6;
+      --sec-ins: #eaeef0;
+      --sec-stock: #f5eee0;
+      --sec-total-cost: #ddc4b3;
+      --sec-total-growth: #ece2c4;
+      --sec-total-val: #ddc4b3;
+      --sec-summary: #e9e4da;
+      --sec-usd: #ece7ea;
+      --sec-rate: #dde3dc;
+      --sec-ratio: #e6e9e2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Hiragino Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+      user-select: none;
+      letter-spacing: 0.01em;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 14px 20px;
+      border-radius: 3px;
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      user-select: auto;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 2px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: background-color 0.2s, border-color 0.2s;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+    }
+    .btn-primary { background-color: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background-color: var(--primary-hover); border-color: var(--primary-hover); }
+    .btn-outline { background-color: transparent; border-color: var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background-color: #ece7dc; }
+    .btn-danger { background-color: var(--card-bg); color: var(--danger); border-color: var(--danger); }
+    .btn-danger:hover { background-color: var(--danger); color: #fff; }
+
+    .table-container {
+      background: var(--card-bg);
+      border-radius: 3px;
+      box-shadow: none;
+      overflow-x: auto;
+      overflow-y: auto;
+      width: 100%;
+      max-width: 100%;
+      max-height: 85vh;
+      border: 1px solid var(--border-color);
+      outline: none;
+      position: relative;
+    }
+    .table-container::-webkit-scrollbar { height: 10px; width: 10px; }
+    .table-container::-webkit-scrollbar-track { background: #ece6d9; }
+    .table-container::-webkit-scrollbar-thumb { background: #c9bfa8; border-radius: 4px; }
+    .table-container::-webkit-scrollbar-thumb:hover { background: #a89a7a; }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 800px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: 0;
+      text-align: center;
+      vertical-align: middle;
+      white-space: nowrap;
+      height: 32px;
+      position: relative;
+    }
+
+    th {
+      font-weight: 500;
+      background-color: #ece6d9;
+      color: var(--text-main);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      height: 36px;
+    }
+
+    .col-header {
+      min-width: 130px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      gap: 4px;
+    }
+
+    .row-label {
+      position: sticky;
+      left: 0;
+      background-color: var(--card-bg);
+      z-index: 5;
+      min-width: 250px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    th.row-label { z-index: 15; background-color: #ece6d9; }
+
+    .row-label-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 0 6px;
+      position: relative;
+    }
+    .row-label-left {
+      position: absolute;
+      left: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .row-label-text {
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 170px;
+    }
+    .name-input {
+      border: 1px solid transparent;
+      background: transparent;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      color: inherit;
+      width: 140px;
+      border-radius: 2px;
+      padding: 2px 4px;
+    }
+    .name-input:hover {
+      border-color: var(--border-color);
+      background: rgba(255,255,255,0.7);
+    }
+    .name-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(118,108,90,0.12);
+    }
+
+    .sec-header {
+      background-color: #4a4438 !important;
+      color: #f4f0e8 !important;
+      font-weight: 500;
+      text-align: center !important;
+      vertical-align: middle;
+      height: 30px;
+      letter-spacing: 0.02em;
+    }
+
+    /* 各區塊背景色 */
+    tr.bank-row td.row-label { background-color: var(--sec-bank); }
+    tr.bank-row td { background-color: #f5f6f0; }
+    tr.ins-row td.row-label { background-color: var(--sec-ins); }
+    tr.ins-row td { background-color: #f2f4f5; }
+    tr.stock-row td.row-label { background-color: var(--sec-stock); }
+    tr.stock-row td { background-color: #f9f5eb; }
+
+    tr.highlight-red td { background-color: #efdfd4; color: #6e3d2c; font-weight: 600; }
+    tr.highlight-red td.row-label { background-color: var(--sec-total-cost); }
+    tr.highlight-yellow td { background-color: #f4ecd4; font-weight: 600; }
+    tr.highlight-yellow td.row-label { background-color: var(--sec-total-growth); }
+
+    tr.summary-row td.row-label { background-color: var(--sec-summary); font-weight: 600; }
+    tr.summary-row td { background-color: #f2efe8; font-weight: 500; }
+
+    tr.usd-row td.row-label { background-color: var(--sec-usd); }
+    tr.usd-row td { background-color: #f4f2f3; }
+    tr.rate-row td.row-label { background-color: var(--sec-rate); font-weight: 600; }
+    tr.rate-row td { background-color: #e8ede6; font-weight: 600; }
+
+    tr.ratio-row td.row-label { background-color: var(--sec-ratio); }
+    tr.ratio-row td { background-color: #f1f3ee; }
+
+    tr.baddebt-row td.row-label { background-color: #e6e2da; color: #8a8378; }
+    tr.baddebt-row td { background-color: #efece5; color: #8a8378; }
+
+    .note-btn {
+      cursor: pointer;
+      font-size: 12px;
+      position: relative;
+      padding: 2px;
+      opacity: 0.55;
+    }
+    .note-btn:hover { opacity: 1; }
+    .note-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 6px;
+      height: 6px;
+      background: #a8543d;
+      border-radius: 50%;
+    }
+
+    .settings-wrap { position: relative; display: inline-block; }
+    .settings-menu {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 4px 14px rgba(60,54,46,0.18);
+      z-index: 1500;
+      min-width: 210px;
+      overflow: hidden;
+    }
+    .settings-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 9px 14px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .settings-menu-item:hover { background: #ece7dc; }
+    .settings-menu-danger { color: var(--danger); }
+    .settings-menu-danger:hover { background: var(--danger); color: #fff; }
+    .settings-menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
+
+    .cell-view {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 6px;
+      cursor: cell;
+    }
+
+    /* 外匯總資產：兩行顯示（美金／換算台幣） */
+    tr.usdtotal-row td { height: 44px; }
+    tr.usdtotal-row .cell-view {
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+      white-space: normal;
+      line-height: 1.3;
+    }
+    .usd-line-main { font-weight: 600; }
+    .usd-line-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+
+    input.cell-editor {
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--primary);
+      background: #fff;
+      text-align: center;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      padding: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 8;
+    }
+
+    input.date-input {
+      background: transparent;
+      border: 1px solid transparent;
+      text-align: center;
+      font-weight: 500;
+      font-size: 13px;
+      width: 80px;
+    }
+    input.date-input:focus {
+      background: #fff;
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    td.cell-selected {
+      background-color: var(--selection-bg) !important;
+      position: relative;
+    }
+    td.cell-active {
+      outline: 2px solid var(--selection-border) !important;
+      outline-offset: -2px;
+      z-index: 6;
+    }
+
+    .badge-auto {
+      font-size: 10px;
+      background: #e4ded0;
+      padding: 1px 4px;
+      border-radius: 2px;
+      color: var(--text-muted);
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .del-btn {
+      color: #b3a998;
+      cursor: pointer;
+      font-size: 13px;
+      transition: color 0.15s;
+    }
+    .del-btn:hover { color: var(--danger); }
+
+    .drag-handle {
+      cursor: grab;
+      color: #b3a998;
+      font-size: 14px;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+    .drag-handle:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: var(--text-main);
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    tr.row-dragging { opacity: 0.35; }
+    tr.drag-over { border-top: 3px solid var(--primary) !important; }

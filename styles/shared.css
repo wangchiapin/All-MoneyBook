@@ -1,0 +1,30 @@
+    .app-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 14px 20px;
+      background: #4a4438;
+      color: #f4f0e8;
+      border-radius: 3px;
+    }
+    .app-header-title { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+    .app-tabs { display: flex; gap: 6px; }
+    .app-tab-btn {
+      padding: 7px 16px;
+      border: 1px solid rgba(244,240,232,0.35);
+      border-radius: 2px;
+      background: transparent;
+      color: #f4f0e8;
+      font-weight: 500;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .app-tab-btn:hover { background: rgba(244,240,232,0.12); }
+    .app-tab-btn.active { background: #f4f0e8; color: #3c362e; border-color: #f4f0e8; }
+    .app-header-cloud { display: flex; align-items: center; gap: 10px; margin-left: auto; font-size: 12px; }
+    .app-header-cloud .btn { font-size: 12px; padding: 6px 12px; background: transparent; color: #f4f0e8; border-color: rgba(244,240,232,0.35); }
+    .app-header-cloud .btn:hover { background: rgba(244,240,232,0.12); }
+    .app-header-cloud #syncStatus { color: #ddd5c4; }

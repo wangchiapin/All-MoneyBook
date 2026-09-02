@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>個人財務資產狀況管理</title>
+
+  <link rel="stylesheet" href="styles/finance.css">
+  <link rel="stylesheet" href="styles/shared.css">
+  <link rel="stylesheet" href="styles/stock.css">
+
+  <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+</head>
+<body>
+
+  <div class="app-header">
+    <div class="app-header-title">📋 個人財務資產狀況管理</div>
+    <div class="app-tabs">
+      <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')">📋 財務總覽</button>
+      <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')">📈 股票管理</button>
+    </div>
+    <div class="app-header-cloud">
+      <span id="syncStatus">☁️ 未連線</span>
+      <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
+      <button class="btn btn-outline" id="logoutBtn" style="display:none;" onclick="firebaseSignOut()">登出</button>
+    </div>
+  </div>
+
+  <div id="financeView">
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="addColumn()">➕ 新增紀錄時間</button>
+
+    <div class="settings-wrap">
+      <button class="btn btn-outline" id="settingsToggleBtn" onclick="toggleSettingsMenu(event)">⚙️ 設定</button>
+      <div class="settings-menu" id="settingsMenu">
+        <button class="settings-menu-item" onclick="addItem('bank'); closeSettingsMenu();">➕ 新增銀行/現金帳戶</button>
+        <button class="settings-menu-item" onclick="addItem('insurance'); closeSettingsMenu();">➕ 新增保險項目</button>
+        <button class="settings-menu-item" onclick="addItem('stock'); closeSettingsMenu();">➕ 新增股票項目</button>
+        <button class="settings-menu-item" onclick="addItem('baddebt'); closeSettingsMenu();">➕ 新增呆帳項目</button>
+        <div class="settings-menu-divider"></div>
+        <button class="settings-menu-item" onclick="openArchiveManager();">🗄️ 封存管理</button>
+        <div class="settings-menu-divider"></div>
+        <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON)</button>
+        <button class="settings-menu-item" onclick="document.getElementById('fileInput').click(); closeSettingsMenu();">📂 匯入備份</button>
+        <div class="settings-menu-divider"></div>
+        <button class="settings-menu-item settings-menu-danger" onclick="resetAll(); closeSettingsMenu();">⚠️ 清空重置</button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" style="display:none" onchange="importData(event)" accept=".json">
+
+    <button class="btn btn-outline" style="margin-left:auto;" onclick="toggleChartPanel()">📈 資產趨勢圖</button>
+  </div>
+
+  <div class="table-container" id="gridContainer" tabindex="0">
+    <table id="financeTable">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="floatingChartPanel" style="position:fixed; top:90px; right:24px; width:440px; z-index:1000; background:var(--card-bg); border:1px solid var(--border-color); border-radius:4px; box-shadow:0 6px 20px rgba(60,54,46,0.18); overflow:hidden;">
+    <div id="chartDragHandle" style="cursor:move; background:#4a4438; color:#f4f0e8; padding:9px 12px; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:500; letter-spacing:0.02em;">
+      <span>📈 總資產趨勢（成本 / 現值）</span>
+      <span style="cursor:pointer; padding:0 4px;" onclick="toggleChartPanel(false)">✖</span>
+    </div>
+    <div style="padding:14px; position:relative; height:230px;">
+      <canvas id="assetTrendChart"></canvas>
+    </div>
+  </div>
+
+  </div>
+  <!-- /#financeView -->
+
+
+  <div class="container" id="stockView" style="display:none;">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>📊 股票投資紀錄試算表 <span style="font-size: 0.8rem; font-weight: normal; color:#766c5a; background:#eaeef0; padding:2px 8px; border-radius:4px;">Excel 旗艦版</span></h1>
+      </div>
+    </div>
+
+    <!-- Dashboards Area -->
+    <div class="dashboards-wrapper">
+      <!-- 1. 全資產總覽看板 -->
+      <div class="dashboard">
+        <div class="stat-card">
+          <div class="stat-title">全體總投入成本</div>
+          <div class="stat-value font-mono" id="summaryCost">$0</div>
+          <div class="stat-desc">台股與外幣本金合計 (美股以匯率29計算)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">全體目前總市值</div>
+          <div class="stat-value font-mono" id="summaryValue">$0</div>
+          <div class="stat-desc">以即時最新現價計算</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">全體未實現總損益</div>
+          <div class="stat-value font-mono" id="summaryProfit">$0</div>
+          <div class="stat-desc" id="summaryProfitRate" style="font-weight: 700;">0.00%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">持股+歷史已實現股利</div>
+          <div class="stat-value font-mono" style="color:#9c7c52;" id="summaryDividends">$0</div>
+          <div class="stat-desc">在倉借出中：<strong id="summaryLent">0</strong> 張 / 股</div>
+        </div>
+      </div>
+
+      <!-- 2. 分頁專屬獨立概況看板 (4個欄位) -->
+      <div class="dashboard" id="subDashboardContainer" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="stat-card-sub">
+          <div class="stat-title" id="filterTabCostTitle">📌 投入成本</div>
+          <div class="stat-value font-mono" id="filterCost" style="color:#3c362e;">$0</div>
+          <div class="stat-desc" id="filterCostDesc">該分類本金加總</div>
+        </div>
+        <div class="stat-card-sub" id="subCardValContainer">
+          <div class="stat-title" id="filterTabValTitle">股票現值</div>
+          <div class="stat-value font-mono" id="filterValue" style="color:#3c362e;">$0</div>
+          <div class="stat-desc" id="filterValDesc">該分類現價總值</div>
+        </div>
+        <div class="stat-card-sub">
+          <div class="stat-title" id="filterTabProfitTitle">未實現損益</div>
+          <div class="stat-value font-mono" id="filterProfit">$0</div>
+          <div class="stat-desc" id="filterProfitRate" style="font-weight: 700;">0.00%</div>
+        </div>
+        <div class="stat-card-sub">
+          <div class="stat-title" id="filterTabDivTitle">累計股利</div>
+          <div class="stat-value font-mono" id="filterDividends">$0</div>
+          <div class="stat-desc" id="filterLent">該分頁借出：<strong>0</strong> 張 / 股</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 功能按鈕列 (內含設定下拉選單) -->
+    <div class="toolbar-bar">
+      <button class="btn btn-snapshot" onclick="takeAssetSnapshot()">📸 一鍵紀錄</button>
+      <button class="btn btn-fetch" id="btnFetchPrices" onclick="fetchAllStockPrices()">🔄 更新即時股價</button>
+      <button class="btn btn-primary" id="btnAddNewStock" onclick="openAddStockModal()">➕ 新增股票</button>
+      <button class="btn btn-danger" id="btnDelLastRow" style="display:none;" onclick="handleDeleteLastPastRow()">➖ 刪除最後空白列</button>
+      <button class="btn" id="btnAddYear" style="display:none; color:#5c5445; border-color:#ddd5c4; background:#fdfbf7;" onclick="handleAddYear()">📅 新增新年度</button>
+
+      <!-- 計算機按鈕 (位於設定左邊) -->
+      <button class="btn btn-calc" onclick="toggleCalculator()">🧮 計算機</button>
+
+      <!-- 設定按鈕與下拉選單 -->
+      <div class="dropdown" id="settingDropdown">
+        <button class="btn btn-setting" onclick="toggleSettingDropdown(event)">⚙️ 設定 ▾</button>
+        <div class="dropdown-content">
+          <button onclick="openAddAccountModal()">🏛️ 新增證券帳戶</button>
+          <button onclick="exportStockData()">💾 匯出備份 (JSON)</button>
+          <label style="cursor:pointer;">
+            📂 匯入備份 (JSON)
+            <input type="file" onchange="importStockData(event)" accept=".json" style="display:none;" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="filter-bar">
+      <div class="tab-group" id="tabGroup"></div>
+      <input type="text" class="search-input" id="searchBox" placeholder="搜尋代號、名稱..." oninput="renderTable()" />
+    </div>
+
+    <!-- 媽的永豐分頁專屬：股票投資概況總覽卡片 -->
+    <div class="yf-overview-panel" id="yfOverviewPanel" style="display:none;">
+      <div class="yf-overview-header">
+        <span>📊 股票投資概況</span>
+        <input type="text" id="yfOvName" class="yf-ov-input font-bold" value="國泰永續高股息" onchange="updateYfOverview('stockName', this.value)" style="max-width:180px; width:auto; text-align:left;" />
+      </div>
+      <div class="dashboard yf-overview-grid">
+        <div class="stat-card">
+          <div class="stat-title">成本</div>
+          <input type="number" step="any" id="yfOvCost" class="yf-ov-input font-mono font-bold" value="75672" onchange="updateYfOverview('cost', this.value)" />
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">現價</div>
+          <input type="number" step="any" id="yfOvPrice" class="yf-ov-input font-mono font-bold" value="108654" onchange="updateYfOverview('price', this.value)" />
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">損益</div>
+          <div class="stat-value" id="yfOvProfit">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">投資報酬率</div>
+          <div class="stat-value" id="yfOvROI">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">股數</div>
+          <input type="number" step="any" id="yfOvShares" class="yf-ov-input font-mono font-bold" value="3363" onchange="updateYfOverview('shares', this.value)" />
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">均價</div>
+          <div class="stat-value" id="yfOvAvgPrice">$0</div>
+        </div>
+      </div>
+      <div class="dashboard yf-overview-grid">
+        <div class="stat-card">
+          <div class="stat-title">總股利</div>
+          <input type="number" step="any" id="yfOvTotalDiv" class="yf-ov-input font-mono font-bold" value="11049.31" onchange="updateYfOverview('totalDiv', this.value)" />
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">含息成本</div>
+          <div class="stat-value" id="yfOvCostWithDiv">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">含息損益</div>
+          <div class="stat-value" id="yfOvProfitWithDiv">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">總均價</div>
+          <div class="stat-value" id="yfOvAvgPriceWithDiv">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">含息報酬率</div>
+          <div class="stat-value" id="yfOvROIWithDiv">0%</div>
+        </div>
+      </div>
+      <div class="yf-overview-goal">
+        <div class="stat-card-sub yf-goal-card">
+          <div class="stat-title">我還要放入多少？ <span>(目標 $<input type="number" step="any" id="yfOvGoal" class="yf-goal-input" value="100000" onchange="updateYfOverview('goal', this.value)" />)</span></div>
+          <div class="stat-value" id="yfOvRemain">$0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 媽的永豐分頁專屬：三個小分頁切換列 -->
+    <div class="sales-sub-bar" id="yfSubBar" style="display:none;">
+      <div class="sales-sub-toggle">
+        <button class="sales-sub-btn active" id="yfSubBtnT1" onclick="setYfSubTab('t1')">📑 定期定額/買進明細</button>
+        <button class="sales-sub-btn" id="yfSubBtnT2" onclick="setYfSubTab('t2')">💳 帳戶出入帳明細</button>
+        <button class="sales-sub-btn" id="yfSubBtnT4" onclick="setYfSubTab('t4')">💰 除息與股利紀錄</button>
+      </div>
+    </div>
+
+    <!-- 股利分頁專屬：次頁籤切換列 -->
+    <div class="sales-sub-bar" id="dividendsSubBar" style="display:none;">
+      <div class="sales-sub-toggle">
+        <button class="sales-sub-btn active" id="subBtnDivSummary" onclick="setDividendsSubTab('summary')">📊 歷年股利總合</button>
+        <button class="sales-sub-btn" id="subBtnDivPast" onclick="setDividendsSubTab('past')">✏️ 非持有/已實現股利</button>
+        <button class="sales-sub-btn" id="subBtnDivEst" onclick="setDividendsSubTab('estimate')">📈 年度預估股利</button>
+      </div>
+    </div>
+
+    <!-- 股票賣出分頁專屬：次頁籤切換列與年份選擇 -->
+    <div class="sales-sub-bar" id="salesSubBar" style="display:none;">
+      <div class="sales-sub-toggle">
+        <button class="sales-sub-btn active" id="subBtnList" onclick="setSalesSubTab('list')">📋 股票賣出明細表</button>
+        <button class="sales-sub-btn" id="subBtnSummary" onclick="setSalesSubTab('summary')">📅 每日買賣紀錄小計</button>
+        <button class="sales-sub-btn" id="subBtnHistory" onclick="setSalesSubTab('history')">📊 歷年紀錄</button>
+      </div>
+      <div id="summaryYearSelectorContainer" style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.85rem; font-weight:700; color:#3f6b4c;">📅 選擇小計年份：</span>
+        <select id="summaryYearSelect" class="form-control" style="width:110px; padding:4px 8px;" onchange="changeSummaryYear(this.value)"></select>
+      </div>
+    </div>
+
+    <!-- 各股紀錄分頁專屬：快照日期選取列 (含刪除按鈕) -->
+    <div class="snapshot-date-bar" id="snapshotDateBar" style="display:none;">
+      <span style="font-size:0.85rem; font-weight:700; color:#3c362e;">📅 選擇快照紀錄日期：</span>
+      <div id="snapshotDatePillsContainer" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- 非持有分頁專屬：單一股票歷年現金股利速查/加總計算器 -->
+    <div class="stock-calc-card" id="pastStockCalcCard" style="display:none;">
+      <div class="stock-calc-left">
+        <span style="font-size:0.9rem; font-weight:700; color:#2c2820;">🔍 單一標的歷年現金股利加總計算：</span>
+        <input type="text" id="calcTargetInput" class="search-input" style="width:180px;" placeholder="輸入股票名稱 (如: 台積電)" oninput="calculateSingleStockPastDividends()" />
+        <button class="btn" onclick="calculateSingleStockPastDividends()">即時計算</button>
+      </div>
+      <div class="stock-calc-right">
+        <div style="font-size:0.85rem; font-weight:600; color:#93897a;" id="calcDetailText">請輸入名稱進行速查</div>
+        <div style="font-size:1.1rem; font-weight:800; color:#9c7c52;" id="calcTotalText">$0</div>
+      </div>
+    </div>
+
+    <!-- 頂部獨立水平捲軸 -->
+    <div class="top-scroll-wrapper" id="topScrollWrapper" style="display:none;">
+      <div class="top-scroll-dummy" id="topScrollDummy"></div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="table-container" id="mainTableContainer">
+      <table id="stockGrid">
+        <thead id="stockGridHead"></thead>
+        <tbody id="stockTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="help-tips">
+      <span>💡 <strong>操作指南：</strong></span>
+      <span>• 點擊上方 <strong>「⚙️ 設定」</strong> 可進行新增證券、匯出與匯入備份；在表格內可直接輸入新資料、使用 <strong>方向鍵/Enter鍵</strong> 移動、選取複製多格、或使用 <strong>Ctrl + Z</strong> 復原！美股帳戶與股利預設以美金計算，總計時以匯率 29 折算台幣。</span>
+    </div>
+  </div>
+
+  <!-- 懸浮小型計算機 (具備焦點偵測，不干擾表格輸入) -->
+  <div id="floatingCalculator" tabindex="0">
+    <div class="calc-header" id="calcDragHandle">
+      <span>🧮 簡易計算機</span>
+      <button class="btn-del" style="font-size:1.1rem; padding:0 4px;" onclick="toggleCalculator()">✕</button>
+    </div>
+    <div class="calc-body">
+      <div class="calc-screen" id="calcScreen">0</div>
+      <div class="calc-keys">
+        <button class="calc-btn clear" onclick="calcClear()">C</button>
+        <button class="calc-btn op" onclick="calcAppend('/')">÷</button>
+        <button class="calc-btn op" onclick="calcAppend('*')">×</button>
+        <button class="calc-btn op" onclick="calcBackspace()">⌫</button>
+        <button class="calc-btn" onclick="calcAppend('7')">7</button>
+        <button class="calc-btn" onclick="calcAppend('8')">8</button>
+        <button class="calc-btn" onclick="calcAppend('9')">9</button>
+        <button class="calc-btn op" onclick="calcAppend('-')">-</button>
+        <button class="calc-btn" onclick="calcAppend('4')">4</button>
+        <button class="calc-btn" onclick="calcAppend('5')">5</button>
+        <button class="calc-btn" onclick="calcAppend('6')">6</button>
+        <button class="calc-btn op" onclick="calcAppend('+')">+</button>
+        <button class="calc-btn" onclick="calcAppend('1')">1</button>
+        <button class="calc-btn" onclick="calcAppend('2')">2</button>
+        <button class="calc-btn" onclick="calcAppend('3')">3</button>
+        <button class="calc-btn" onclick="calcAppend('.')">.</button>
+        <button class="calc-btn" onclick="calcAppend('0')" style="grid-column: span 2;">0</button>
+        <button class="calc-btn eq" onclick="calcEvaluate()">=</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增證券帳戶彈窗 -->
+  <div class="modal-overlay" id="addAccountModal">
+    <div class="modal-card" style="width: 420px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🏛️ 新增證券帳戶</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeAddAccountModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">證券商/帳戶名稱 <span style="color:#b6533c;">*</span></label>
+            <input type="text" id="newAccountName" class="form-control" placeholder="例：元大證券、玉山證券" required />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAddAccountModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitAddAccount()">確認新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增股票彈窗 -->
+  <div class="modal-overlay" id="addStockModal">
+    <div class="modal-card" style="width: 480px;">
+      <div class="modal-header">
+        <h3 id="addModalTitle" style="font-size:1.05rem; font-weight:700;">➕ 新增股票標的</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeAddStockModal()">✕</button>
+      </div>
+      <div class="modal-body" id="addStockBody">
+        <div class="form-grid" id="addStockFormGrid">
+          <div class="form-group full">
+            <label class="form-label">股票 / ETF 名稱 <span style="color:#b6533c;">*</span></label>
+            <input type="text" id="newStockName" class="form-control" placeholder="例：台積電、元大高股息" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">股票代號</label>
+            <input type="text" id="newStockCode" class="form-control" placeholder="例：2330、0056、AAPL" oninput="handleAutoDetectCategory()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">證券帳戶 (點選) <span style="color:#b6533c;">*</span></label>
+            <select id="newStockAccount" class="form-control" onchange="handleAutoDetectCategory()"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">標的分類 (點選)</label>
+            <select id="newStockCategory" class="form-control">
+              <option value="台股">台股個股</option>
+              <option value="ETF">ETF</option>
+              <option value="美股">美股</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">初始持有股數</label>
+            <input type="number" step="any" id="newStockShares" class="form-control font-mono" placeholder="0" />
+          </div>
+          <div class="form-group full">
+            <label class="form-label">投入總成本 ($)</label>
+            <input type="number" step="any" id="newStockTotalCost" class="form-control font-mono" placeholder="0" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAddStockModal()">取消</button>
+        <button class="btn btn-primary" id="btnSubmitAdd" onclick="submitAddNewStock()">確認新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分離式股利彈窗 -->
+  <div class="modal-overlay" id="dividendModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalTitle" style="font-size:1.05rem; font-weight:700;">📅 歷年股利記錄</h3>
+          <div id="modalSubTitle" style="font-size:0.75rem; color:#766c5a; margin-top:2px;"></div>
+        </div>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeDividendModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <table class="dividend-table">
+          <thead id="dividendModalHead"></thead>
+          <tbody id="dividendTableBody"></tbody>
+        </table>
+        <button class="btn" id="btnAddDivRow" style="width:100%; border-style:dashed; color:#766c5a;" onclick="addDividendYear()">➕ 新增一筆年度明細</button>
+      </div>
+      <div class="modal-footer">
+        <div style="font-size:0.9rem; font-weight:700;">
+          <span id="modalFooterLabel">總計金額：</span><span id="modalTotalDiv" class="font-mono font-bold" style="font-size:1.05rem;">$0</span>
+        </div>
+        <button class="btn btn-primary" id="btnSaveDivModal" onclick="saveDividendModal()">儲存並更新</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scripts/shared.js"></script>
+  <script src="scripts/finance.js"></script>
+  <script src="scripts/stock.js"></script>
+</body>
+</html>
