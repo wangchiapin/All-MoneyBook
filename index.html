@@ -171,38 +171,38 @@
     <div class="yf-overview-panel" id="yfOverviewPanel" style="display:none;">
       <div class="yf-overview-header">
         <span>📊 股票投資概況</span>
-        <input type="text" id="yfOvName" class="yf-ov-input font-bold" value="國泰永續高股息" onchange="updateYfOverview('stockName', this.value)" style="max-width:180px; width:auto; text-align:left;" />
+        <input type="text" id="yfOvName" class="yf-ov-input font-bold" value="國泰永續高股息00878" onchange="updateYfOverview('stockName', this.value)" style="max-width:200px; width:auto; text-align:left;" />
       </div>
       <div class="dashboard yf-overview-grid">
         <div class="stat-card">
           <div class="stat-title">成本</div>
-          <input type="number" step="any" id="yfOvCost" class="yf-ov-input font-mono font-bold" value="75672" onchange="updateYfOverview('cost', this.value)" />
+          <div class="stat-value" id="yfOvCost">$0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">現價</div>
-          <input type="number" step="any" id="yfOvPrice" class="yf-ov-input font-mono font-bold" value="108654" onchange="updateYfOverview('price', this.value)" />
+          <div class="stat-title">現值</div>
+          <input type="number" step="any" id="yfOvCurrent" class="yf-ov-input font-mono font-bold" value="0" onchange="updateYfOverview('currentValue', this.value)" />
         </div>
         <div class="stat-card">
-          <div class="stat-title">損益</div>
+          <div class="stat-title">均價</div>
+          <div class="stat-value" id="yfOvAvgPrice">0.00</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">股數</div>
+          <div class="stat-value" id="yfOvShares">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">未實現損益</div>
           <div class="stat-value" id="yfOvProfit">$0</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">投資報酬率</div>
           <div class="stat-value" id="yfOvROI">0%</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-title">股數</div>
-          <input type="number" step="any" id="yfOvShares" class="yf-ov-input font-mono font-bold" value="3363" onchange="updateYfOverview('shares', this.value)" />
-        </div>
-        <div class="stat-card">
-          <div class="stat-title">均價</div>
-          <div class="stat-value" id="yfOvAvgPrice">$0</div>
-        </div>
       </div>
       <div class="dashboard yf-overview-grid">
         <div class="stat-card">
           <div class="stat-title">總股利</div>
-          <input type="number" step="any" id="yfOvTotalDiv" class="yf-ov-input font-mono font-bold" value="11049.31" onchange="updateYfOverview('totalDiv', this.value)" />
+          <div class="stat-value" id="yfOvTotalDiv">$0</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">含息成本</div>
@@ -213,8 +213,8 @@
           <div class="stat-value" id="yfOvProfitWithDiv">$0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">總均價</div>
-          <div class="stat-value" id="yfOvAvgPriceWithDiv">$0</div>
+          <div class="stat-title">含息均價</div>
+          <div class="stat-value" id="yfOvAvgPriceWithDiv">0.00</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">含息報酬率</div>
@@ -223,18 +223,52 @@
       </div>
       <div class="yf-overview-goal">
         <div class="stat-card-sub yf-goal-card">
-          <div class="stat-title">我還要放入多少？ <span>(目標 $<input type="number" step="any" id="yfOvGoal" class="yf-goal-input" value="100000" onchange="updateYfOverview('goal', this.value)" />)</span></div>
+          <div class="stat-title">尚欠 <span>(目標 $<input type="number" step="any" id="yfOvGoal" class="yf-goal-input" value="100000" onchange="updateYfOverview('goal', this.value)" />)</span></div>
           <div class="stat-value" id="yfOvRemain">$0</div>
         </div>
       </div>
     </div>
 
-    <!-- 媽的永豐分頁專屬：三個小分頁切換列 -->
-    <div class="sales-sub-bar" id="yfSubBar" style="display:none;">
-      <div class="sales-sub-toggle">
-        <button class="sales-sub-btn active" id="yfSubBtnT1" onclick="setYfSubTab('t1')">📑 定期定額/買進明細</button>
-        <button class="sales-sub-btn" id="yfSubBtnT2" onclick="setYfSubTab('t2')">💳 帳戶出入帳明細</button>
-        <button class="sales-sub-btn" id="yfSubBtnT4" onclick="setYfSubTab('t4')">💰 除息與股利紀錄</button>
+    <!-- 媽的永豐分頁專屬：三表並排 (買賣明細 / 永豐帳戶明細 / 除息資訊)，無分頁切換 -->
+    <div class="yf-tables-container" id="yfTablesContainer" style="display:none;">
+      <div class="yf-table-card">
+        <div class="yf-table-card-header">
+          <h3>📑 買賣明細</h3>
+          <button class="btn btn-primary" onclick="addYfDetailRow()">+ 新增一列</button>
+        </div>
+        <div class="yf-table-scroll">
+          <table class="yf-mini-table">
+            <thead id="yfDetailHead"></thead>
+            <tbody id="yfDetailBody"></tbody>
+            <tfoot><tr id="yfDetailFoot"></tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="yf-table-card">
+        <div class="yf-table-card-header">
+          <h3>💳 永豐帳戶明細</h3>
+          <button class="btn btn-primary" onclick="addYfAccountRow()">+ 新增一列</button>
+        </div>
+        <div class="yf-table-scroll">
+          <table class="yf-mini-table">
+            <thead id="yfAccountHead"></thead>
+            <tbody id="yfAccountBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="yf-table-card">
+        <div class="yf-table-card-header">
+          <h3>💰 除息資訊</h3>
+          <button class="btn btn-primary" onclick="addYfDividendRow()">+ 新增一列</button>
+        </div>
+        <div class="yf-table-scroll">
+          <table class="yf-mini-table">
+            <thead id="yfDividendHead"></thead>
+            <tbody id="yfDividendBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 

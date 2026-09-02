@@ -306,6 +306,81 @@
       font-family: inherit;
     }#stockView .form-control:focus { border-color: var(--primary); }#stockView .help-tips { font-size: 0.75rem; color: #93897a; margin-top: 10px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 
+/* ====== 媽的永豐：三表並排容器 (取代原本的分頁切換) ====== */
+#stockView .yf-tables-container {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+#stockView .yf-table-card {
+  flex: 1 1 320px;
+  min-width: 300px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 10px;
+}
+#stockView .yf-table-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+#stockView .yf-table-card-header h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+#stockView .yf-table-card-header .btn {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+}
+#stockView .yf-table-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+}
+#stockView .yf-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+#stockView .yf-mini-table th {
+  position: sticky;
+  top: 0;
+  background: #ece6d9;
+  color: var(--text);
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  white-space: nowrap;
+  z-index: 1;
+}
+#stockView .yf-mini-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+#stockView .yf-mini-table tfoot td {
+  background: #ece6d9;
+  font-weight: 700;
+  padding: 5px 4px;
+}
+#stockView .yf-mini-table .cell-input {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.78rem;
+  padding: 3px 4px;
+}
+#stockView .yf-mini-table select.cell-input {
+  cursor: pointer;
+}
+
 /* ====== MUJI 風格統一：字型 / 圓角 / 陰影 一致化 (最終覆蓋) ====== */
 #stockView, #stockView * {
   font-family: "Hiragino Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;

@@ -92,12 +92,36 @@
       {"year": "107", "totalCost": 278860, "totalSell": 310378, "spread": 11306, "returnRate": 0.0405}
     ];
 
-    // 媽的永豐 獨立資料變數 (完全安全的 JSON 序列化載入)
-    let yfT1 = JSON.parse(localStorage.getItem('YONG_FENG_T1_V4') || '[]');
-    let yfT2 = JSON.parse(localStorage.getItem('YONG_FENG_T2_V4') || '[]');
-    let yfT3 = JSON.parse(localStorage.getItem('YONG_FENG_T3_V4') || '[]');
-    let yfT4 = JSON.parse(localStorage.getItem('YONG_FENG_T4_V4') || '[]');
-    let yfOverview = { stockName: '國泰永續高股息', cost: 75672, price: 108654, shares: 3363, totalDiv: 11049.31, goal: 100000 };
+    // 媽的永豐 獨立資料變數 (完全安全的 JSON 序列化載入) —— 買賣明細 / 帳戶明細 / 除息資訊 三表 + 總覽
+    let yfDetail = JSON.parse(localStorage.getItem('YONG_FENG_DETAIL_V1') || JSON.stringify([
+      { date: '1130726', shares: 30, price: 30.00, cost: 900 },
+      { date: '1130815', shares: 30, price: 30.00, cost: 900 },
+      { date: '1131216', shares: 30, price: 30.00, cost: 900 },
+      { date: '1131217', shares: 30, price: 30.00, cost: 900 },
+      { date: '1141106', shares: 30, price: 30.00, cost: 900 },
+      { date: '1141208', shares: 30, price: 30.00, cost: 900 },
+      { date: '1150706', shares: 30, price: 30.00, cost: 900 },
+      { date: '1150730', shares: 60, price: 30.00, cost: 1800 }
+    ]));
+    let yfAccount = JSON.parse(localStorage.getItem('YONG_FENG_ACCOUNT_V1') || JSON.stringify([
+      { date: '1130528', type: '入帳', detail: '媽媽的錢', amount: 20000, balance: 0, note: '' },
+      { date: '1130606', type: '出帳', detail: '國泰永續高股息', amount: -990, balance: 0, note: '' },
+      { date: '1130617', type: '出帳', detail: '國泰永續高股息', amount: -982, balance: 0, note: '' },
+      { date: '1130621', type: '入帳', detail: '利息', amount: 8, balance: 0, note: '' },
+      { date: '1130626', type: '出帳', detail: '國泰永續高股息', amount: -995, balance: 0, note: '' }
+    ]));
+    let yfDividendRows = JSON.parse(localStorage.getItem('YONG_FENG_DIVIDEND_V1') || JSON.stringify([
+      { exDate: '1130816', cashPerShare: 0.55, payDate: '1130911', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1131118', cashPerShare: 0.55, payDate: '1131212', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1140220', cashPerShare: 0.50, payDate: '1140318', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1140519', cashPerShare: 0.47, payDate: '1140613', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1140818', cashPerShare: 0.40, payDate: '1140911', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1141118', cashPerShare: 0.40, payDate: '1141212', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1150226', cashPerShare: 0.42, payDate: '1150323', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1150519', cashPerShare: 0.66, payDate: '1150612', heldShares: 0, divAmount: 0, cumulative: 0 },
+      { exDate: '1150818', cashPerShare: 1.01, payDate: '1150911', heldShares: 0, divAmount: 0, cumulative: 0 }
+    ]));
+    let yfOverview = JSON.parse(localStorage.getItem('YONG_FENG_OVERVIEW_V2') || JSON.stringify({ stockName: '國泰永續高股息00878', currentValue: 0, goal: 100000 }));
 
     let stocks = [];
     let pastColumns = [];
@@ -109,7 +133,6 @@
     let currentFilter = 'ALL';
     let salesSubTab = 'list';
     let dividendsSubTab = 'summary'; // 'summary', 'past', 'estimate'
-    let yfSubTab = 't1'; // 't1', 't2', 't3', 't4'
     let selectedSummaryYear = '115';
     let selectedSnapshotDate = null;
     let currentEditingStockId = null;
@@ -142,22 +165,6 @@
 
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
-
-        // 媽的永豐 獨立資料載入
-        const savedYfT1 = localStorage.getItem('YONG_FENG_T1_V4');
-        if (savedYfT1) yfT1 = JSON.parse(savedYfT1);
-
-        const savedYfT2 = localStorage.getItem('YONG_FENG_T2_V4');
-        if (savedYfT2) yfT2 = JSON.parse(savedYfT2);
-
-        const savedYfT3 = localStorage.getItem('YONG_FENG_T3_V4');
-        if (savedYfT3) yfT3 = JSON.parse(savedYfT3);
-
-        const savedYfT4 = localStorage.getItem('YONG_FENG_T4_V4');
-        if (savedYfT4) yfT4 = JSON.parse(savedYfT4);
-
-        const savedYfOverview = localStorage.getItem('YONG_FENG_OVERVIEW_V1');
-        if (savedYfOverview) yfOverview = JSON.parse(savedYfOverview);
       } catch (e) {
         stocks = INITIAL_DATA;
         customAccounts = [];
@@ -177,7 +184,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, dividendEstimates, yfT1, yfT2, yfT3, yfT4, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -192,10 +199,9 @@
           if (prev.stockSales) stockSales = prev.stockSales;
           if (prev.salesHistory) salesHistory = prev.salesHistory;
           if (prev.dividendEstimates) dividendEstimates = prev.dividendEstimates;
-          if (prev.yfT1) yfT1 = prev.yfT1;
-          if (prev.yfT2) yfT2 = prev.yfT2;
-          if (prev.yfT3) yfT3 = prev.yfT3;
-          if (prev.yfT4) yfT4 = prev.yfT4;
+          if (prev.yfDetail) yfDetail = prev.yfDetail;
+          if (prev.yfAccount) yfAccount = prev.yfAccount;
+          if (prev.yfDividendRows) yfDividendRows = prev.yfDividendRows;
           if (prev.yfOverview) yfOverview = prev.yfOverview;
           saveToStorage();
           renderTabs();
@@ -221,11 +227,10 @@
         localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
         localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
-        localStorage.setItem('YONG_FENG_T1_V4', JSON.stringify(yfT1));
-        localStorage.setItem('YONG_FENG_T2_V4', JSON.stringify(yfT2));
-        localStorage.setItem('YONG_FENG_T3_V4', JSON.stringify(yfT3));
-        localStorage.setItem('YONG_FENG_T4_V4', JSON.stringify(yfT4));
-        localStorage.setItem('YONG_FENG_OVERVIEW_V1', JSON.stringify(yfOverview));
+        localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
+        localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
+        localStorage.setItem('YONG_FENG_DIVIDEND_V1', JSON.stringify(yfDividendRows));
+        localStorage.setItem('YONG_FENG_OVERVIEW_V2', JSON.stringify(yfOverview));
       } catch(e) {}
       renderSummary();
       scheduleCloudSync();
@@ -235,7 +240,7 @@
     function gatherAllData() {
       return {
         stocks, pastColumns, customAccounts, stockSales, salesHistory,
-        dividendEstimates, yfT1, yfT2, yfT3, yfT4, yfOverview,
+        dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         updatedAt: new Date().toISOString()
       };
@@ -249,10 +254,9 @@
       if (data.stockSales) stockSales = data.stockSales;
       if (data.salesHistory) salesHistory = data.salesHistory;
       if (data.dividendEstimates) dividendEstimates = data.dividendEstimates;
-      if (data.yfT1) yfT1 = data.yfT1;
-      if (data.yfT2) yfT2 = data.yfT2;
-      if (data.yfT3) yfT3 = data.yfT3;
-      if (data.yfT4) yfT4 = data.yfT4;
+      if (data.yfDetail) yfDetail = data.yfDetail;
+      if (data.yfAccount) yfAccount = data.yfAccount;
+      if (data.yfDividendRows) yfDividendRows = data.yfDividendRows;
       if (data.yfOverview) yfOverview = data.yfOverview;
       if (data.snapshots) localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(data.snapshots));
 
@@ -262,11 +266,10 @@
       localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
       localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
       localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
-      localStorage.setItem('YONG_FENG_T1_V4', JSON.stringify(yfT1));
-      localStorage.setItem('YONG_FENG_T2_V4', JSON.stringify(yfT2));
-      localStorage.setItem('YONG_FENG_T3_V4', JSON.stringify(yfT3));
-      localStorage.setItem('YONG_FENG_T4_V4', JSON.stringify(yfT4));
-      localStorage.setItem('YONG_FENG_OVERVIEW_V1', JSON.stringify(yfOverview));
+      localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
+      localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
+      localStorage.setItem('YONG_FENG_DIVIDEND_V1', JSON.stringify(yfDividendRows));
+      localStorage.setItem('YONG_FENG_OVERVIEW_V2', JSON.stringify(yfOverview));
 
       renderTabs();
       renderTable();
@@ -491,9 +494,6 @@
       if (filterId === 'DIVIDENDS_TAB') {
         dividendsSubTab = 'summary';
       }
-      if (filterId === 'YONG_FENG_TAB') {
-        yfSubTab = 't1';
-      }
       renderTabs();
       renderTable();
     }
@@ -511,14 +511,6 @@
       document.getElementById('subBtnDivSummary').classList.toggle('active', subTab === 'summary');
       document.getElementById('subBtnDivPast').classList.toggle('active', subTab === 'past');
       document.getElementById('subBtnDivEst').classList.toggle('active', subTab === 'estimate');
-      renderTable();
-    }
-
-    function setYfSubTab(subTab) {
-      yfSubTab = subTab;
-      document.getElementById('yfSubBtnT1').classList.toggle('active', subTab === 't1');
-      document.getElementById('yfSubBtnT2').classList.toggle('active', subTab === 't2');
-      document.getElementById('yfSubBtnT4').classList.toggle('active', subTab === 't4');
       renderTable();
     }
 
@@ -670,9 +662,9 @@
       const snapshotDateBar = document.getElementById('snapshotDateBar');
       const salesSubBar = document.getElementById('salesSubBar');
       const dividendsSubBar = document.getElementById('dividendsSubBar');
-      const yfSubBar = document.getElementById('yfSubBar');
       const topScrollWrapper = document.getElementById('topScrollWrapper');
       const mainTableContainer = document.getElementById('mainTableContainer');
+      const yfTablesContainer = document.getElementById('yfTablesContainer');
 
       if (currentFilter === 'DIVIDENDS_TAB') {
         if (dividendsSubBar) dividendsSubBar.style.display = 'flex';
@@ -681,9 +673,13 @@
       }
 
       if (currentFilter === 'YONG_FENG_TAB') {
-        if (yfSubBar) yfSubBar.style.display = 'flex';
+        if (yfTablesContainer) yfTablesContainer.style.display = 'flex';
+        if (mainTableContainer) mainTableContainer.style.display = 'none';
+        if (btnAddStock) btnAddStock.style.display = 'none';
       } else {
-        if (yfSubBar) yfSubBar.style.display = 'none';
+        if (yfTablesContainer) yfTablesContainer.style.display = 'none';
+        if (mainTableContainer) mainTableContainer.style.display = '';
+        if (btnAddStock) btnAddStock.style.display = '';
       }
 
       if (currentFilter === 'PAST_DIVIDENDS') {
@@ -709,7 +705,6 @@
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       } else if (currentFilter === 'YONG_FENG_TAB') {
-        if (btnAddStock) btnAddStock.textContent = '➕ 新增資料列';
         if (btnDel) btnDel.style.display = 'none';
         if (btnAddYear) btnAddYear.style.display = 'none';
         if (pastCalcCard) pastCalcCard.style.display = 'none';
@@ -749,24 +744,10 @@
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       }
 
-      // 0-1. 媽的永豐分頁 (YONG_FENG_TAB) - 4個獨立子部分
+      // 0-1. 媽的永豐分頁 (YONG_FENG_TAB) - 三表並排，無分頁切換
       if (currentFilter === 'YONG_FENG_TAB') {
-        if (yfSubTab === 't1') {
-          renderYfTable1(thead, tbody, query);
-          return;
-        }
-        if (yfSubTab === 't2') {
-          renderYfTable2(thead, tbody, query);
-          return;
-        }
-        if (yfSubTab === 't3') {
-          renderYfTable3(thead, tbody);
-          return;
-        }
-        if (yfSubTab === 't4') {
-          renderYfTable4(thead, tbody);
-          return;
-        }
+        renderYfTablesAll();
+        return;
       }
 
       // 0-2. 股利分頁 (DIVIDENDS_TAB)
@@ -1147,181 +1128,325 @@
     }
 
     /* ====== 媽的永豐 四個獨立子部分渲染函數 ====== */
-    function renderYfTable1(thead, tbody, query) {
-      thead.innerHTML = `
-        <tr>
-          <th style="width: 100px;">日期</th>
-          <th style="width: 160px;">名稱</th>
-          <th style="width: 100px;">股數</th>
-          <th style="width: 120px;">成交價</th>
-          <th style="width: 130px;">投資成本 ($)</th>
-          <th style="width: 150px;">備考 / 手續費</th>
-          <th style="width: 60px;">操作</th>
-        </tr>
-      `;
-      let rows = yfT1;
-      if (query) {
-        rows = rows.filter(r => String(r.name).toLowerCase().includes(query) || String(r.date).toLowerCase().includes(query));
+    /* ====== 媽的永豐：共用工具函式 (日期解析/民國轉換/格式化) ====== */
+    function yfParseDateInt(val) {
+      if (!val) return 99999999;
+      let str = String(val).trim();
+      let match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) return parseInt(match[1] + match[2] + match[3], 10);
+      let numStr = str.replace(/[^0-9]/g, '');
+      if (numStr.length >= 8 && numStr.startsWith('20')) {
+        return parseInt(numStr.substring(0, 8), 10);
+      } else if (numStr.length === 7 || numStr.length === 6) {
+        let cutIndex = numStr.length - 4;
+        let rocYear = parseInt(numStr.substring(0, cutIndex), 10);
+        let westernYear = rocYear + 1911;
+        return parseInt(westernYear + numStr.substring(cutIndex), 10);
       }
-      tbody.innerHTML = rows.map((r, idx) => `
-        <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfT1(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-bold" value="${r.name || ''}" onchange="updateYfT1(${idx}, 'name', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.shares || 0}" onchange="updateYfT1(${idx}, 'shares', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.price || 0}" onchange="updateYfT1(${idx}, 'price', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" value="${r.cost || 0}" onchange="updateYfT1(${idx}, 'cost', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input" value="${r.note || ''}" onchange="updateYfT1(${idx}, 'note', this.value)" /></td>
-          <td><button class="btn-del" onclick="deleteYfT1(${idx})">✕</button></td>
-        </tr>
-      `).join('');
-      renderSummary();
+      return 99999999;
     }
 
-    function updateYfT1(idx, field, val) {
-      recordSnapshot();
-      if (!yfT1[idx]) return;
-      yfT1[idx][field] = (field === 'shares' || field === 'price' || field === 'cost') ? (parseFloat(val) || 0) : val;
-      if (field === 'shares' || field === 'price') {
-        yfT1[idx].cost = (Number(yfT1[idx].shares) || 0) * (Number(yfT1[idx].price) || 0);
+    function yfToROCString(val) {
+      if (!val) return val;
+      let str = String(val).trim();
+      let match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        let rocYear = parseInt(match[1], 10) - 1911;
+        return String(rocYear) + match[2] + match[3];
       }
+      return str;
+    }
+
+    function yfParseNum(str) {
+      if (str === null || str === undefined || str === '') return 0;
+      return parseFloat(String(str).replace(/,/g, '')) || 0;
+    }
+
+    function yfAutoSortByDate(arr, dateField) {
+      const withDate = [];
+      const withoutDate = [];
+      arr.forEach(r => {
+        const v = r[dateField];
+        if (v && String(v).trim() !== '' && yfParseDateInt(v) !== 99999999) {
+          withDate.push(r);
+        } else {
+          withoutDate.push(r);
+        }
+      });
+      withDate.sort((a, b) => yfParseDateInt(a[dateField]) - yfParseDateInt(b[dateField]));
+      const newArr = withDate.concat(withoutDate);
+      arr.length = 0;
+      newArr.forEach(r => arr.push(r));
+    }
+
+    /* ====== 媽的永豐：除息股利自動分配 (依買進日期 < 除息日 加總持有股數) ====== */
+    function computeYfDividendDistribution() {
+      const exRows = yfDividendRows
+        .map((r, idx) => ({ idx, val: yfParseDateInt(r.exDate) }))
+        .filter(r => r.val !== 99999999)
+        .sort((a, b) => a.val - b.val);
+
+      let cumulative = 0;
+      exRows.forEach(({ idx, val: exDate }) => {
+        const row = yfDividendRows[idx];
+        let sumShares = 0;
+        yfDetail.forEach(d => {
+          if (yfParseDateInt(d.date) < exDate) sumShares += Number(d.shares) || 0;
+        });
+        const cashPerShare = Number(row.cashPerShare) || 0;
+        const divAmt = Math.round(cashPerShare * sumShares);
+        cumulative += divAmt;
+        row.heldShares = sumShares;
+        row.divAmount = divAmt;
+        row.cumulative = cumulative;
+      });
+
+      // 沒有有效除息日的列，歸零顯示
+      yfDividendRows.forEach(r => {
+        if (yfParseDateInt(r.exDate) === 99999999) {
+          r.heldShares = 0;
+          r.divAmount = 0;
+          r.cumulative = 0;
+        }
+      });
+
+      return cumulative;
+    }
+
+    /* ====== 媽的永豐：帳戶餘額累計 ====== */
+    function computeYfAccountBalance() {
+      let running = 0;
+      yfAccount.forEach(r => {
+        if (r.amount !== '' && r.amount !== null && r.amount !== undefined) {
+          running += Number(r.amount) || 0;
+          r.balance = running;
+        } else if (r.date) {
+          r.balance = running;
+        } else {
+          r.balance = 0;
+        }
+      });
+    }
+
+    /* ====== 媽的永豐：買賣明細列的除息區間底色 (視覺輔助，依 MUJI 色調) ====== */
+    function yfDetailRowColor(tradeDateStr, exDivDates) {
+      if (!tradeDateStr || String(tradeDateStr).trim() === '') return '';
+      const tradeDate = yfParseDateInt(tradeDateStr);
+      const palette = ['#f5eee0', '#eef0e6', '#e9e4da', '#ece2c4', '#eaeef0'];
+      let colorIndex = exDivDates.length;
+      for (let i = 0; i < exDivDates.length; i++) {
+        if (tradeDate < exDivDates[i]) { colorIndex = i; break; }
+      }
+      return palette[colorIndex % palette.length];
+    }
+
+    /* ====== 媽的永豐：買賣明細表 ====== */
+    function renderYfDetailTable() {
+      const thead = document.getElementById('yfDetailHead');
+      const tbody = document.getElementById('yfDetailBody');
+      if (!thead || !tbody) return;
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 90px;">日期</th>
+          <th style="width: 70px;">股數</th>
+          <th style="width: 80px;">成交價</th>
+          <th style="width: 90px;">投資成本</th>
+          <th style="width: 44px;">操作</th>
+        </tr>
+      `;
+
+      const exDivDates = yfDividendRows
+        .map(r => yfParseDateInt(r.exDate))
+        .filter(v => v !== 99999999)
+        .sort((a, b) => a - b);
+
+      let totalShares = 0, totalCost = 0;
+      tbody.innerHTML = yfDetail.map((r, idx) => {
+        totalShares += Number(r.shares) || 0;
+        totalCost += Number(r.cost) || 0;
+        const bg = yfDetailRowColor(r.date, exDivDates);
+        return `
+        <tr${bg ? ` style="background:${bg};"` : ''}>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.shares || 0}" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.price || 0}" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" value="${r.cost || 0}" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
+          <td><button class="btn-del" onclick="deleteYfDetailRow(${idx})">✕</button></td>
+        </tr>
+      `;
+      }).join('');
+
+      const footRow = document.getElementById('yfDetailFoot');
+      if (footRow) {
+        footRow.innerHTML = `<td class="font-bold">小計</td><td class="font-mono font-bold">${formatNum(totalShares, 0)}</td><td></td><td class="font-mono font-bold">${formatNum(totalCost, 0)}</td><td></td>`;
+      }
+    }
+
+    function updateYfDetail(idx, field, val) {
+      recordSnapshot();
+      if (!yfDetail[idx]) return;
+      if (field === 'date') {
+        yfDetail[idx].date = yfToROCString(val);
+        yfAutoSortByDate(yfDetail, 'date');
+      } else {
+        yfDetail[idx][field] = parseFloat(val) || 0;
+      }
+      computeYfDividendDistribution();
+      yfOverview.totalDividend = yfDividendRows.length ? yfDividendRows[yfDividendRows.length - 1].cumulative || 0 : 0;
       saveToStorage();
       renderTable();
     }
 
-    function deleteYfT1(idx) {
-      if (confirm('確定刪除此筆定期買進紀錄？')) {
+    function deleteYfDetailRow(idx) {
+      if (confirm('確定刪除此筆買賣明細？')) {
         recordSnapshot();
-        yfT1.splice(idx, 1);
+        yfDetail.splice(idx, 1);
+        computeYfDividendDistribution();
         saveToStorage();
         renderTable();
       }
     }
 
-    function renderYfTable2(thead, tbody, query) {
-      thead.innerHTML = `
-        <tr>
-          <th style="width: 100px;">日期</th>
-          <th style="width: 100px;">款項</th>
-          <th style="width: 180px;">明細</th>
-          <th style="width: 130px;">金額 ($)</th>
-          <th style="width: 130px;">餘額 ($)</th>
-          <th style="width: 130px;">股利+獲益</th>
-          <th style="width: 60px;">操作</th>
-        </tr>
-      `;
-      let rows = yfT2;
-      if (query) {
-        rows = rows.filter(r => String(r.detail).toLowerCase().includes(query) || String(r.date).toLowerCase().includes(query));
-      }
-      tbody.innerHTML = rows.map((r, idx) => `
-        <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfT2(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input" value="${r.type || ''}" onchange="updateYfT2(${idx}, 'type', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-bold" value="${r.detail || ''}" onchange="updateYfT2(${idx}, 'detail', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.amount || 0}" onchange="updateYfT2(${idx}, 'amount', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.balance || 0}" onchange="updateYfT2(${idx}, 'balance', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.div || ''}" onchange="updateYfT2(${idx}, 'div', this.value)" /></td>
-          <td><button class="btn-del" onclick="deleteYfT2(${idx})">✕</button></td>
-        </tr>
-      `).join('');
-      renderSummary();
-    }
-
-    function updateYfT2(idx, field, val) {
+    function addYfDetailRow() {
       recordSnapshot();
-      if (!yfT2[idx]) return;
-      yfT2[idx][field] = (field === 'amount' || field === 'balance') ? (parseFloat(val) || 0) : val;
+      yfDetail.push({ date: '', shares: 0, price: 0, cost: 0 });
       saveToStorage();
       renderTable();
     }
 
-    function deleteYfT2(idx) {
+    /* ====== 媽的永豐：永豐帳戶明細表 ====== */
+    function renderYfAccountTable() {
+      const thead = document.getElementById('yfAccountHead');
+      const tbody = document.getElementById('yfAccountBody');
+      if (!thead || !tbody) return;
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 90px;">日期</th>
+          <th style="width: 64px;">款項</th>
+          <th style="width: 130px;">明細</th>
+          <th style="width: 90px;">金額</th>
+          <th style="width: 90px;">餘額</th>
+          <th style="width: 90px;">備考</th>
+          <th style="width: 44px;">操作</th>
+        </tr>
+      `;
+
+      tbody.innerHTML = yfAccount.map((r, idx) => `
+        <tr>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfAccount(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col">
+            <select class="cell-input" onchange="updateYfAccount(${idx}, 'type', this.value)">
+              <option value="入帳" ${r.type === '入帳' ? 'selected' : ''}>入帳</option>
+              <option value="出帳" ${r.type === '出帳' ? 'selected' : ''}>出帳</option>
+            </select>
+          </td>
+          <td class="editable-col"><input type="text" class="cell-input" value="${r.detail || ''}" onchange="updateYfAccount(${idx}, 'detail', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.amount || 0}" onchange="updateYfAccount(${idx}, 'amount', this.value)" /></td>
+          <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.balance || 0, 0)}</td>
+          <td class="editable-col"><input type="text" class="cell-input" value="${r.note || ''}" title="${(r.note || '').replace(/"/g, '&quot;')}" onchange="updateYfAccount(${idx}, 'note', this.value)" /></td>
+          <td><button class="btn-del" onclick="deleteYfAccountRow(${idx})">✕</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateYfAccount(idx, field, val) {
+      recordSnapshot();
+      if (!yfAccount[idx]) return;
+      if (field === 'date') {
+        yfAccount[idx].date = yfToROCString(val);
+        yfAutoSortByDate(yfAccount, 'date');
+      } else if (field === 'amount') {
+        yfAccount[idx][field] = parseFloat(val) || 0;
+      } else {
+        yfAccount[idx][field] = val;
+      }
+      computeYfAccountBalance();
+      saveToStorage();
+      renderTable();
+    }
+
+    function deleteYfAccountRow(idx) {
       if (confirm('確定刪除此筆帳戶明細？')) {
         recordSnapshot();
-        yfT2.splice(idx, 1);
+        yfAccount.splice(idx, 1);
+        computeYfAccountBalance();
         saveToStorage();
         renderTable();
       }
     }
 
-    function renderYfTable3(thead, tbody) {
-      thead.innerHTML = `
-        <tr>
-          <th style="width: 220px; background:#fdf2f8; color:#db2777;">投資損益項目</th>
-          <th style="width: 250px; background:#fdf2f8; color:#db2777;">數值 / 內容</th>
-          <th style="width: 80px;">操作</th>
-        </tr>
-      `;
-      tbody.innerHTML = yfT3.map((r, idx) => `
-        <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-bold" value="${r.key || ''}" onchange="updateYfT3(${idx}, 'key', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-mono font-bold" value="${r.val || ''}" onchange="updateYfT3(${idx}, 'val', this.value)" /></td>
-          <td><button class="btn-del" onclick="deleteYfT3(${idx})">✕</button></td>
-        </tr>
-      `).join('');
-      renderSummary();
-    }
-
-    function updateYfT3(idx, field, val) {
+    function addYfAccountRow() {
       recordSnapshot();
-      if (!yfT3[idx]) return;
-      yfT3[idx][field] = val;
+      yfAccount.push({ date: '', type: '入帳', detail: '', amount: 0, balance: 0, note: '' });
       saveToStorage();
       renderTable();
     }
 
-    function deleteYfT3(idx) {
-      if (confirm('確定刪除此筆摘要？')) {
-        recordSnapshot();
-        yfT3.splice(idx, 1);
-        saveToStorage();
-        renderTable();
+    /* ====== 媽的永豐：除息資訊表 ====== */
+    function renderYfDividendTable() {
+      const thead = document.getElementById('yfDividendHead');
+      const tbody = document.getElementById('yfDividendBody');
+      if (!thead || !tbody) return;
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 90px;">除息日</th>
+          <th style="width: 80px;">現金股利</th>
+          <th style="width: 90px;">發放日</th>
+          <th style="width: 80px;">持有股數</th>
+          <th style="width: 70px;">股利</th>
+          <th style="width: 90px;">累計領取</th>
+          <th style="width: 44px;">操作</th>
+        </tr>
+      `;
+
+      tbody.innerHTML = yfDividendRows.map((r, idx) => `
+        <tr>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.exDate || ''}" onchange="updateYfDividend(${idx}, 'exDate', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.cashPerShare || 0}" onchange="updateYfDividend(${idx}, 'cashPerShare', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.payDate || ''}" onchange="updateYfDividend(${idx}, 'payDate', this.value)" /></td>
+          <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.heldShares || 0, 0)}</td>
+          <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.divAmount || 0, 0)}</td>
+          <td class="font-mono font-bold" style="text-align:right; padding-right:8px;">${formatNum(r.cumulative || 0, 0)}</td>
+          <td><button class="btn-del" onclick="deleteYfDividendRow(${idx})">✕</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateYfDividend(idx, field, val) {
+      recordSnapshot();
+      if (!yfDividendRows[idx]) return;
+      if (field === 'exDate' || field === 'payDate') {
+        yfDividendRows[idx][field] = yfToROCString(val);
+        if (field === 'exDate') yfAutoSortByDate(yfDividendRows, 'exDate');
+      } else {
+        yfDividendRows[idx][field] = parseFloat(val) || 0;
       }
-    }
-
-    function renderYfTable4(thead, tbody) {
-      thead.innerHTML = `
-        <tr>
-          <th style="width: 120px;">除息日</th>
-          <th style="width: 120px;">現金股利</th>
-          <th style="width: 120px;">發放日</th>
-          <th style="width: 120px;">持有股數</th>
-          <th style="width: 130px;">股利 ($)</th>
-          <th style="width: 150px;">累計領取股利 ($)</th>
-          <th style="width: 60px;">操作</th>
-        </tr>
-      `;
-      tbody.innerHTML = yfT4.map((r, idx) => `
-        <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfT4(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.cash || 0}" onchange="updateYfT4(${idx}, 'cash', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.payDate || ''}" onchange="updateYfT4(${idx}, 'payDate', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.shares || 0}" onchange="updateYfT4(${idx}, 'shares', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" value="${r.div || 0}" onchange="updateYfT4(${idx}, 'div', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" style="color:#d97706;" value="${r.totalDiv || 0}" onchange="updateYfT4(${idx}, 'totalDiv', this.value)" /></td>
-          <td><button class="btn-del" onclick="deleteYfT4(${idx})">✕</button></td>
-        </tr>
-      `).join('');
-      renderSummary();
-    }
-
-    function updateYfT4(idx, field, val) {
-      recordSnapshot();
-      if (!yfT4[idx]) return;
-      yfT4[idx][field] = (field === 'cash' || field === 'shares' || field === 'div' || field === 'totalDiv') ? (parseFloat(val) || 0) : val;
+      computeYfDividendDistribution();
       saveToStorage();
       renderTable();
     }
 
-    function deleteYfT4(idx) {
+    function deleteYfDividendRow(idx) {
       if (confirm('確定刪除此筆除息記錄？')) {
         recordSnapshot();
-        yfT4.splice(idx, 1);
+        yfDividendRows.splice(idx, 1);
+        computeYfDividendDistribution();
         saveToStorage();
         renderTable();
       }
     }
 
+    function addYfDividendRow() {
+      recordSnapshot();
+      yfDividendRows.push({ exDate: '', cashPerShare: 0, payDate: '', heldShares: 0, divAmount: 0, cumulative: 0 });
+      saveToStorage();
+      renderTable();
+    }
+
+    /* ====== 媽的永豐：股票投資概況總覽卡片 (成本/股數/總股利自動加總，現值/目標本金手動輸入) ====== */
     function renderYfOverview() {
       const panel = document.getElementById('yfOverviewPanel');
       if (!panel) return;
@@ -1329,49 +1454,47 @@
       panel.style.display = 'block';
 
       const nameEl = document.getElementById('yfOvName');
-      const costEl = document.getElementById('yfOvCost');
-      const priceEl = document.getElementById('yfOvPrice');
-      const sharesEl = document.getElementById('yfOvShares');
-      const totalDivEl = document.getElementById('yfOvTotalDiv');
+      const currentEl = document.getElementById('yfOvCurrent');
       const goalEl = document.getElementById('yfOvGoal');
       if (nameEl && document.activeElement !== nameEl) nameEl.value = yfOverview.stockName || '';
-      if (costEl && document.activeElement !== costEl) costEl.value = yfOverview.cost || 0;
-      if (priceEl && document.activeElement !== priceEl) priceEl.value = yfOverview.price || 0;
-      if (sharesEl && document.activeElement !== sharesEl) sharesEl.value = yfOverview.shares || 0;
-      if (totalDivEl && document.activeElement !== totalDivEl) totalDivEl.value = yfOverview.totalDiv || 0;
+      if (currentEl && document.activeElement !== currentEl) currentEl.value = yfOverview.currentValue || 0;
       if (goalEl && document.activeElement !== goalEl) goalEl.value = yfOverview.goal || 0;
 
-      const cost = Number(yfOverview.cost) || 0;
-      const price = Number(yfOverview.price) || 0;
-      const shares = Number(yfOverview.shares) || 0;
-      const totalDiv = Number(yfOverview.totalDiv) || 0;
+      const totalShares = yfDetail.reduce((s, r) => s + (Number(r.shares) || 0), 0);
+      const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+      const currentVal = Number(yfOverview.currentValue) || 0;
       const goal = Number(yfOverview.goal) || 0;
+      const dividend = computeYfDividendDistribution();
+      yfOverview.totalDividend = dividend;
 
-      const profit = price - cost;
-      const roi = cost !== 0 ? (profit / cost) * 100 : 0;
-      const avgPrice = shares !== 0 ? cost / shares : 0;
+      const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
+      const unrealizedPL = currentVal - totalCost;
+      const roi = totalCost > 0 ? (unrealizedPL / totalCost) * 100 : 0;
 
-      const costWithDiv = cost - totalDiv;
-      const profitWithDiv = price - costWithDiv;
-      const avgPriceWithDiv = shares !== 0 ? costWithDiv / shares : 0;
-      const roiWithDiv = costWithDiv !== 0 ? (profitWithDiv / costWithDiv) * 100 : 0;
+      const costWithDiv = totalCost - dividend;
+      const plWithDiv = currentVal - costWithDiv;
+      const avgPriceWithDiv = totalShares > 0 ? costWithDiv / totalShares : 0;
+      const roiWithDiv = costWithDiv > 0 ? (plWithDiv / costWithDiv) * 100 : 0;
+      const debt = goal - totalCost;
 
-      const remain = goal - cost;
+      document.getElementById('yfOvCost').textContent = '$' + formatNum(totalCost, 0);
+      document.getElementById('yfOvShares').textContent = formatNum(totalShares, 0);
+      document.getElementById('yfOvAvgPrice').textContent = formatNum(avgPrice, 2);
 
       const elProfit = document.getElementById('yfOvProfit');
-      elProfit.textContent = '$' + formatNum(profit, 0);
-      elProfit.style.color = profit >= 0 ? 'var(--up-red)' : 'var(--down-green)';
+      elProfit.textContent = '$' + formatNum(unrealizedPL, 0);
+      elProfit.style.color = unrealizedPL >= 0 ? 'var(--up-red)' : 'var(--down-green)';
       document.getElementById('yfOvROI').textContent = roi.toFixed(2) + '%';
-      document.getElementById('yfOvAvgPrice').textContent = '$' + formatNum(avgPrice, 2);
 
+      document.getElementById('yfOvTotalDiv').textContent = '$' + formatNum(dividend, 0);
       document.getElementById('yfOvCostWithDiv').textContent = '$' + formatNum(costWithDiv, 0);
       const elProfitDiv = document.getElementById('yfOvProfitWithDiv');
-      elProfitDiv.textContent = '$' + formatNum(profitWithDiv, 0);
-      elProfitDiv.style.color = profitWithDiv >= 0 ? 'var(--up-red)' : 'var(--down-green)';
-      document.getElementById('yfOvAvgPriceWithDiv').textContent = '$' + formatNum(avgPriceWithDiv, 2);
+      elProfitDiv.textContent = '$' + formatNum(plWithDiv, 0);
+      elProfitDiv.style.color = plWithDiv >= 0 ? 'var(--up-red)' : 'var(--down-green)';
+      document.getElementById('yfOvAvgPriceWithDiv').textContent = formatNum(avgPriceWithDiv, 2);
       document.getElementById('yfOvROIWithDiv').textContent = roiWithDiv.toFixed(2) + '%';
 
-      document.getElementById('yfOvRemain').textContent = '$' + formatNum(remain, 0);
+      document.getElementById('yfOvRemain').textContent = '$' + formatNum(debt, 0);
     }
 
     function updateYfOverview(field, val) {
@@ -1379,6 +1502,16 @@
       yfOverview[field] = (field === 'stockName') ? val : (parseFloat(val) || 0);
       saveToStorage();
       renderYfOverview();
+    }
+
+    /* ====== 媽的永豐：三表 + 總覽 一次全部渲染 (無分頁切換，並排顯示) ====== */
+    function renderYfTablesAll() {
+      computeYfAccountBalance();
+      computeYfDividendDistribution();
+      renderYfOverview();
+      renderYfDetailTable();
+      renderYfAccountTable();
+      renderYfDividendTable();
     }
 
     /* ====== 調整 renderSummary 以支援 4 個卡片與 YONG_FENG_TAB ====== */
@@ -1481,9 +1614,9 @@
         if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
         if (subCardValContainer) subCardValContainer.style.display = 'none';
 
-        const totalYfCost = yfT1.reduce((s, r) => s + (Number(r.cost) || 0), 0);
-        const totalYfBal = yfT2.length > 0 ? Number(yfT2[yfT2.length - 1].balance) || 0 : 0;
-        const totalYfDiv = yfT4.length > 0 ? Number(yfT4[yfT4.length - 1].totalDiv) || 0 : 0;
+        const totalYfCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+        const totalYfBal = yfAccount.length > 0 ? Number(yfAccount[yfAccount.length - 1].balance) || 0 : 0;
+        const totalYfDiv = yfDividendRows.length > 0 ? Number(yfDividendRows[yfDividendRows.length - 1].cumulative) || 0 : 0;
 
         const elTitle = document.getElementById('filterTabCostTitle');
         const elCost = document.getElementById('filterCost');
@@ -1498,7 +1631,7 @@
 
         if (elTitle) elTitle.textContent = `📌 [媽的永豐] 定期投資總成本`;
         if (elCost) elCost.textContent = '$' + formatNum(totalYfCost, 0);
-        if (elCostDesc) elCostDesc.textContent = `共 ${yfT1.length} 筆扣款紀錄`;
+        if (elCostDesc) elCostDesc.textContent = `共 ${yfDetail.length} 筆買賣紀錄`;
         if (elTitleProf) elTitleProf.textContent = `帳戶最新餘額`;
         if (elProf) {
           elProf.textContent = '$' + formatNum(totalYfBal, 0);
@@ -1927,30 +2060,6 @@
         }
         return;
       }
-      if (currentFilter === 'YONG_FENG_TAB') {
-        if (yfSubTab === 't1') {
-          recordSnapshot();
-          yfT1.push({ date: '', name: '', shares: 0, price: 0, cost: 0, note: '' });
-          saveToStorage();
-          renderTable();
-        } else if (yfSubTab === 't2') {
-          recordSnapshot();
-          yfT2.push({ date: '', type: '入帳', detail: '', amount: 0, balance: 0, div: '' });
-          saveToStorage();
-          renderTable();
-        } else if (yfSubTab === 't3') {
-          recordSnapshot();
-          yfT3.push({ key: '', val: '' });
-          saveToStorage();
-          renderTable();
-        } else if (yfSubTab === 't4') {
-          recordSnapshot();
-          yfT4.push({ date: '', cash: 0, payDate: '', shares: 0, div: 0, totalDiv: 0 });
-          saveToStorage();
-          renderTable();
-        }
-        return;
-      }
       document.getElementById('addModalTitle').textContent = '➕ 新增股票標的';
       document.getElementById('newStockName').value = '';
       document.getElementById('newStockCode').value = '';
@@ -2232,10 +2341,9 @@
         stockSales: stockSales,
         salesHistory: salesHistory,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
-        yfT1: yfT1,
-        yfT2: yfT2,
-        yfT3: yfT3,
-        yfT4: yfT4,
+        yfDetail: yfDetail,
+        yfAccount: yfAccount,
+        yfDividendRows: yfDividendRows,
         yfOverview: yfOverview,
         version: "V56",
         exportDate: new Date().toISOString()
@@ -2262,10 +2370,9 @@
             if (imported.customAccounts) customAccounts = imported.customAccounts;
             if (imported.stockSales) stockSales = imported.stockSales;
             if (imported.salesHistory) salesHistory = imported.salesHistory;
-            if (imported.yfT1) yfT1 = imported.yfT1;
-            if (imported.yfT2) yfT2 = imported.yfT2;
-            if (imported.yfT3) yfT3 = imported.yfT3;
-            if (imported.yfT4) yfT4 = imported.yfT4;
+            if (imported.yfDetail) yfDetail = imported.yfDetail;
+            if (imported.yfAccount) yfAccount = imported.yfAccount;
+            if (imported.yfDividendRows) yfDividendRows = imported.yfDividendRows;
             if (imported.yfOverview) yfOverview = imported.yfOverview;
             if (imported.snapshots) localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(imported.snapshots));
           }
