@@ -140,7 +140,6 @@
     <!-- 功能按鈕列 (內含設定下拉選單) -->
     <div class="toolbar-bar">
       <button class="btn btn-snapshot" onclick="takeAssetSnapshot()">📸 一鍵紀錄</button>
-      <button class="btn btn-fetch" id="btnFetchPrices" onclick="fetchAllStockPrices()">🔄 更新即時股價</button>
       <button class="btn btn-primary" id="btnAddNewStock" onclick="openAddStockModal()">➕ 新增股票</button>
       <button class="btn btn-danger" id="btnDelLastRow" style="display:none;" onclick="handleDeleteLastPastRow()">➖ 刪除最後空白列</button>
       <button class="btn" id="btnAddYear" style="display:none; color:#5c5445; border-color:#ddd5c4; background:#fdfbf7;" onclick="handleAddYear()">📅 新增新年度</button>
@@ -297,8 +296,6 @@
       <span>💡 <strong>操作指南：</strong></span>
       <span>• 點擊上方 <strong>「⚙️ 設定」</strong> 可進行新增證券、匯出與匯入備份；在表格內可直接輸入新資料、使用 <strong>方向鍵/Enter鍵</strong> 移動、選取複製多格、或使用 <strong>Ctrl + Z</strong> 復原！美股帳戶與股利預設以美金計算，總計時以匯率 29 折算台幣。</span>
     </div>
-  </div>
-
   <!-- 懸浮小型計算機 (具備焦點偵測，不干擾表格輸入) -->
   <div id="floatingCalculator" tabindex="0">
     <div class="calc-header" id="calcDragHandle">
@@ -422,6 +419,7 @@
         <button class="btn btn-primary" id="btnSaveDivModal" onclick="saveDividendModal()">儲存並更新</button>
       </div>
     </div>
+  </div>
   </div>
 
   <script src="scripts/shared.js"></script>
