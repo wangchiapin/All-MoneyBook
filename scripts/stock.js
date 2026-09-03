@@ -797,6 +797,8 @@
           </tr>
         `;
 
+        yfAutoSortByDate(stockSales, 'date');
+
         let sales = stockSales;
         if (query) {
           sales = sales.filter(r => (r.name && r.name.toLowerCase().includes(query)) || (r.date && r.date.toLowerCase().includes(query)) || (r.status && r.status.toLowerCase().includes(query)));
@@ -807,6 +809,23 @@
           let d = r.date || '';
           dateCount[d] = (dateCount[d] || 0) + 1;
         });
+
+        const monthPalette = ['#f5eee0', '#eef0e6', '#e9e4da', '#ece2c4', '#eaeef0', '#f4ecd4'];
+        let monthGroupIdx = -1;
+        let lastMonthKey = null;
+        function salesMonthColor(dateStr) {
+          const digits = String(dateStr || '').replace(/[^0-9]/g, '');
+          let monthKey = null;
+          if (digits.length === 7) monthKey = digits.slice(0, 5);
+          else if (digits.length === 6) monthKey = digits.slice(0, 4);
+          else if (digits.length === 5) monthKey = digits.slice(0, 3);
+          if (!monthKey) return '';
+          if (monthKey !== lastMonthKey) {
+            lastMonthKey = monthKey;
+            monthGroupIdx++;
+          }
+          return monthPalette[monthGroupIdx % monthPalette.length];
+        }
 
         let renderedDates = {};
 
@@ -830,26 +849,28 @@
             dayTotalHtml = `<td class="font-mono" style="background:#f8fafc; font-weight:700;">-</td>`;
           }
 
+          const rowBg = salesMonthColor(r.date);
+
           return `
-            <tr>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${r.date || ''}" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>
-              <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${r.name || ''}" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${r.shares !== undefined ? r.shares : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="3" value="${r.buyPrice !== undefined ? r.buyPrice : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 3)" onchange="updateSaleRow(${rIdx}, 'buyPrice', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${r.sellPrice !== undefined ? r.sellPrice : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>
+            <tr${rowBg ? ` style="background:${rowBg};"` : ''}>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${r.name || ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${r.shares !== undefined && r.shares !== '' ? r.shares : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="3" value="${r.buyPrice !== undefined && r.buyPrice !== '' ? r.buyPrice : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 3)" onchange="updateSaleRow(${rIdx}, 'buyPrice', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${r.sellPrice !== undefined && r.sellPrice !== '' ? r.sellPrice : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>
               
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="5" value="${r.cost !== undefined ? r.cost : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 5)" onchange="updateSaleRow(${rIdx}, 'cost', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="6" value="${r.sellAmt !== undefined ? r.sellAmt : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 6)" onchange="updateSaleRow(${rIdx}, 'sellAmt', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="5" value="${r.cost !== undefined && r.cost !== '' ? r.cost : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 5)" onchange="updateSaleRow(${rIdx}, 'cost', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="6" value="${r.sellAmt !== undefined && r.sellAmt !== '' ? r.sellAmt : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 6)" onchange="updateSaleRow(${rIdx}, 'sellAmt', this.value)" /></td>
 
               <td class="font-mono" style="font-weight:700; color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${isPos ? '+' : ''}$${formatNum(r.spread, 0)}</td>
               <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${retRateStr}</td>
 
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="9" value="${r.buyFee !== undefined ? r.buyFee : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 9)" onchange="updateSaleRow(${rIdx}, 'buyFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${r.sellFee !== undefined ? r.sellFee : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${r.tax !== undefined ? r.tax : ''}" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="9" value="${r.buyFee !== undefined && r.buyFee !== '' ? r.buyFee : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 9)" onchange="updateSaleRow(${rIdx}, 'buyFee', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${r.sellFee !== undefined && r.sellFee !== '' ? r.sellFee : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${r.tax !== undefined && r.tax !== '' ? r.tax : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>
               
               <td class="editable-col">
-                <select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-col="12" onchange="updateSaleRow(${rIdx}, 'status', this.value)" onkeydown="handleSaleKey(event, ${rIdx}, 12)">
+                <select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-sale-idx="${rIdx}" data-col="12" onchange="updateSaleRow(${rIdx}, 'status', this.value)" onkeydown="handleSaleKey(event, ${rIdx}, 12)">
                   <option value="" ${!r.status ? 'selected' : ''}>-</option>
                   <option value="獲益" ${r.status === '獲益' ? 'selected' : ''}>獲益</option>
                   <option value="認賠" ${r.status === '認賠' ? 'selected' : ''}>認賠</option>
@@ -2041,41 +2062,49 @@
       `;
 
       let yearMap = new Map();
+
+      // 1. 先放入既有紀錄：114年(含)以前一律視為手動固定；115年(含)以後只有使用者明確編輯過 (isManual===true) 才鎖定
       salesHistory.forEach(h => {
-        yearMap.set(String(h.year), {
-          year: String(h.year),
+        const yr = String(h.year);
+        const forceManual = parseInt(yr) <= 114;
+        const manual = forceManual || h.isManual === true;
+        yearMap.set(yr, {
+          year: yr,
           totalCost: Number(h.totalCost) || 0,
           totalSell: Number(h.totalSell) || 0,
           spread: Number(h.spread) || 0,
           returnRate: Number(h.returnRate) || 0,
-          isManual: true
+          isManual: manual
         });
       });
 
+      // 2. 115年(含)以後，尚未被手動鎖定的年份，一律從「股票賣出明細」自動加總 (每次重新計算)
+      let autoTotals = new Map();
       stockSales.forEach(r => {
         let dStr = String(r.date || '').trim();
-        if (dStr.length >= 5) {
-          let yrPart = dStr.length === 7 ? dStr.slice(0, 3) : (dStr.length === 6 ? dStr.slice(0, 2) : dStr.slice(0, 2));
-          if (!yearMap.has(yrPart)) {
-            yearMap.set(yrPart, {
-              year: yrPart,
-              totalCost: 0,
-              totalSell: 0,
-              spread: 0,
-              returnRate: 0,
-              isManual: false
-            });
-          }
-          let yObj = yearMap.get(yrPart);
-          if (!yObj.isManual) {
-            yObj.totalCost += Number(r.cost) || 0;
-            yObj.totalSell += Number(r.sellAmt) || 0;
-            yObj.spread += Number(r.spread) || 0;
-            if (yObj.totalCost > 0) {
-              yObj.returnRate = yObj.spread / yObj.totalCost;
-            }
-          }
+        if (dStr.length < 5) return;
+        let yrPart = dStr.length === 7 ? dStr.slice(0, 3) : (dStr.length === 6 ? dStr.slice(0, 2) : dStr.slice(0, 2));
+        if (parseInt(yrPart) < 115) return;
+        if (!autoTotals.has(yrPart)) {
+          autoTotals.set(yrPart, { totalCost: 0, totalSell: 0, spread: 0 });
         }
+        const t = autoTotals.get(yrPart);
+        t.totalCost += Number(r.cost) || 0;
+        t.totalSell += Number(r.sellAmt) || 0;
+        t.spread += Number(r.spread) || 0;
+      });
+
+      autoTotals.forEach((t, yr) => {
+        const existing = yearMap.get(yr);
+        if (existing && existing.isManual) return;
+        yearMap.set(yr, {
+          year: yr,
+          totalCost: t.totalCost,
+          totalSell: t.totalSell,
+          spread: t.spread,
+          returnRate: t.totalCost > 0 ? t.spread / t.totalCost : 0,
+          isManual: false
+        });
       });
 
       salesHistory = Array.from(yearMap.values()).sort((a, b) => parseInt(b.year) - parseInt(a.year));
@@ -2085,9 +2114,9 @@
         const retStr = h.returnRate !== undefined && !isNaN(h.returnRate) ? (h.returnRate * 100).toFixed(2) + '%' : '0.00%';
         return `
           <tr>
-            <td class="editable-col"><input type="text" class="cell-input font-bold" value="${h.year || ''}" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalCost !== undefined ? h.totalCost : ''}" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalSell !== undefined ? h.totalSell : ''}" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
+            <td class="editable-col"><input type="text" class="cell-input font-bold" value="${h.year || ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalCost !== undefined ? h.totalCost : ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalSell !== undefined ? h.totalSell : ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
             <td class="font-mono" style="font-weight:700; color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${isPos ? '+' : ''}$${formatNum(h.spread, 0)}</td>
             <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${retStr}</td>
             <td>
@@ -2152,26 +2181,51 @@
       if (field === 'date' || field === 'name' || field === 'status') {
         r[field] = value;
       } else {
-        r[field] = parseFloat(value) || 0;
+        r[field] = value === '' ? '' : (parseFloat(value) || 0);
       }
 
-      if (r.cost > 0 && r.sellAmt > 0) {
-        r.spread = r.sellAmt - r.cost;
-        r.returnRate = r.spread / r.cost;
+      // 成本 = 股數*買進價格+買進手續費；賣出 = 股數*賣出價格+賣出手續費+交易稅 (自動計算，直接改成本/賣出金額則尊重手動輸入)
+      if (field === 'shares' || field === 'buyPrice' || field === 'buyFee') {
+        const shares = Number(r.shares) || 0;
+        const buyPrice = Number(r.buyPrice) || 0;
+        const buyFee = Number(r.buyFee) || 0;
+        r.cost = shares * buyPrice + buyFee;
+      }
+      if (field === 'shares' || field === 'sellPrice' || field === 'sellFee' || field === 'tax') {
+        const shares = Number(r.shares) || 0;
+        const sellPrice = Number(r.sellPrice) || 0;
+        const sellFee = Number(r.sellFee) || 0;
+        const tax = Number(r.tax) || 0;
+        r.sellAmt = shares * sellPrice - sellFee - tax;
       }
 
-      if (r.date) {
-        const sameDayRows = stockSales.filter(item => item.date === r.date);
-        if (sameDayRows.length > 1) {
-          const daySum = sameDayRows.reduce((sum, it) => sum + (Number(it.spread) || 0), 0);
-          sameDayRows.forEach(it => it.dayTotal = daySum);
-        } else {
-          r.dayTotal = r.spread;
-        }
+      if (Number(r.cost) > 0 && Number(r.sellAmt) > 0) {
+        r.spread = Number(r.sellAmt) - Number(r.cost);
+        r.returnRate = r.spread / Number(r.cost);
       }
+
+      if (field === 'date') {
+        yfAutoSortByDate(stockSales, 'date');
+      }
+
+      recalcSalesDayTotals();
 
       saveToStorage();
       renderTable();
+    }
+
+    /* ====== 依日期重新計算「當日共計」(所有相同日期的列一起加總) ====== */
+    function recalcSalesDayTotals() {
+      const groups = {};
+      stockSales.forEach(r => {
+        if (!r.date) return;
+        if (!groups[r.date]) groups[r.date] = [];
+        groups[r.date].push(r);
+      });
+      Object.values(groups).forEach(group => {
+        const daySum = group.reduce((s, it) => s + (Number(it.spread) || 0), 0);
+        group.forEach(it => it.dayTotal = daySum);
+      });
     }
 
     function handleSaleKey(e, rowIndex, colIndex) {
@@ -2221,16 +2275,16 @@
       stockSales.push({
         date: '',
         name: '',
-        shares: 0,
-        buyPrice: 0,
-        sellPrice: 0,
-        cost: 0,
-        sellAmt: 0,
+        shares: '',
+        buyPrice: '',
+        sellPrice: '',
+        cost: '',
+        sellAmt: '',
         spread: 0,
         returnRate: 0,
-        buyFee: 0,
-        sellFee: 0,
-        tax: 0,
+        buyFee: '',
+        sellFee: '',
+        tax: '',
         status: '',
         dayTotal: null,
         note: '',

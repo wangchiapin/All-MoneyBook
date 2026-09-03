@@ -245,23 +245,24 @@
     }#stockView .sales-sub-toggle {
       display: flex;
       gap: 6px;
-      background: #ece6d9;
-      padding: 3px;
+      background: #ddc4b3;
+      padding: 4px;
       border-radius: 6px;
       width: fit-content;
+      border: 1px solid #c9ac8f;
     }#stockView .sales-sub-btn {
-      padding: 5px 12px;
+      padding: 6px 14px;
       font-size: 0.82rem;
-      font-weight: 600;
+      font-weight: 700;
       border: none;
       background: transparent;
       border-radius: 4px;
       cursor: pointer;
-      color: var(--text-muted);
-    }#stockView .sales-sub-btn.active {
-      background: #fff;
-      color: var(--yf-pink);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      color: #6e5439;
+    }#stockView .sales-sub-btn:hover { background: rgba(255,255,255,0.35); }#stockView .sales-sub-btn.active {
+      background: #9c7c52;
+      color: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }#stockView .snapshot-date-bar {
       display: flex;
       gap: 8px;
