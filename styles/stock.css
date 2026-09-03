@@ -294,7 +294,7 @@
       outline: none;
       user-select: text;
       transition: background 0.1s, border-color 0.1s;
-    }#stockView .cell-input:hover { border-color: #b3a998; background: #fff; }#stockView .cell-input:focus { background: #fff; border-color: var(--primary) !important; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }#stockView .editable-col { background-color: #ffffff; }#stockView .stock-cell-box { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 115px; }#stockView .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 999; visibility: hidden; opacity: 0; transition: 0.2s; }#stockView .modal-overlay.open { visibility: visible; opacity: 1; }#stockView .modal-card { background: #fff; width: 650px; max-width: 96%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }#stockView .modal-header { padding: 14px 18px; background: #fdfbf7; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }#stockView .modal-body { padding: 18px; max-height: 65vh; overflow-y: auto; }#stockView .modal-footer { padding: 12px 18px; background: #fdfbf7; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }#stockView .dividend-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }#stockView .dividend-table th,
+    }#stockView .cell-input:hover { border-color: #b3a998; background: #fff; }#stockView .cell-input:focus { background: #fff; border-color: var(--primary) !important; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }#stockView .editable-col { background-color: #ffffff; }#stockView .stock-cell-wrap { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 115px; }#stockView .stock-cell-box { display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%; }#stockView .stock-cell-date { font-size: 0.68rem; color: #b3a998; line-height: 1; }#stockView .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 999; visibility: hidden; opacity: 0; transition: 0.2s; }#stockView .modal-overlay.open { visibility: visible; opacity: 1; }#stockView .modal-card { background: #fff; width: 650px; max-width: 96%; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }#stockView .modal-header { padding: 14px 18px; background: #fdfbf7; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }#stockView .modal-body { padding: 18px; max-height: 65vh; overflow-y: auto; }#stockView .modal-footer { padding: 12px 18px; background: #fdfbf7; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }#stockView .dividend-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }#stockView .dividend-table th,
 #stockView .dividend-table td { padding: 6px 4px; border: 1px solid var(--border); text-align: center; vertical-align: middle; }#stockView .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; text-align: left; }#stockView .form-group { display: flex; flex-direction: column; gap: 4px; }#stockView .form-group.full { grid-column: span 2; }#stockView .form-label { font-size: 0.80rem; font-weight: 700; color: #766c5a; }#stockView .form-control {
       padding: 8px 10px;
       font-size: 0.85rem;
@@ -326,9 +326,9 @@
   padding: 10px;
   min-width: 0;
 }
-#stockView #yfDetailCard { width: 28%; }
-#stockView #yfAccountCard { width: 39%; }
-#stockView #yfDividendCard { width: 31%; }
+#stockView #yfDetailCard { width: 26%; }
+#stockView #yfAccountCard { width: 42%; }
+#stockView #yfDividendCard { width: 32%; }
 #stockView .yf-table-card-header {
   display: flex;
   align-items: center;
@@ -357,41 +357,50 @@
 }
 #stockView .yf-mini-table {
   width: 100%;
-  table-layout: auto;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
 }
 #stockView .yf-mini-table th {
   position: sticky;
   top: 0;
   background: #ece6d9;
   color: var(--text);
-  padding: 5px 3px;
+  padding: 5px 2px;
   border-bottom: 1px solid var(--border);
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   z-index: 1;
 }
 #stockView .yf-mini-table td {
-  padding: 3px 3px;
+  padding: 2px 2px;
   border-bottom: 1px solid var(--border);
   text-align: center;
   vertical-align: middle;
+  overflow: hidden;
 }
 #stockView .yf-mini-table tfoot td {
   background: #ece6d9;
   font-weight: 700;
-  padding: 5px 3px;
+  padding: 5px 2px;
 }
 #stockView .yf-mini-table .cell-input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  font-size: 0.76rem;
-  padding: 2px 3px;
+  font-size: 0.7rem;
+  padding: 2px 1px;
+  text-align: center;
 }
 #stockView .yf-mini-table select.cell-input {
   cursor: pointer;
+}
+#stockView .yf-mini-table .cell-selected {
+  outline: 2px solid #9c7c52 !important;
+  outline-offset: -2px;
+  background: #f4ecd4 !important;
 }
 
 /* ====== MUJI 風格統一：字型 / 圓角 / 陰影 一致化 (最終覆蓋) ====== */

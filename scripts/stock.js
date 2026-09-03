@@ -602,7 +602,7 @@
         const key = normalizeYearKey(col.year);
         const pastAmt = col.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
         yearMap.set(key, {
-          displayYear: col.year.includes('-') ? col.year : `${key} (西元${parseInt(key)+1911})`,
+          displayYear: col.year.includes('-') ? col.year : `${key}(${parseInt(key)+1911})`,
           rawKey: key,
           pastAmount: pastAmt,
           currentAmount: 0,
@@ -623,7 +623,7 @@
 
           if (!yearMap.has(key)) {
             const num = parseInt(key);
-            const disp = !isNaN(num) ? `${key} (西元${num+1911})` : key;
+            const disp = !isNaN(num) ? `${key}(${num+1911})` : key;
             yearMap.set(key, {
               displayYear: disp,
               rawKey: key,
@@ -1269,11 +1269,11 @@
 
       thead.innerHTML = `
         <tr>
-          <th>日期</th>
-          <th>股數</th>
-          <th>成交價</th>
-          <th>投資成本</th>
-          <th>操作</th>
+          <th style="width:24%;">日期</th>
+          <th style="width:18%;">股數</th>
+          <th style="width:20%;">成交價</th>
+          <th style="width:26%;">投資成本</th>
+          <th style="width:12%;">操作</th>
         </tr>
       `;
 
@@ -1289,10 +1289,10 @@
         const bg = yfDetailRowColor(r.date, exDivDates);
         return `
         <tr${bg ? ` style="background:${bg};"` : ''}>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.shares || 0}" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.price || 0}" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" value="${r.cost || 0}" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 0)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'date', this.value), 0)" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="1" value="${r.shares || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 1)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'shares', this.value), 0)" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="2" value="${r.price || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 2)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'price', this.value), 0)" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" data-yf-table="detail" data-row="${idx}" data-col="3" value="${r.cost || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 3)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'cost', this.value), 0)" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
           <td><button class="btn-del" onclick="deleteYfDetailRow(${idx})">✕</button></td>
         </tr>
       `;
@@ -1344,29 +1344,29 @@
 
       thead.innerHTML = `
         <tr>
-          <th>日期</th>
-          <th>款項</th>
-          <th>明細</th>
-          <th>金額</th>
-          <th>餘額</th>
-          <th>備考</th>
-          <th>操作</th>
+          <th style="width:15%;">日期</th>
+          <th style="width:11%;">款項</th>
+          <th style="width:22%;">明細</th>
+          <th style="width:14%;">金額</th>
+          <th style="width:14%;">餘額</th>
+          <th style="width:16%;">備考</th>
+          <th style="width:8%;">操作</th>
         </tr>
       `;
 
       tbody.innerHTML = yfAccount.map((r, idx) => `
         <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.date || ''}" onchange="updateYfAccount(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 0)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'date', this.value), 0)" onchange="updateYfAccount(${idx}, 'date', this.value)" /></td>
           <td class="editable-col">
-            <select class="cell-input" onchange="updateYfAccount(${idx}, 'type', this.value)">
+            <select class="cell-input" data-yf-table="account" data-row="${idx}" data-col="1" onkeydown="handleYfTableKey(event, 'account', ${idx}, 1)" onchange="updateYfAccount(${idx}, 'type', this.value)">
               <option value="入帳" ${r.type === '入帳' ? 'selected' : ''}>入帳</option>
               <option value="出帳" ${r.type === '出帳' ? 'selected' : ''}>出帳</option>
             </select>
           </td>
-          <td class="editable-col"><input type="text" class="cell-input" value="${r.detail || ''}" onchange="updateYfAccount(${idx}, 'detail', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.amount || 0}" onchange="updateYfAccount(${idx}, 'amount', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="2" value="${r.detail || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 2)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'detail', this.value), 0)" onchange="updateYfAccount(${idx}, 'detail', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="3" value="${r.amount || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 3)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'amount', this.value), 0)" onchange="updateYfAccount(${idx}, 'amount', this.value)" /></td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.balance || 0, 0)}</td>
-          <td class="editable-col"><input type="text" class="cell-input" value="${r.note || ''}" title="${(r.note || '').replace(/"/g, '&quot;')}" onchange="updateYfAccount(${idx}, 'note', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="4" value="${r.note || ''}" title="${(r.note || '').replace(/"/g, '&quot;')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 4)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'note', this.value), 0)" onchange="updateYfAccount(${idx}, 'note', this.value)" /></td>
           <td><button class="btn-del" onclick="deleteYfAccountRow(${idx})">✕</button></td>
         </tr>
       `).join('');
@@ -1413,21 +1413,21 @@
 
       thead.innerHTML = `
         <tr>
-          <th>除息日</th>
-          <th>現金股利</th>
-          <th>發放日</th>
-          <th>持有股數</th>
-          <th>股利</th>
-          <th>累計領取</th>
-          <th>操作</th>
+          <th style="width:16%;">除息日</th>
+          <th style="width:13%;">現金股利</th>
+          <th style="width:16%;">發放日</th>
+          <th style="width:14%;">持有股數</th>
+          <th style="width:12%;">股利</th>
+          <th style="width:16%;">累計領取</th>
+          <th style="width:13%;">操作</th>
         </tr>
       `;
 
       tbody.innerHTML = yfDividendRows.map((r, idx) => `
         <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.exDate || ''}" onchange="updateYfDividend(${idx}, 'exDate', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${r.cashPerShare || 0}" onchange="updateYfDividend(${idx}, 'cashPerShare', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" value="${r.payDate || ''}" onchange="updateYfDividend(${idx}, 'payDate', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="0" value="${r.exDate || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 0)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'exDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'exDate', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="1" value="${r.cashPerShare || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 1)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'cashPerShare', this.value), 0)" onchange="updateYfDividend(${idx}, 'cashPerShare', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="2" value="${r.payDate || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 2)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'payDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'payDate', this.value)" /></td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.heldShares || 0, 0)}</td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.divAmount || 0, 0)}</td>
           <td class="font-mono font-bold" style="text-align:right; padding-right:8px;">${formatNum(r.cumulative || 0, 0)}</td>
@@ -1529,7 +1529,7 @@
       thead.innerHTML = `
         <tr>
           <th style="width: 170px;">發放年度</th>
-          <th style="width: 170px; color:#5c5445;">非持有已實現 ($)</th>
+          <th style="width: 170px; color:#5c5445;">非持股股利總和 ($)</th>
           <th style="width: 170px; color:#766c5a;">目前持股股利 (含現價折算) ($)</th>
           <th style="width: 200px; color:#9c7c52; font-size:0.95rem;">年度全體總額 ($) 🌟</th>
           <th style="width: 200px;">全體歷年佔比</th>
@@ -1704,15 +1704,18 @@
 
           rowsHtml += `
             <td class="${cellTheme}">
-              <div class="stock-cell-box">
-                <input type="text" class="cell-input ${isStockHit ? 'highlight-cell' : ''}" style="font-weight:700;"
-                  data-past-row="${r}" data-past-col="${stockColIdx}" data-year-idx="${colIdx}" data-field="stock"
-                  value="${item.stock || ''}" placeholder="-"
-                  onfocus="this.select()" onkeydown="handlePastCellKey(event, ${r}, ${stockColIdx})"
-                  onchange="updatePastCellValue(${colIdx}, ${r}, 'stock', this.value)" />
-                <button class="btn-cal-icon" title="${hasDate ? '入帳日: ' + item.cashDate : '點擊記錄入帳日'}" onclick="openPastSingleDivModal(${colIdx}, ${r})">
-                  ${hasDate ? '📅' : '🗓️'}
-                </button>
+              <div class="stock-cell-wrap">
+                <div class="stock-cell-box">
+                  <input type="text" class="cell-input ${isStockHit ? 'highlight-cell' : ''}" style="font-weight:700;"
+                    data-past-row="${r}" data-past-col="${stockColIdx}" data-year-idx="${colIdx}" data-field="stock"
+                    value="${item.stock || ''}" placeholder="-"
+                    onfocus="this.select()" onkeydown="handlePastCellKey(event, ${r}, ${stockColIdx})"
+                    onchange="updatePastCellValue(${colIdx}, ${r}, 'stock', this.value)" />
+                  <button class="btn-cal-icon" title="${hasDate ? '入帳日: ' + item.cashDate : '點擊記錄入帳日'}" onclick="openPastSingleDivModal(${colIdx}, ${r})">
+                    ${hasDate ? '📅' : '🗓️'}
+                  </button>
+                </div>
+                ${hasDate ? `<div class="stock-cell-date">${item.cashDate}</div>` : ''}
               </div>
             </td>
             <td class="${cellTheme}">
@@ -2294,6 +2297,31 @@
       renderTable();
     }
 
+    /* ====== 媽的永豐三表：方向鍵/Enter 在格子間移動 (Ctrl+C/V 由瀏覽器原生處理，貼上後靠 onpaste 同步資料) ====== */
+    function handleYfTableKey(event, tableName, row, col) {
+      const key = event.key;
+      let targetRow = row;
+      let targetCol = col;
+      if (key === 'ArrowDown' || key === 'Enter') {
+        targetRow = row + 1;
+      } else if (key === 'ArrowUp') {
+        targetRow = row - 1;
+      } else if (key === 'ArrowRight') {
+        targetCol = col + 1;
+      } else if (key === 'ArrowLeft') {
+        targetCol = col - 1;
+      } else {
+        return;
+      }
+      const targetEl = document.querySelector(`[data-yf-table="${tableName}"][data-row="${targetRow}"][data-col="${targetCol}"]`);
+      if (targetEl) {
+        event.preventDefault();
+        targetEl.focus();
+        if (targetEl.select) targetEl.select();
+      }
+    }
+
+
     function renderYfTablesAll() {
       computeYfAccountBalance();
       computeYfDividendDistribution();
@@ -2509,7 +2537,7 @@
             });
           });
 
-          if (elTitle) elTitle.textContent = `📌 非持有/已實現股利總和`;
+          if (elTitle) elTitle.textContent = `📌 非持股股利總和`;
           if (elCost) elCost.textContent = '$' + formatNum(realizedGrandTotal, 0);
           if (elCostDesc) elCostDesc.textContent = `歷史已實現總額`;
 
@@ -2597,6 +2625,40 @@
         item[field] = parseFloat(value) || 0;
         saveToStorage();
         renderTable();
+      }
+    }
+
+    function deleteStock(id) {
+      if (confirm('確定要刪除這筆股票持股嗎？')) {
+        recordSnapshot();
+        stocks = stocks.filter(s => s.id !== id);
+        saveToStorage();
+        renderTabs();
+        renderTable();
+      }
+    }
+
+    /* ====== 全部股票表格：方向鍵/Enter 在格子間移動 ====== */
+    function handleCellKey(event, row, col) {
+      const key = event.key;
+      let targetRow = row;
+      let targetCol = col;
+      if (key === 'ArrowDown' || key === 'Enter') {
+        targetRow = row + 1;
+      } else if (key === 'ArrowUp') {
+        targetRow = row - 1;
+      } else if (key === 'ArrowRight') {
+        targetCol = col + 1;
+      } else if (key === 'ArrowLeft') {
+        targetCol = col - 1;
+      } else {
+        return;
+      }
+      const targetEl = document.querySelector(`#stockGrid [data-row="${targetRow}"][data-col="${targetCol}"]`);
+      if (targetEl) {
+        event.preventDefault();
+        targetEl.focus();
+        if (targetEl.select) targetEl.select();
       }
     }
 
