@@ -201,7 +201,11 @@
       font-weight: 700;
       color: var(--yf-pink);
       margin-bottom: 10px;
-    }#stockView .yf-overview-grid { margin-bottom: 10px; }#stockView .yf-overview-grid .stat-card { padding: 10px 12px; border-color: #ddc4b3; }#stockView .yf-ov-input {
+    }#stockView .yf-dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }#stockView .yf-dashboard-grid .stat-card { padding: 10px 8px; border-color: #ddc4b3; }#stockView .stat-card-blue { background: var(--blue-pill-bg, #eef0e6); border-color: var(--blue-pill-border, #ddd5c4); }#stockView .yf-ov-input {
       text-align: center;
       font-size: 1.05rem;
       border: 1px solid #ddc4b3;
@@ -209,12 +213,7 @@
       padding: 4px 6px;
       width: 100%;
       background: #fff;
-    }#stockView .yf-overview-goal { display: flex; justify-content: flex-start; }#stockView .yf-goal-card {
-      background: var(--amber-bg);
-      border-color: var(--amber-border);
-      text-align: left;
-      min-width: 260px;
-    }#stockView .yf-goal-card .stat-title { color: var(--amber-text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }#stockView .yf-goal-card .stat-value { color: var(--amber-text); font-size: 1.3rem; }#stockView .yf-goal-input { width: 90px; text-align: center; border: 1px solid var(--amber-border); border-radius: 4px; padding: 2px 4px; background: #fff; }#stockView .filter-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }#stockView .tab-group { display: flex; background: #ece6d9; padding: 3px; border-radius: 6px; gap: 4px; flex-wrap: wrap; align-items: center; }#stockView .tab-pill-group {
+    }#stockView .filter-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }#stockView .tab-group { display: flex; background: #ece6d9; padding: 3px; border-radius: 6px; gap: 4px; flex-wrap: wrap; align-items: center; }#stockView .tab-pill-group {
       display: inline-flex;
       align-items: center;
       background: transparent;
@@ -306,21 +305,29 @@
       font-family: inherit;
     }#stockView .form-control:focus { border-color: var(--primary); }#stockView .help-tips { font-size: 0.75rem; color: #93897a; margin-top: 10px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 
-/* ====== 媽的永豐：三表並排容器 (取代原本的分頁切換) ====== */
+/* ====== 媽的永豐：三表並排容器 (取代原本的分頁切換，比例寬度與原始檔案一致) ====== */
 #stockView .yf-tables-container {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
+  justify-content: space-between;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
   margin-bottom: 16px;
 }
 #stockView .yf-table-card {
-  flex: 1 1 320px;
-  min-width: 300px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
   background: var(--card-bg);
   border: 1px solid var(--border);
   padding: 10px;
+  min-width: 0;
 }
+#stockView #yfDetailCard { width: 28%; }
+#stockView #yfAccountCard { width: 39%; }
+#stockView #yfDividendCard { width: 31%; }
 #stockView .yf-table-card-header {
   display: flex;
   align-items: center;
@@ -333,35 +340,39 @@
   font-weight: 700;
   color: var(--text);
   margin: 0;
+  white-space: nowrap;
 }
 #stockView .yf-table-card-header .btn {
   font-size: 0.72rem;
   padding: 4px 8px;
+  white-space: nowrap;
 }
 #stockView .yf-table-scroll {
   max-height: 420px;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border);
+  width: 100%;
 }
 #stockView .yf-mini-table {
   width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 #stockView .yf-mini-table th {
   position: sticky;
   top: 0;
   background: #ece6d9;
   color: var(--text);
-  padding: 5px 4px;
+  padding: 5px 3px;
   border-bottom: 1px solid var(--border);
   font-weight: 700;
   white-space: nowrap;
   z-index: 1;
 }
 #stockView .yf-mini-table td {
-  padding: 3px 4px;
+  padding: 3px 3px;
   border-bottom: 1px solid var(--border);
   text-align: center;
   vertical-align: middle;
@@ -369,13 +380,14 @@
 #stockView .yf-mini-table tfoot td {
   background: #ece6d9;
   font-weight: 700;
-  padding: 5px 4px;
+  padding: 5px 3px;
 }
 #stockView .yf-mini-table .cell-input {
   width: 100%;
   min-width: 0;
-  font-size: 0.78rem;
-  padding: 3px 4px;
+  box-sizing: border-box;
+  font-size: 0.76rem;
+  padding: 2px 3px;
 }
 #stockView .yf-mini-table select.cell-input {
   cursor: pointer;
