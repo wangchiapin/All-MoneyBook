@@ -2115,15 +2115,19 @@
       let rowsHtml = salesHistory.map((h, hIdx) => {
         const isPos = (Number(h.spread) || 0) >= 0;
         const retStr = h.returnRate !== undefined && !isNaN(h.returnRate) ? (h.returnRate * 100).toFixed(2) + '%' : '0.00%';
+        const canToggleLock = parseInt(h.year) >= 115; // 114年以前一律手動固定，不可切換
+        const lockBtn = canToggleLock
+          ? `<button class="btn-del" title="${h.isManual ? '目前手動鎖定，點擊恢復自動加總' : '目前自動加總中，點擊改為手動鎖定'}" onclick="toggleHistoryLock(${hIdx})" style="margin-right:4px;">${h.isManual ? '🔒' : '🔓'}</button>`
+          : `<span title="114年以前一律手動固定" style="margin-right:4px; opacity:0.5;">🔒</span>`;
         return `
           <tr>
-            <td class="editable-col"><input type="text" class="cell-input font-bold" value="${h.year || ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalCost !== undefined ? h.totalCost : ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" value="${h.totalSell !== undefined ? h.totalSell : ''}" onfocus="this.select()" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
+            <td class="editable-col"><input type="text" class="cell-input font-bold" data-hist-idx="${hIdx}" data-col="0" value="${h.year || ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 0)" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="1" value="${h.totalCost !== undefined ? h.totalCost : ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 1)" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="2" value="${h.totalSell !== undefined ? h.totalSell : ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 2)" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
             <td class="font-mono" style="font-weight:700; color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${isPos ? '+' : ''}$${formatNum(h.spread, 0)}</td>
             <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${retStr}</td>
-            <td>
-              <button class="btn-del" title="刪除" onclick="deleteHistoryRow(${hIdx})">✕</button>
+            <td style="white-space:nowrap;">
+              ${lockBtn}<button class="btn-del" title="刪除" onclick="deleteHistoryRow(${hIdx})">✕</button>
             </td>
           </tr>
         `;
@@ -2133,13 +2137,25 @@
       renderSummary();
     }
 
+    // 115年(含)以後的列，總成本/總賣出欄位不再因為「編輯過」就被隱性鎖定 — 只有透過這個
+    // 明確的鎖頭按鈕，使用者才會把某一年切成手動固定，否則永遠跟著「股票賣出明細」自動加總。
+    function toggleHistoryLock(index) {
+      recordSnapshot();
+      if (!salesHistory[index]) return;
+      if (parseInt(salesHistory[index].year) < 115) return; // 114年以前不可切換
+      salesHistory[index].isManual = !salesHistory[index].isManual;
+      saveToStorage();
+      renderTable();
+    }
+
     function updateHistoryRow(index, field, value) {
       recordSnapshot();
       if (!salesHistory[index]) return;
-      salesHistory[index].isManual = true;
       if (field === 'year') {
         salesHistory[index].year = value;
       } else {
+        // 手動輸入總成本/總賣出時，只有 115年(含)以後才需要使用者用鎖頭按鈕明確鎖定；
+        // 這裡不再自動幫使用者上鎖，避免「不小心點進去改一下」就永久脫離自動加總。
         salesHistory[index][field] = parseFloat(value) || 0;
         salesHistory[index].spread = Number(salesHistory[index].totalSell) - Number(salesHistory[index].totalCost);
         if (Number(salesHistory[index].totalCost) > 0) {
@@ -2150,6 +2166,49 @@
       }
       saveToStorage();
       renderTable();
+    }
+
+    function handleHistoryKey(e, rowIndex, colIndex) {
+      if (e.isComposing || e.keyCode === 229) return; // 輸入法組字中不攔截方向鍵
+      const cols = [0, 1, 2];
+      const currentIdxInCols = cols.indexOf(colIndex);
+      const el = e.target;
+      const isTextField = el.type === 'text';
+      const jumpTo = (r, c) => {
+        const selector = `[data-hist-idx="${r}"][data-col="${c}"]`;
+        const targetEl = document.querySelector(selector);
+        if (targetEl) {
+          targetEl.focus();
+          requestAnimationFrame(() => {
+            if (document.activeElement !== targetEl) {
+              setTimeout(() => {
+                const stillThere = document.querySelector(selector);
+                if (stillThere) stillThere.focus();
+              }, 60);
+            }
+          });
+        }
+      };
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (currentIdxInCols < cols.length - 1) {
+          jumpTo(rowIndex, cols[currentIdxInCols + 1]);
+        } else if (rowIndex < salesHistory.length - 1) {
+          jumpTo(rowIndex + 1, cols[0]);
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (isTextField && el.selectionStart !== null && el.selectionEnd !== el.value.length) return;
+        if (currentIdxInCols < cols.length - 1) { e.preventDefault(); jumpTo(rowIndex, cols[currentIdxInCols + 1]); }
+      } else if (e.key === 'ArrowLeft') {
+        if (isTextField && el.selectionStart !== null && el.selectionStart !== 0) return;
+        if (currentIdxInCols > 0) { e.preventDefault(); jumpTo(rowIndex, cols[currentIdxInCols - 1]); }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (rowIndex < salesHistory.length - 1) jumpTo(rowIndex + 1, cols[currentIdxInCols]);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (rowIndex > 0) jumpTo(rowIndex - 1, cols[currentIdxInCols]);
+      }
     }
 
     function deleteHistoryRow(index) {
@@ -2232,45 +2291,64 @@
     }
 
     function handleSaleKey(e, rowIndex, colIndex) {
+      // 中文/注音等輸入法組字中，方向鍵是用來選字，不能被攔截去跳格，否則會導致焦點行為錯亂
+      if (e.isComposing || e.keyCode === 229) return;
+
       const cols = [0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12]; // 可編輯欄位索引 (含狀態下拉選單 12)
       let currentIdxInCols = cols.indexOf(colIndex);
+      const el = e.target;
+      const isTextField = el.type === 'text';
 
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         if (currentIdxInCols < cols.length - 1) {
-          const nextInput = document.querySelector(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols + 1]}"]`);
-          if (nextInput) nextInput.focus();
+          focusCellSafely(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols + 1]}"]`);
         } else {
           if (rowIndex === stockSales.length - 1) {
             addStockSaleRow();
           } else {
-            const nextRowInput = document.querySelector(`[data-sale-idx="${rowIndex + 1}"][data-col="${cols[0]}"]`);
-            if (nextRowInput) nextRowInput.focus();
+            focusCellSafely(`[data-sale-idx="${rowIndex + 1}"][data-col="${cols[0]}"]`);
           }
         }
       } else if (e.key === 'ArrowRight') {
+        // 文字欄位游標不在最尾端時，讓瀏覽器正常移動游標，不要跳格
+        if (isTextField && el.selectionStart !== null && el.selectionEnd !== el.value.length) return;
         if (currentIdxInCols < cols.length - 1) {
           e.preventDefault();
-          const nextInput = document.querySelector(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols + 1]}"]`);
-          if (nextInput) nextInput.focus();
+          focusCellSafely(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols + 1]}"]`);
         }
       } else if (e.key === 'ArrowLeft') {
+        // 文字欄位游標不在最前端時，讓瀏覽器正常移動游標，不要跳格
+        if (isTextField && el.selectionStart !== null && el.selectionStart !== 0) return;
         if (currentIdxInCols > 0) {
           e.preventDefault();
-          const prevInput = document.querySelector(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols - 1]}"]`);
-          if (prevInput) prevInput.focus();
+          focusCellSafely(`[data-sale-idx="${rowIndex}"][data-col="${cols[currentIdxInCols - 1]}"]`);
         }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        const nextInput = document.querySelector(`[data-sale-idx="${rowIndex + 1}"][data-col="${cols[currentIdxInCols]}"]`);
-        if (nextInput) nextInput.focus();
+        focusCellSafely(`[data-sale-idx="${rowIndex + 1}"][data-col="${cols[currentIdxInCols]}"]`);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (rowIndex > 0) {
-          const prevInput = document.querySelector(`[data-sale-idx="${rowIndex - 1}"][data-col="${cols[currentIdxInCols]}"]`);
-          if (prevInput) prevInput.focus();
+          focusCellSafely(`[data-sale-idx="${rowIndex - 1}"][data-col="${cols[currentIdxInCols]}"]`);
         }
       }
+    }
+
+    // 保險用的安全跳格函式：立即嘗試 focus；若因瀏覽器內部狀態（例如輸入法組字剛結束）
+    // 導致這次 focus 沒有生效，會在短暫延遲後再嘗試一次，避免焦點整個掉到頁面外、卡住不動。
+    function focusCellSafely(selector) {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      el.focus();
+      requestAnimationFrame(() => {
+        if (document.activeElement !== el) {
+          setTimeout(() => {
+            const stillThere = document.querySelector(selector);
+            if (stillThere) stillThere.focus();
+          }, 60);
+        }
+      });
     }
 
     function addStockSaleRow() {
@@ -2299,7 +2377,10 @@
 
     /* ====== 媽的永豐三表：方向鍵/Enter 在格子間移動 (Ctrl+C/V 由瀏覽器原生處理，貼上後靠 onpaste 同步資料) ====== */
     function handleYfTableKey(event, tableName, row, col) {
+      if (event.isComposing || event.keyCode === 229) return; // 輸入法組字中不攔截方向鍵
       const key = event.key;
+      const el = event.target;
+      const isTextField = el.type === 'text';
       let targetRow = row;
       let targetCol = col;
       if (key === 'ArrowDown' || key === 'Enter') {
@@ -2307,17 +2388,28 @@
       } else if (key === 'ArrowUp') {
         targetRow = row - 1;
       } else if (key === 'ArrowRight') {
+        if (isTextField && el.selectionStart !== null && el.selectionEnd !== el.value.length) return;
         targetCol = col + 1;
       } else if (key === 'ArrowLeft') {
+        if (isTextField && el.selectionStart !== null && el.selectionStart !== 0) return;
         targetCol = col - 1;
       } else {
         return;
       }
-      const targetEl = document.querySelector(`[data-yf-table="${tableName}"][data-row="${targetRow}"][data-col="${targetCol}"]`);
+      const selector = `[data-yf-table="${tableName}"][data-row="${targetRow}"][data-col="${targetCol}"]`;
+      const targetEl = document.querySelector(selector);
       if (targetEl) {
         event.preventDefault();
         targetEl.focus();
         if (targetEl.select) targetEl.select();
+        requestAnimationFrame(() => {
+          if (document.activeElement !== targetEl) {
+            setTimeout(() => {
+              const stillThere = document.querySelector(selector);
+              if (stillThere) { stillThere.focus(); if (stillThere.select) stillThere.select(); }
+            }, 60);
+          }
+        });
       }
     }
 
@@ -2640,7 +2732,10 @@
 
     /* ====== 全部股票表格：方向鍵/Enter 在格子間移動 ====== */
     function handleCellKey(event, row, col) {
+      if (event.isComposing || event.keyCode === 229) return; // 輸入法組字中不攔截方向鍵
       const key = event.key;
+      const el = event.target;
+      const isTextField = el.type === 'text';
       let targetRow = row;
       let targetCol = col;
       if (key === 'ArrowDown' || key === 'Enter') {
@@ -2648,17 +2743,28 @@
       } else if (key === 'ArrowUp') {
         targetRow = row - 1;
       } else if (key === 'ArrowRight') {
+        if (isTextField && el.selectionStart !== null && el.selectionEnd !== el.value.length) return;
         targetCol = col + 1;
       } else if (key === 'ArrowLeft') {
+        if (isTextField && el.selectionStart !== null && el.selectionStart !== 0) return;
         targetCol = col - 1;
       } else {
         return;
       }
-      const targetEl = document.querySelector(`#stockGrid [data-row="${targetRow}"][data-col="${targetCol}"]`);
+      const selector = `#stockGrid [data-row="${targetRow}"][data-col="${targetCol}"]`;
+      const targetEl = document.querySelector(selector);
       if (targetEl) {
         event.preventDefault();
         targetEl.focus();
         if (targetEl.select) targetEl.select();
+        requestAnimationFrame(() => {
+          if (document.activeElement !== targetEl) {
+            setTimeout(() => {
+              const stillThere = document.querySelector(selector);
+              if (stillThere) { stillThere.focus(); if (stillThere.select) stillThere.select(); }
+            }, 60);
+          }
+        });
       }
     }
 

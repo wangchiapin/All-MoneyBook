@@ -319,16 +319,18 @@
   margin-bottom: 16px;
 }
 #stockView .yf-table-card {
-  flex: 0 0 auto;
+  /* 用 flex-grow 比例分配寬度，而不是寫死的 %，這樣 flexbox 才會把卡片之間的
+     gap 從容器寬度裡先扣掉、再依比例分剩下的空間，三張卡片才不會超出容器寬度。 */
+  flex: 1 1 0;
   box-sizing: border-box;
   background: var(--card-bg);
   border: 1px solid var(--border);
   padding: 10px;
   min-width: 0;
 }
-#stockView #yfDetailCard { width: 26%; }
-#stockView #yfAccountCard { width: 42%; }
-#stockView #yfDividendCard { width: 32%; }
+#stockView #yfDetailCard { flex-grow: 26; }
+#stockView #yfAccountCard { flex-grow: 42; }
+#stockView #yfDividendCard { flex-grow: 32; }
 #stockView .yf-table-card-header {
   display: flex;
   align-items: center;

@@ -82,7 +82,11 @@
     .table-container::-webkit-scrollbar-thumb { background: #c9bfa8; border-radius: 4px; }
     .table-container::-webkit-scrollbar-thumb:hover { background: #a89a7a; }
 
-    table {
+    /* 這條規則原本沒有加上 #financeView 範圍限定，導致「min-width: 800px」
+       整個外溢到股票模組(stock.css)裡的小表格(如媽的永豐三張迷你表)，
+       強迫它們也不能縮小於 800px，才會被卡片裁掉一部分欄位。
+       這裡限定只套用在財務總覽模組自己的表格上。 */
+    #financeView table {
       border-collapse: collapse;
       width: 100%;
       min-width: 800px;
