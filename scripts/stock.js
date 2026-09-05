@@ -1302,7 +1302,7 @@
     function yfDetailRowColor(tradeDateStr, exDivDates) {
       if (!tradeDateStr || String(tradeDateStr).trim() === '') return '';
       const tradeDate = yfParseDateInt(tradeDateStr);
-      const palette = ['#e5f3ea', '#e3edf7']; // 淡綠色 / 淡藍色 交替
+      const palette = ['#e3edf7', '#fbe4e4']; // 淡藍色 / 淡紅色 交替
       let colorIndex = exDivDates.length;
       for (let i = 0; i < exDivDates.length; i++) {
         if (tradeDate < exDivDates[i]) { colorIndex = i; break; }
