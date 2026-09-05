@@ -290,7 +290,9 @@
         <button class="sales-sub-btn active" id="subBtnList" onclick="setSalesSubTab('list')">📋 股票賣出明細表</button>
         <button class="sales-sub-btn" id="subBtnSummary" onclick="setSalesSubTab('summary')">📅 每日買賣紀錄小計</button>
         <button class="sales-sub-btn" id="subBtnHistory" onclick="setSalesSubTab('history')">📊 歷年紀錄</button>
+        <button class="sales-sub-btn" id="subBtnLending" onclick="setSalesSubTab('lending')">📦 股票借出</button>
       </div>
+      <datalist id="stockNameDatalist"></datalist>
       <div id="summaryYearSelectorContainer" style="display:flex; align-items:center; gap:6px;">
         <span style="font-size:0.85rem; font-weight:700; color:#3f6b4c;">📅 選擇小計年份：</span>
         <select id="summaryYearSelect" class="form-control" style="width:110px; padding:4px 8px;" onchange="changeSummaryYear(this.value)"></select>

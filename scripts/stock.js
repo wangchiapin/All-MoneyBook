@@ -8,6 +8,7 @@
     const STORAGE_KEY_CUSTOM_ACCOUNTS = 'STOCK_INVESTMENT_EXCEL_PRO_V32_ACCOUNTS';
     const STORAGE_KEY_STOCK_SALES = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_SALES';
     const STORAGE_KEY_SALES_HISTORY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_SALES_HISTORY';
+    const STORAGE_KEY_STOCK_LENDING = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_LENDING';
 
     const INITIAL_DATA = [
       {"id": 1, "name": "元大高股息", "code": "0056", "category": "ETF", "account": "富邦證券", "shares": 7562, "totalCost": 250794, "currentPrice": 52.27, "cashDividends": 90698, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-15", "cash": 50000, "stockDate": "", "stockShares": 0}, {"year": 2025, "cashDate": "2025-08-15", "cash": 40698, "stockDate": "", "stockShares": 0}], "lentShares": 0},
@@ -128,6 +129,8 @@
     let customAccounts = [];
     let stockSales = [];
     let salesHistory = [];
+    let stockLending = [];
+    let lendingManagedIds = []; // 本次執行期間，曾被「股票借出」分頁同步過出借張數的持股 id
     let dividendEstimates = {};
     let historyStack = [];
     let currentFilter = 'ALL';
@@ -152,6 +155,10 @@
             const totalShares = (s.dividendHistory || []).reduce((sum, h) => sum + (Number(h.stockShares) || (Number(h.stock) || 0)), 0);
             s.stockShares = totalShares;
           }
+          // Task: 市值改為手動輸入、現價 = 市值 / 持有股數 自動計算 —— 既有資料補上市值欄位
+          if (s.marketVal === undefined) {
+            s.marketVal = (Number(s.currentPrice) || 0) * (Number(s.shares) || 0);
+          }
         });
 
         const savedPast = localStorage.getItem(STORAGE_KEY_PAST);
@@ -163,6 +170,9 @@
         const savedHistory = localStorage.getItem(STORAGE_KEY_SALES_HISTORY);
         salesHistory = savedHistory ? JSON.parse(savedHistory) : INITIAL_SALES_HISTORY;
 
+        const savedLending = localStorage.getItem(STORAGE_KEY_STOCK_LENDING);
+        stockLending = savedLending ? JSON.parse(savedLending) : [];
+
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
       } catch (e) {
@@ -171,9 +181,11 @@
         pastColumns = INITIAL_REALIZED_EXCEL_COLUMNS;
         stockSales = INITIAL_STOCK_SALES;
         salesHistory = INITIAL_SALES_HISTORY;
+        stockLending = [];
         dividendEstimates = {};
       }
 
+      syncLentSharesToHoldings();
       setupScrollSync();
       renderTabs();
       renderTable();
@@ -185,7 +197,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -199,6 +211,7 @@
           if (prev.customAccounts) customAccounts = prev.customAccounts;
           if (prev.stockSales) stockSales = prev.stockSales;
           if (prev.salesHistory) salesHistory = prev.salesHistory;
+          if (prev.stockLending) stockLending = prev.stockLending;
           if (prev.dividendEstimates) dividendEstimates = prev.dividendEstimates;
           if (prev.yfDetail) yfDetail = prev.yfDetail;
           if (prev.yfAccount) yfAccount = prev.yfAccount;
@@ -227,6 +240,7 @@
         localStorage.setItem(STORAGE_KEY_CUSTOM_ACCOUNTS, JSON.stringify(customAccounts));
         localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
         localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
+        localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
         localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
         localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
@@ -240,7 +254,7 @@
     /* ====== Firebase 雲端同步 ====== */
     function gatherAllData() {
       return {
-        stocks, pastColumns, customAccounts, stockSales, salesHistory,
+        stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending,
         dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         updatedAt: new Date().toISOString()
@@ -254,6 +268,7 @@
       if (data.customAccounts) customAccounts = data.customAccounts;
       if (data.stockSales) stockSales = data.stockSales;
       if (data.salesHistory) salesHistory = data.salesHistory;
+      if (data.stockLending) stockLending = data.stockLending;
       if (data.dividendEstimates) dividendEstimates = data.dividendEstimates;
       if (data.yfDetail) yfDetail = data.yfDetail;
       if (data.yfAccount) yfAccount = data.yfAccount;
@@ -266,6 +281,7 @@
       localStorage.setItem(STORAGE_KEY_CUSTOM_ACCOUNTS, JSON.stringify(customAccounts));
       localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
       localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
+      localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
       localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
       localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
       localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
@@ -505,6 +521,8 @@
       document.getElementById('subBtnList').classList.toggle('active', subTab === 'list');
       document.getElementById('subBtnSummary').classList.toggle('active', subTab === 'summary');
       document.getElementById('subBtnHistory').classList.toggle('active', subTab === 'history');
+      const btnLending = document.getElementById('subBtnLending');
+      if (btnLending) btnLending.classList.toggle('active', subTab === 'lending');
       renderTable();
       saveNavState();
     }
@@ -741,7 +759,11 @@
         if (topScrollWrapper) topScrollWrapper.style.display = 'block';
         if (mainTableContainer) mainTableContainer.classList.add('with-top-scroll');
       } else if (currentFilter === 'STOCK_SALES') {
-        if (btnAddStock) btnAddStock.textContent = salesSubTab === 'history' ? '➕ 新增歷年紀錄列' : '➕ 新增賣出紀錄列';
+        if (btnAddStock) {
+          btnAddStock.textContent = salesSubTab === 'history' ? '➕ 新增歷年紀錄列'
+            : salesSubTab === 'lending' ? '➕ 新增借出紀錄列'
+            : '➕ 新增賣出紀錄列';
+        }
         if (btnDel) btnDel.style.display = 'none';
         if (btnAddYear) btnAddYear.style.display = 'none';
         if (pastCalcCard) pastCalcCard.style.display = 'none';
@@ -823,6 +845,10 @@
         }
         if (salesSubTab === 'history') {
           renderSalesHistoryTable(thead, tbody);
+          return;
+        }
+        if (salesSubTab === 'lending') {
+          renderStockLendingTable(thead, tbody);
           return;
         }
 
@@ -1057,8 +1083,8 @@
         <tr>
           ${isAccountTab ? '<th style="min-width: 50px; width: 50px;">排序</th>' : ''}
           <th style="min-width: 140px; width: 140px;">股票名稱</th>
-          <th class="editable-col" style="min-width: 90px; width: 90px; color: #2563eb;">現價 ($) ✏️</th>
-          <th style="min-width: 100px; width: 100px;">市值</th>
+          <th style="min-width: 90px; width: 90px;">現價 ($) 🧮</th>
+          <th class="editable-col" style="min-width: 100px; width: 100px; color: #2563eb;">市值 ✏️</th>
           <th class="editable-col" style="min-width: 100px; width: 100px; color: #2563eb;">成本 ($) ✏️</th>
           <th class="editable-col" style="min-width: 90px; width: 90px; color: #2563eb;">持有股數 ✏️</th>
           <th style="min-width: 110px; width: 110px;">未實現損益</th>
@@ -1106,12 +1132,14 @@
         const lentShares = Number(s.lentShares) || 0;
 
         const avgCostPerShare = shares > 0 ? (totalCost / shares) : 0;
-        const marketVal = shares * currentPrice;
+        const isMergedRow = Boolean(s.isMerged);
+        // Task: 市值改為手動輸入 (s.marketVal)，現價 = 市值 / 持有股數 自動計算
+        // 合併列(isMergedRow)沒有單一市值可編輯，維持用「持有股數 × 現價」計算
+        const marketVal = isMergedRow ? (shares * currentPrice) : ((Number(s.marketVal) || 0) * fxRate);
         const profit = marketVal - totalCost;
         const profitRate = totalCost > 0 ? (profit / totalCost) * 100 : 0;
         const netCostPerShare = shares > 0 ? ((totalCost - totalDiv) / shares) : 0;
         const isProfit = profit >= 0;
-        const isMergedRow = Boolean(s.isMerged);
 
         const enableDrag = isAccountTab && !query && !isMergedRow;
         const unitSymbol = isUS ? 'US$' : '$';
@@ -1131,13 +1159,13 @@
               </div>
             </td>
 
+            <td class="font-mono font-bold">${unitSymbol}${formatNum(currentPrice / fxRate, isUS ? 2 : 2)}</td>
+
             <td class="editable-col">
-              ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(Number(s.currentPrice) || 0, isUS ? 2 : 2)}</span>` : `
-                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="currentPrice" value="${Number(s.currentPrice) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'currentPrice', this.value)" />
+              ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(marketVal / fxRate, isUS ? 2 : 0)}</span>` : `
+                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="marketVal" value="${Number(s.marketVal) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'marketVal', this.value)" />
               `}
             </td>
-
-            <td class="font-mono font-bold">${unitSymbol}${formatNum(marketVal / fxRate, isUS ? 2 : 0)}</td>
 
             <td class="editable-col">
               ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(Number(s.totalCost) || 0, isUS ? 2 : 0)}</span>` : `
@@ -2488,6 +2516,146 @@
       renderTable();
     }
 
+    /* ====== 股票借出分頁 (STOCK_SALES 的子分頁 salesSubTab === 'lending') ====== */
+    function findStockByName(name) {
+      if (!name) return null;
+      const trimmed = String(name).trim();
+      if (!trimmed) return null;
+      return stocks.find(s => s.name === trimmed) || null;
+    }
+
+    // 把「股票借出」表裡各列的出借張數，依股票名稱加總後，同步回寫到對應持股的「出借張數」欄位
+    function syncLentSharesToHoldings() {
+      const totals = new Map();
+      const matchedIds = new Set();
+
+      stockLending.forEach(r => {
+        const matched = findStockByName(r.name);
+        if (!matched) return;
+        matchedIds.add(matched.id);
+        totals.set(matched.id, (totals.get(matched.id) || 0) + (Number(r.lentShares) || 0));
+      });
+
+      // 上次同步過、但這次已經不再被任何借出列引用的持股，出借張數歸零
+      lendingManagedIds.forEach(id => {
+        if (!matchedIds.has(id)) {
+          const st = stocks.find(s => s.id === id);
+          if (st) st.lentShares = 0;
+        }
+      });
+
+      matchedIds.forEach(id => {
+        const st = stocks.find(s => s.id === id);
+        if (st) st.lentShares = totals.get(id) || 0;
+      });
+
+      lendingManagedIds = Array.from(matchedIds);
+    }
+
+    function refreshStockNameDatalist() {
+      const list = document.getElementById('stockNameDatalist');
+      if (!list) return;
+      const uniqueNames = Array.from(new Set(stocks.map(s => s.name).filter(Boolean)));
+      list.innerHTML = uniqueNames.map(n => `<option value="${n}"></option>`).join('');
+    }
+
+    function renderStockLendingTable(thead, tbody) {
+      refreshStockNameDatalist();
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 200px;">股票名稱</th>
+          <th style="width: 100px;">現價 ($)</th>
+          <th style="width: 110px;">出借張數</th>
+          <th style="width: 130px;">市值 ($)</th>
+          <th style="width: 120px;">成本 ($)</th>
+          <th style="width: 150px;">未實現損益</th>
+          <th style="width: 60px;">操作</th>
+        </tr>
+      `;
+
+      const searchBox = document.getElementById('searchBox');
+      const query = searchBox ? searchBox.value.trim().toLowerCase() : '';
+      let rows = stockLending.map((r, idx) => ({ r, idx }));
+      if (query) {
+        rows = rows.filter(({ r }) => (r.name || '').toLowerCase().includes(query));
+      }
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#94a3b8;">尚無股票借出紀錄，點擊上方「＋」新增一列</td></tr>`;
+        renderSummary();
+        return;
+      }
+
+      tbody.innerHTML = rows.map(({ r, idx }) => {
+        const matched = findStockByName(r.name);
+        const isUS = matched && (matched.account === '美股複委託' || matched.category === '美股');
+        const unitSymbol = isUS ? 'US$' : '$';
+
+        const currentPrice = matched ? (Number(matched.currentPrice) || 0) : 0;
+        const lentShares = Number(r.lentShares) || 0;
+        const marketVal = currentPrice * lentShares;
+        const cost = Number(r.cost) || 0;
+        const profit = marketVal - cost;
+        const profitRate = cost > 0 ? (profit / cost) * 100 : 0;
+        const isProfit = profit >= 0;
+
+        return `
+          <tr>
+            <td class="editable-col">
+              <input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingRow(${idx}, 'name', this.value)" />
+            </td>
+            <td class="font-mono">${matched ? unitSymbol + formatNum(currentPrice, 2) : '<span style="color:#c9bfa8;">—</span>'}</td>
+            <td class="editable-col">
+              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="1" value="${lentShares}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingRow(${idx}, 'lentShares', this.value)" />
+            </td>
+            <td class="font-mono font-bold">${matched ? unitSymbol + formatNum(marketVal, 0) : '<span style="color:#c9bfa8;">—</span>'}</td>
+            <td class="editable-col">
+              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="2" value="${Number(r.cost) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingRow(${idx}, 'cost', this.value)" />
+            </td>
+            <td class="font-mono" style="font-weight:700; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
+              ${isProfit ? '+' : ''}${unitSymbol}${formatNum(profit, 0)}
+              <div style="font-size:0.72rem; font-weight:600;">${isProfit ? '+' : ''}${profitRate.toFixed(2)}%</div>
+            </td>
+            <td><button class="btn-del" title="刪除" onclick="deleteLendingRow(${idx})">✕</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      renderSummary();
+    }
+
+    function updateLendingRow(index, field, value) {
+      recordSnapshot();
+      const row = stockLending[index];
+      if (!row) return;
+      if (field === 'name') {
+        row.name = value;
+      } else {
+        row[field] = parseFloat(value) || 0;
+      }
+      syncLentSharesToHoldings();
+      saveToStorage();
+      renderTable();
+    }
+
+    function addLendingRow() {
+      recordSnapshot();
+      stockLending.push({ id: Date.now(), name: '', lentShares: 0, cost: 0 });
+      saveToStorage();
+      renderTable();
+    }
+
+    function deleteLendingRow(index) {
+      if (confirm('確定要刪除這筆股票借出紀錄嗎？')) {
+        recordSnapshot();
+        stockLending.splice(index, 1);
+        syncLentSharesToHoldings();
+        saveToStorage();
+        renderTable();
+      }
+    }
+
     /* ====== 媽的永豐三表：方向鍵/Enter 在格子間移動 (Ctrl+C/V 由瀏覽器原生處理，貼上後靠 onpaste 同步資料) ====== */
     function handleYfTableKey(event, tableName, row, col) {
       if (event.isComposing || event.keyCode === 229) return; // 輸入法組字中不攔截方向鍵
@@ -2830,6 +2998,12 @@
       const item = stocks.find(s => s.id === id);
       if (item) {
         item[field] = parseFloat(value) || 0;
+        // Task: 市值改為手動輸入，現價 = 市值 / 持有股數 自動計算
+        if (field === 'marketVal' || field === 'shares') {
+          const sh = Number(item.shares) || 0;
+          const mv = Number(item.marketVal) || 0;
+          item.currentPrice = sh > 0 ? (mv / sh) : 0;
+        }
         saveToStorage();
         renderTable();
       }
@@ -3127,6 +3301,8 @@
       if (currentFilter === 'STOCK_SALES') {
         if (salesSubTab === 'history') {
           addSaleHistoryRow();
+        } else if (salesSubTab === 'lending') {
+          addLendingRow();
         } else {
           addStockSaleRow();
         }
@@ -3195,6 +3371,7 @@
         shares: shares,
         totalCost: totalCost,
         currentPrice: 0,
+        marketVal: 0,
         cashDividends: 0,
         stockShares: 0,
         dividendHistory: [],
@@ -3457,6 +3634,7 @@
         customAccounts: customAccounts,
         stockSales: stockSales,
         salesHistory: salesHistory,
+        stockLending: stockLending,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         yfDetail: yfDetail,
         yfAccount: yfAccount,
@@ -3487,6 +3665,7 @@
             if (imported.customAccounts) customAccounts = imported.customAccounts;
             if (imported.stockSales) stockSales = imported.stockSales;
             if (imported.salesHistory) salesHistory = imported.salesHistory;
+            if (imported.stockLending) stockLending = imported.stockLending;
             if (imported.yfDetail) yfDetail = imported.yfDetail;
             if (imported.yfAccount) yfAccount = imported.yfAccount;
             if (imported.yfDividendRows) yfDividendRows = imported.yfDividendRows;
