@@ -180,6 +180,7 @@
       setupGlobalShortcuts();
       setupSettingDropdownClose();
       setupCalculatorDrag();
+      restoreNavState();
     }
 
     function recordSnapshot() {
@@ -496,6 +497,7 @@
       }
       renderTabs();
       renderTable();
+      saveNavState();
     }
 
     function setSalesSubTab(subTab) {
@@ -504,6 +506,7 @@
       document.getElementById('subBtnSummary').classList.toggle('active', subTab === 'summary');
       document.getElementById('subBtnHistory').classList.toggle('active', subTab === 'history');
       renderTable();
+      saveNavState();
     }
 
     function setDividendsSubTab(subTab) {
@@ -512,6 +515,44 @@
       document.getElementById('subBtnDivPast').classList.toggle('active', subTab === 'past');
       document.getElementById('subBtnDivEst').classList.toggle('active', subTab === 'estimate');
       renderTable();
+      saveNavState();
+    }
+
+    /* ====== Task 3: 記住「重新整理」前所在的頁面 (分頁 + 子分頁)，不要跳回財務總覽 ====== */
+    const NAV_STATE_KEY = 'APP_NAV_STATE_V1';
+
+    function saveNavState() {
+      try {
+        const stockViewEl = document.getElementById('stockView');
+        const appView = (stockViewEl && stockViewEl.style.display !== 'none') ? 'stock' : 'finance';
+        localStorage.setItem(NAV_STATE_KEY, JSON.stringify({
+          appView: appView,
+          stockFilter: currentFilter,
+          dividendsSubTab: dividendsSubTab,
+          salesSubTab: salesSubTab
+        }));
+      } catch (e) {}
+    }
+
+    function restoreNavState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(NAV_STATE_KEY) || 'null');
+        if (!saved) return;
+
+        if (saved.appView === 'stock') {
+          if (typeof switchAppView === 'function') switchAppView('stock');
+          if (saved.stockFilter) {
+            setFilter(saved.stockFilter);
+            if (saved.stockFilter === 'DIVIDENDS_TAB' && saved.dividendsSubTab) {
+              setDividendsSubTab(saved.dividendsSubTab);
+            }
+            if (saved.stockFilter === 'STOCK_SALES' && saved.salesSubTab) {
+              setSalesSubTab(saved.salesSubTab);
+            }
+          }
+        }
+        // appView === 'finance' 不需要額外動作，financeView 本來就是預設畫面
+      } catch (e) {}
     }
 
     function changeSummaryYear(yr) {
@@ -617,9 +658,8 @@
 
         (st.dividendHistory || []).forEach(dh => {
           const key = normalizeYearKey(dh.year);
-          const stCash = (Number(dh.cash) || 0) * fxRate;
-          const stStockVal = (Number(dh.stockShares) || 0) * p * fxRate;
-          const stAmt = stCash + stStockVal;
+          // 「目前持股股利」全站統一只計算現金股利，不含股票股利折算現值
+          const stAmt = (Number(dh.cash) || 0) * fxRate;
 
           if (!yearMap.has(key)) {
             const num = parseInt(key);
@@ -665,6 +705,15 @@
       const topScrollWrapper = document.getElementById('topScrollWrapper');
       const mainTableContainer = document.getElementById('mainTableContainer');
       const yfTablesContainer = document.getElementById('yfTablesContainer');
+      const tableWithChartLayout = document.getElementById('tableWithChartLayout');
+      const dividendChartPanel = document.getElementById('dividendChartPanel');
+      const stockGridFoot = document.getElementById('stockGridFoot');
+
+      // 預設：一般表格版面（單欄、無小計列），只有「歷年股利總合」子分頁會切換成雙欄+小計
+      const isYearlySummaryView = (currentFilter === 'DIVIDENDS_TAB' && dividendsSubTab === 'summary');
+      if (tableWithChartLayout) tableWithChartLayout.classList.toggle('split-mode', isYearlySummaryView);
+      if (dividendChartPanel) dividendChartPanel.style.display = isYearlySummaryView ? 'block' : 'none';
+      if (!isYearlySummaryView && stockGridFoot) stockGridFoot.innerHTML = '';
 
       if (currentFilter === 'DIVIDENDS_TAB') {
         if (dividendsSubBar) dividendsSubBar.style.display = 'flex';
@@ -1249,11 +1298,11 @@
       });
     }
 
-    /* ====== 媽的永豐：買賣明細列的除息區間底色 (視覺輔助，依 MUJI 色調) ====== */
+    /* ====== 媽的永豐：買賣明細列的除息區間底色 (淡綠/淡藍 交替區分區間) ====== */
     function yfDetailRowColor(tradeDateStr, exDivDates) {
       if (!tradeDateStr || String(tradeDateStr).trim() === '') return '';
       const tradeDate = yfParseDateInt(tradeDateStr);
-      const palette = ['#f5eee0', '#eef0e6', '#e9e4da', '#ece2c4', '#eaeef0'];
+      const palette = ['#e5f3ea', '#e3edf7']; // 淡綠色 / 淡藍色 交替
       let colorIndex = exDivDates.length;
       for (let i = 0; i < exDivDates.length; i++) {
         if (tradeDate < exDivDates[i]) { colorIndex = i; break; }
@@ -1287,13 +1336,14 @@
         totalShares += Number(r.shares) || 0;
         totalCost += Number(r.cost) || 0;
         const bg = yfDetailRowColor(r.date, exDivDates);
+        const bgStyle = bg ? ` style="background:${bg};"` : '';
         return `
-        <tr${bg ? ` style="background:${bg};"` : ''}>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 0)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'date', this.value), 0)" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="1" value="${r.shares || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 1)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'shares', this.value), 0)" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="2" value="${r.price || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 2)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'price', this.value), 0)" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono font-bold" data-yf-table="detail" data-row="${idx}" data-col="3" value="${r.cost || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 3)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'cost', this.value), 0)" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
-          <td><button class="btn-del" onclick="deleteYfDetailRow(${idx})">✕</button></td>
+        <tr${bgStyle}>
+          <td class="editable-col"${bgStyle}><input type="text" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 0)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'date', this.value), 0)" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="1" value="${r.shares || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 1)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'shares', this.value), 0)" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="2" value="${r.price || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 2)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'price', this.value), 0)" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono font-bold" data-yf-table="detail" data-row="${idx}" data-col="3" value="${r.cost || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 3)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'cost', this.value), 0)" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
+          <td${bgStyle}><button class="btn-del" onclick="deleteYfDetailRow(${idx})">✕</button></td>
         </tr>
       `;
       }).join('');
@@ -1528,19 +1578,23 @@
     function renderYearlySummaryTable(thead, tbody) {
       thead.innerHTML = `
         <tr>
-          <th style="width: 170px;">發放年度</th>
-          <th style="width: 170px; color:#5c5445;">非持股股利總和 ($)</th>
-          <th style="width: 170px; color:#766c5a;">目前持股股利 (含現價折算) ($)</th>
-          <th style="width: 200px; color:#9c7c52; font-size:0.95rem;">年度全體總額 ($) 🌟</th>
-          <th style="width: 200px;">全體歷年佔比</th>
-          <th style="width: 120px;">統計狀態</th>
+          <th style="width: 13%;">發放年度</th>
+          <th style="width: 20%; color:#5c5445;">非持股股利總和 ($)</th>
+          <th style="width: 20%; color:#766c5a;">目前持股股利 (現金股利) ($)</th>
+          <th style="width: 22%; color:#9c7c52; font-size:0.9rem;">年度全體總額 ($) 🌟</th>
+          <th style="width: 17%;">全體歷年佔比</th>
+          <th style="width: 8%;">明細</th>
         </tr>
       `;
 
+      // fullSummaryList 由 getFullAssetYearlyDividendSummary() 回傳，已經是「舊到新」排序
       const fullSummaryList = getFullAssetYearlyDividendSummary();
       const grandYearlyTotal = fullSummaryList.reduce((sum, y) => sum + y.totalAmount, 0);
 
-      tbody.innerHTML = fullSummaryList.map(item => {
+      // 表格顯示：最新年度在最上面 (由新到舊)
+      const displayList = [...fullSummaryList].reverse();
+
+      tbody.innerHTML = displayList.map(item => {
         const ratio = grandYearlyTotal > 0 ? ((item.totalAmount / grandYearlyTotal) * 100).toFixed(1) : 0;
         return `
           <tr>
@@ -1551,19 +1605,78 @@
               $${formatNum(item.totalAmount, 0)}
             </td>
             <td>
-              <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
-                <div style="width:110px; background:#ece6d9; border-radius:4px; height:8px; overflow:hidden;">
-                  <div style="width:${ratio}%; background:#9c7c52; height:100%;"></div>
-                </div>
-                <span class="font-mono font-bold" style="font-size:0.8rem; color:#93897a;">${ratio}%</span>
-              </div>
+              <span class="font-mono font-bold" style="font-size:0.85rem; color:#93897a;">${ratio}%</span>
             </td>
-            <td><span style="font-size:0.75rem; background:#eef0e6; color:#3f6b4c; padding:2px 8px; border-radius:4px;">全資產合計</span></td>
+            <td>
+              <button class="btn" style="padding:3px 8px; font-size:0.78rem;" onclick="openYearlyDivDetailModal('${item.rawKey}', '${item.displayYear}')">🔍 明細</button>
+            </td>
           </tr>
         `;
       }).join('');
 
+      // 小計列 (加總各年度數字)
+      const subtotalPast = fullSummaryList.reduce((s, y) => s + y.pastAmount, 0);
+      const subtotalCurrent = fullSummaryList.reduce((s, y) => s + y.currentAmount, 0);
+      const stockGridFoot = document.getElementById('stockGridFoot');
+      if (stockGridFoot) {
+        stockGridFoot.innerHTML = `
+          <td style="font-weight:800;">小計</td>
+          <td class="font-mono">$${formatNum(subtotalPast, 0)}</td>
+          <td class="font-mono">$${formatNum(subtotalCurrent, 0)}</td>
+          <td class="font-mono" style="font-size:1.05rem;">$${formatNum(grandYearlyTotal, 0)}</td>
+          <td>100%</td>
+          <td>—</td>
+        `;
+      }
+
+      renderYearlySummaryChart(fullSummaryList);
       renderSummary();
+    }
+
+    /* ====== 歷年股利總合：右側折線圖 (時間軸固定舊到新，不受表格排序影響) ====== */
+    let yearlySummaryChart = null;
+    function renderYearlySummaryChart(fullSummaryList) {
+      const canvas = document.getElementById('dividendSummaryChartCanvas');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      const labels = fullSummaryList.map(y => y.displayYear);
+      const pastData = fullSummaryList.map(y => y.pastAmount);
+      const currentData = fullSummaryList.map(y => y.currentAmount);
+      const totalData = fullSummaryList.map(y => y.totalAmount);
+
+      if (yearlySummaryChart) {
+        yearlySummaryChart.data.labels = labels;
+        yearlySummaryChart.data.datasets[0].data = pastData;
+        yearlySummaryChart.data.datasets[1].data = currentData;
+        yearlySummaryChart.data.datasets[2].data = totalData;
+        yearlySummaryChart.update();
+        return;
+      }
+
+      yearlySummaryChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '非持股股利總和', data: pastData, borderColor: '#5c5445', backgroundColor: 'rgba(92,84,69,0.08)', tension: 0.25, pointRadius: 3 },
+            { label: '目前持股股利', data: currentData, borderColor: '#766c5a', backgroundColor: 'rgba(118,108,90,0.08)', tension: 0.25, pointRadius: 3 },
+            { label: '年度全體總額', data: totalData, borderColor: '#9c7c52', backgroundColor: 'rgba(156,124,82,0.1)', tension: 0.25, pointRadius: 3, borderWidth: 2.5 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { font: { size: 11 }, color: '#3c362e' } },
+            tooltip: { callbacks: { label: ctx => ctx.dataset.label + '：$' + formatNum(ctx.parsed.y, 0) } }
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 }, color: '#93897a' }, grid: { color: '#eee6d8' } },
+            y: { ticks: { font: { size: 10 }, color: '#93897a', callback: v => formatNum(v, 0) }, grid: { color: '#eee6d8' } }
+          }
+        }
+      });
     }
 
     /* ====== 渲染「年度預估股利」子分頁 (股利分頁) ====== */
@@ -2432,12 +2545,11 @@
 
         const p = (Number(s.currentPrice) || 0) * fxRate;
         const cashD = (Number(s.cashDividends) || 0) * fxRate;
-        const stockSh = Number(s.stockShares) || 0;
-        const stockDVal = stockSh * p;
 
         totalCost += (Number(s.totalCost) || 0) * fxRate;
         totalVal += (Number(s.shares) || 0) * p;
-        totalDiv += (cashD + stockDVal);
+        // 「目前持股股利」全站統一只計算現金股利，不含股票股利折算現值
+        totalDiv += cashD;
         totalLent += Number(s.lentShares) || 0;
       });
 
@@ -2617,15 +2729,13 @@
           if (elLent) elLent.textContent = `現金 + 股票現值`;
           return;
         } else {
+          // 「目前持股股利」全站統一只計算現金股利，不含股票股利折算現值
           let currentHoldingsDivTotal = 0;
           stocks.forEach(st => {
-            const p = Number(st.currentPrice) || 0;
             const isUS = st.account === '美股複委託' || st.category === '美股';
             const fxRate = isUS ? 29 : 1;
             (st.dividendHistory || []).forEach(dh => {
-              const stCash = (Number(dh.cash) || 0) * fxRate;
-              const stStockVal = (Number(dh.stockShares) || 0) * p * fxRate;
-              currentHoldingsDivTotal += (stCash + stStockVal);
+              currentHoldingsDivTotal += (Number(dh.cash) || 0) * fxRate;
             });
           });
 
@@ -2672,12 +2782,11 @@
 
         const p = (Number(s.currentPrice) || 0) * fxRate;
         const cashD = (Number(s.cashDividends) || 0) * fxRate;
-        const stockSh = Number(s.stockShares) || 0;
-        const stockDVal = stockSh * p;
 
         fCost += (Number(s.totalCost) || 0) * fxRate;
         fVal += (Number(s.shares) || 0) * p;
-        fDiv += (cashD + stockDVal);
+        // 「目前持股股利」全站統一只計算現金股利，不含股票股利折算現值
+        fDiv += cashD;
         fLent += Number(s.lentShares) || 0;
       });
 
@@ -2695,6 +2804,12 @@
 
       document.getElementById('filterValue').textContent = fUnit + formatNum(fVal / fFx, isCurrentUS ? 2 : 0);
       document.getElementById('filterValDesc').textContent = `該分類現價總值`;
+
+      // 修正：切換分頁時把上一個分頁殘留的卡片標題重設回「未實現損益」
+      const elFProfTitle = document.getElementById('filterTabProfitTitle');
+      if (elFProfTitle) elFProfTitle.textContent = '未實現損益';
+      const elFDivTitle = document.getElementById('filterTabDivTitle');
+      if (elFDivTitle) elFDivTitle.textContent = '累計股利';
 
       const elFProf = document.getElementById('filterProfit');
       if (elFProf) {
@@ -3094,6 +3209,51 @@
     }
 
     /* ====== 分離式股利彈窗 ====== */
+    /* ====== Task 5: 歷年股利總合 - 單一年度所有持股現金股利明細彈窗 ====== */
+    function openYearlyDivDetailModal(rawKey, displayYear) {
+      const rows = [];
+      let total = 0;
+
+      stocks.forEach(st => {
+        const isUS = st.account === '美股複委託' || st.category === '美股';
+        const fxRate = isUS ? 29 : 1;
+        (st.dividendHistory || []).forEach(dh => {
+          if (normalizeYearKey(dh.year) !== rawKey) return;
+          const cash = (Number(dh.cash) || 0) * fxRate;
+          if (cash <= 0) return;
+          rows.push({ name: st.name, date: dh.cashDate || '—', cash });
+          total += cash;
+        });
+      });
+
+      rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+      const titleEl = document.getElementById('yearlyDivDetailTitle');
+      if (titleEl) titleEl.textContent = `📅 ${displayYear} 年度現金股利明細`;
+
+      const bodyEl = document.getElementById('yearlyDivDetailBody');
+      if (bodyEl) {
+        bodyEl.innerHTML = rows.length ? rows.map(r => `
+          <tr>
+            <td>${r.name}</td>
+            <td class="font-mono">${r.date}</td>
+            <td class="font-mono">$${formatNum(r.cash, 0)}</td>
+          </tr>
+        `).join('') : `<tr><td colspan="3" style="color:#93897a;">該年度沒有現金股利紀錄</td></tr>`;
+      }
+
+      const totalEl = document.getElementById('yearlyDivDetailTotal');
+      if (totalEl) totalEl.textContent = '$' + formatNum(total, 0);
+
+      const modal = document.getElementById('yearlyDivDetailModal');
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeYearlyDivDetailModal() {
+      const modal = document.getElementById('yearlyDivDetailModal');
+      if (modal) modal.classList.remove('open');
+    }
+
     function openDividendModal(stockId, type = 'cash') {
       currentModalType = type;
       let target = null;

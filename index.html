@@ -14,6 +14,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <!-- ExcelJS：僅供「匯出全部資料 (Excel)」功能使用，支援儲存格顏色/格式 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 </head>
 <body>
@@ -48,6 +50,7 @@
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON)</button>
         <button class="settings-menu-item" onclick="document.getElementById('fileInput').click(); closeSettingsMenu();">📂 匯入備份</button>
+        <button class="settings-menu-item" id="btnExportExcelAll" onclick="exportAllDataToExcel(); closeSettingsMenu();">📊 匯出全部資料 (Excel)</button>
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item settings-menu-danger" onclick="resetAll(); closeSettingsMenu();">⚠️ 清空重置</button>
       </div>
@@ -62,6 +65,9 @@
       <thead id="tableHead"></thead>
       <tbody id="tableBody"></tbody>
     </table>
+    <div class="finance-bottom-scroll-wrapper" id="financeBottomScrollWrapper">
+      <div class="finance-bottom-scroll-dummy" id="financeBottomScrollDummy"></div>
+    </div>
   </div>
 
   <div id="floatingChartPanel" style="position:fixed; top:90px; right:24px; width:440px; z-index:1000; background:var(--card-bg); border:1px solid var(--border-color); border-radius:4px; box-shadow:0 6px 20px rgba(60,54,46,0.18); overflow:hidden;">
@@ -153,6 +159,7 @@
         <div class="dropdown-content">
           <button onclick="openAddAccountModal()">🏛️ 新增證券帳戶</button>
           <button onclick="exportStockData()">💾 匯出備份 (JSON)</button>
+          <button onclick="exportAllDataToExcel()">📊 匯出全部資料 (Excel)</button>
           <label style="cursor:pointer;">
             📂 匯入備份 (JSON)
             <input type="file" onchange="importStockData(event)" accept=".json" style="display:none;" />
@@ -314,12 +321,24 @@
       <div class="top-scroll-dummy" id="topScrollDummy"></div>
     </div>
 
-    <!-- Table Container -->
-    <div class="table-container" id="mainTableContainer">
-      <table id="stockGrid">
-        <thead id="stockGridHead"></thead>
-        <tbody id="stockTableBody"></tbody>
-      </table>
+    <!-- Table + Chart Layout (雙欄僅在「歷年股利總合」子分頁啟用) -->
+    <div class="table-with-chart-layout" id="tableWithChartLayout">
+      <!-- Table Container -->
+      <div class="table-container" id="mainTableContainer">
+        <table id="stockGrid">
+          <thead id="stockGridHead"></thead>
+          <tbody id="stockTableBody"></tbody>
+          <tfoot><tr id="stockGridFoot"></tr></tfoot>
+        </table>
+      </div>
+
+      <!-- 歷年股利總合 專用折線圖面板 -->
+      <div class="dividend-chart-panel" id="dividendChartPanel" style="display:none;">
+        <div class="dividend-chart-panel-title">📈 歷年股利趨勢圖</div>
+        <div class="dividend-chart-canvas-wrap">
+          <canvas id="dividendSummaryChartCanvas"></canvas>
+        </div>
+      </div>
     </div>
 
     <div class="help-tips">
@@ -451,6 +470,34 @@
     </div>
   </div>
 
+  <!-- Task 5: 歷年股利總合 - 單一年度所有持股現金股利明細彈窗 -->
+  <div class="modal-overlay" id="yearlyDivDetailModal">
+    <div class="modal-card" style="width: 460px;">
+      <div class="modal-header">
+        <h3 id="yearlyDivDetailTitle" style="font-size:1.05rem; font-weight:700;">📅 年度現金股利明細</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeYearlyDivDetailModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <table class="dividend-table">
+          <thead>
+            <tr>
+              <th style="width:40%;">股票名稱</th>
+              <th style="width:30%;">入帳日期</th>
+              <th style="width:30%;">現金股利</th>
+            </tr>
+          </thead>
+          <tbody id="yearlyDivDetailBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <div style="font-size:0.9rem; font-weight:700;">
+          <span>該年度總計：</span><span id="yearlyDivDetailTotal" class="font-mono font-bold" style="font-size:1.05rem; color:#9c7c52;">$0</span>
+        </div>
+        <button class="btn" onclick="closeYearlyDivDetailModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 非持有/已實現股利：記錄單筆入帳日期彈窗 -->
   <div class="modal-overlay" id="pastDivDateModal">
     <div class="modal-card" style="width: 340px;">
@@ -475,5 +522,6 @@
   <script src="scripts/shared.js"></script>
   <script src="scripts/finance.js"></script>
   <script src="scripts/stock.js"></script>
+  <script src="scripts/export-excel.js"></script>
 </body>
 </html>

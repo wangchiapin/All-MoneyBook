@@ -413,3 +413,46 @@
 }
 #stockView .header { border-bottom: 2px solid var(--border-color, #ddd5c4); }
 
+
+/* ====== Task 1: 歷年股利總合 專用 表格+折線圖 雙欄版面 ====== */
+#stockView .table-with-chart-layout { display: block; width: 100%; }
+#stockView .table-with-chart-layout.split-mode {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  width: 100%;
+}
+#stockView .table-with-chart-layout.split-mode #mainTableContainer {
+  flex: 1 1 52%;
+  max-width: 52%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+#stockView .table-with-chart-layout.split-mode #mainTableContainer table { table-layout: fixed; width: 100%; }
+#stockView .dividend-chart-panel {
+  flex: 1 1 48%;
+  max-width: 48%;
+  min-width: 0;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #ddd5c4);
+  border-radius: 8px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  max-height: 72vh;
+}
+#stockView .dividend-chart-panel-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #5c5445;
+  margin-bottom: 10px;
+}
+#stockView .dividend-chart-canvas-wrap { position: relative; height: 340px; width: 100%; }
+#stockView #stockGridFoot td {
+  background: #eef0e6 !important;
+  color: #5c5445;
+  font-weight: 800;
+  border-top: 2px solid #ddc4b3;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}

@@ -82,6 +82,25 @@
     .table-container::-webkit-scrollbar-thumb { background: #c9bfa8; border-radius: 4px; }
     .table-container::-webkit-scrollbar-thumb:hover { background: #a89a7a; }
 
+    /* ====== Task 4: 底部固定水平捲軸，黏在容器可視範圍下緣，不用捲到頁面最底部 ====== */
+    .finance-bottom-scroll-wrapper {
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 14px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      background: #ece6d9;
+      border-top: 1px solid var(--border-color);
+      z-index: 20;
+    }
+    .finance-bottom-scroll-wrapper::-webkit-scrollbar { height: 10px; }
+    .finance-bottom-scroll-wrapper::-webkit-scrollbar-track { background: #ece6d9; }
+    .finance-bottom-scroll-wrapper::-webkit-scrollbar-thumb { background: #c9bfa8; border-radius: 4px; }
+    .finance-bottom-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #a89a7a; }
+    .finance-bottom-scroll-dummy { height: 1px; }
+
     /* 這條規則原本沒有加上 #financeView 範圍限定，導致「min-width: 800px」
        整個外溢到股票模組(stock.css)裡的小表格(如媽的永豐三張迷你表)，
        強迫它們也不能縮小於 800px，才會被卡片裁掉一部分欄位。

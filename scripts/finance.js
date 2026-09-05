@@ -919,6 +919,7 @@
 
       latestColCalcs = colCalcs;
       updateAssetChart();
+      syncFinanceScrollWidth();
     }
 
     // --- 框選與鍵盤操作 ---
@@ -1208,4 +1209,46 @@
       }
     }
 
+    /* ====== Task 4: 財務總覽 底部固定水平捲軸 (與表格同步) + 自動捲到最新日期 ====== */
+    function setupFinanceScrollSync() {
+      const bottomWrapper = document.getElementById('financeBottomScrollWrapper');
+      const tableWrapper = document.getElementById('gridContainer');
+      if (!bottomWrapper || !tableWrapper) return;
+
+      let isSyncingBottom = false;
+      let isSyncingTable = false;
+
+      bottomWrapper.addEventListener('scroll', () => {
+        if (!isSyncingBottom) {
+          isSyncingTable = true;
+          tableWrapper.scrollLeft = bottomWrapper.scrollLeft;
+        }
+        isSyncingBottom = false;
+      });
+
+      tableWrapper.addEventListener('scroll', () => {
+        if (!isSyncingTable) {
+          isSyncingBottom = true;
+          bottomWrapper.scrollLeft = tableWrapper.scrollLeft;
+        }
+        isSyncingTable = false;
+      });
+    }
+
+    function syncFinanceScrollWidth() {
+      const table = document.getElementById('financeTable');
+      const dummy = document.getElementById('financeBottomScrollDummy');
+      if (table && dummy) dummy.style.width = table.scrollWidth + 'px';
+    }
+
+    function scrollFinanceToLatestDate() {
+      const tableWrapper = document.getElementById('gridContainer');
+      const bottomWrapper = document.getElementById('financeBottomScrollWrapper');
+      if (tableWrapper) tableWrapper.scrollLeft = tableWrapper.scrollWidth;
+      if (bottomWrapper) bottomWrapper.scrollLeft = bottomWrapper.scrollWidth;
+    }
+
     render();
+    setupFinanceScrollSync();
+    // 頁面第一次載入時，預設就顯示在「財務總覽」，所以也算「進入」這個分頁一次
+    scrollFinanceToLatestDate();

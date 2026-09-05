@@ -57,5 +57,10 @@
         tabStock.classList.remove('active');
         tabFinance.classList.add('active');
         if (typeof render === 'function') render();
+        // 每次「進入」財務總覽，都重新捲動到最新日期那一欄
+        if (typeof scrollFinanceToLatestDate === 'function') {
+          setTimeout(scrollFinanceToLatestDate, 0);
+        }
       }
+      if (typeof saveNavState === 'function') saveNavState();
     }
