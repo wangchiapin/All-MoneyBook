@@ -416,6 +416,92 @@ function buildDividendPastSheet(wb) {
   xlBorderThin(ws);
 }
 
+/* 7.5 股票借出 - 出借持股列表 */
+function buildStockLendingSheet(wb) {
+  const ws = wb.addWorksheet('股票借出-出借持股列表');
+  const headRow = ws.addRow(['股票名稱', '現價', '出借張數', '市值', '成本', '未實現損益', '損益率']);
+  xlSetRow(headRow, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true });
+  ws.columns.forEach((c, i) => c.width = i === 0 ? 18 : 14);
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  stockLending.forEach(r0 => {
+    const matched = findStockByName(r0.name);
+    const currentPrice = matched ? (Number(matched.currentPrice) || 0) : 0;
+    const lentShares = Number(r0.lentShares) || 0;
+    const marketVal = currentPrice * lentShares;
+    const cost = Number(r0.cost) || 0;
+    const profit = marketVal - cost;
+    const profitRate = cost > 0 ? profit / cost : 0;
+    const isPos = profit >= 0;
+
+    const r = ws.addRow([r0.name || '', currentPrice, lentShares, marketVal, cost, profit, profitRate]);
+    [2, 3, 4, 5, 6].forEach(i => { r.getCell(i).numFmt = '#,##0'; });
+    r.getCell(7).numFmt = '0.00%';
+    r.getCell(6).font = xlFont({ bold: true, color: isPos ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen });
+    r.getCell(7).font = xlFont({ color: isPos ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen });
+  });
+  xlBorderThin(ws);
+}
+
+/* 7.6 股票借出 - 借卷收入明細 + 年度加總 */
+function buildLendingIncomeSheet(wb) {
+  const ws = wb.addWorksheet('股票借出-借卷收入');
+  const headRow = ws.addRow(['出借股票', '出借日期', '出借張數', '出借費率', '還卷日期', '收入', '服務費', '實際收入', '入款日期']);
+  xlSetRow(headRow, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true });
+  ws.columns.forEach((c, i) => c.width = i === 0 ? 16 : 12);
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  lendingIncomeRows.forEach(r0 => {
+    const income = Number(r0.income) || 0;
+    const serviceFee = Number(r0.serviceFee) || 0;
+    const actual = income - serviceFee;
+    const r = ws.addRow([r0.name || '', r0.lendDate || '', Number(r0.lentShares) || 0, Number(r0.feeRate) || 0, r0.returnDate || '', income, serviceFee, actual, r0.paymentDate || '']);
+    [3, 6, 7, 8].forEach(i => { r.getCell(i).numFmt = '#,##0'; });
+    r.getCell(4).numFmt = '0.00';
+  });
+
+  ws.addRow([]);
+  const yearHeadRow = ws.addRow(['年度借卷收入總計 (實際收入加總)']);
+  xlSetRow(yearHeadRow, { bg: XLSX_COLORS.yellowCell, bold: true });
+  const yearly = getLendingYearlyTotals();
+  yearly.forEach(y => {
+    const r = ws.addRow([`${y.year}年${y.isAuto ? ' (自動加總)' : ' (手動記錄)'}`, '', '', '', '', '', '', y.amount]);
+    r.getCell(8).numFmt = '#,##0';
+  });
+  xlBorderThin(ws);
+}
+
+/* 7.7 定期定額 */
+function buildDcaSheet(wb) {
+  const ws = wb.addWorksheet('定期定額');
+  const headRow = ws.addRow(['股票名稱', '日期(扣款日)', '扣款金額', '扣款總金額(同股票加總)']);
+  xlSetRow(headRow, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true });
+  ws.columns.forEach((c, i) => c.width = i === 0 ? 18 : 16);
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const totalsByName = {};
+  dcaRows.forEach(r0 => {
+    const key = (r0.name || '').trim();
+    if (!key) return;
+    totalsByName[key] = (totalsByName[key] || 0) + (Number(r0.amount) || 0);
+  });
+
+  let grandTotal = 0;
+  dcaRows.forEach(r0 => {
+    const amount = Number(r0.amount) || 0;
+    grandTotal += amount;
+    const key = (r0.name || '').trim();
+    const r = ws.addRow([r0.name || '', r0.date || '', amount, key ? totalsByName[key] : '']);
+    r.getCell(3).numFmt = '#,##0';
+    if (key) r.getCell(4).numFmt = '#,##0';
+  });
+
+  const totalRow = ws.addRow(['小計', '', grandTotal, '']);
+  xlSetRow(totalRow, { bg: XLSX_COLORS.totalBg, bold: true });
+  totalRow.getCell(3).numFmt = '#,##0';
+  xlBorderThin(ws);
+}
+
 /* 8. 媽的永豐：三張表並排 + 總覽統計，跟畫面版面一致 */
 function buildYfSheet(wb) {
   // 這兩個函式平常只有在使用者切到「媽的永豐」分頁時才會被呼叫，
@@ -521,6 +607,9 @@ async function exportAllDataToExcel() {
     buildHoldingsSheet(wb);
     buildSalesListSheet(wb);
     buildSalesHistorySheet(wb);
+    buildStockLendingSheet(wb);
+    buildLendingIncomeSheet(wb);
+    buildDcaSheet(wb);
     buildDividendSummarySheet(wb);
     buildDividendEstimateSheet(wb);
     buildDividendPastSheet(wb);

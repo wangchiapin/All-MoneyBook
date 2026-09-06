@@ -1168,12 +1168,18 @@
       e.preventDefault();
     });
 
-    // 匯出/匯入
+    // 匯出/匯入 (整合版：同時包含「財務總覽」與「股票管理」全部資料)
     function exportData() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+      const combined = {
+        backupType: 'combined_v1',
+        financeState: state,
+        stockData: (typeof gatherAllData === 'function') ? gatherAllData() : null,
+        exportDate: new Date().toISOString()
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(combined, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", '財務紀錄備份_' + new Date().toISOString().slice(0,10) + '.json');
+      downloadAnchor.setAttribute("download", '全部資料備份_' + new Date().toISOString().slice(0,10) + '.json');
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -1186,11 +1192,39 @@
       reader.onload = function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          if (imported.dates && imported.values) {
+
+          if (imported.backupType === 'combined_v1') {
+            // 新版整合備份：財務總覽 + 股票管理 一起還原
+            let restoredFinance = false, restoredStock = false;
+            if (imported.financeState && imported.financeState.dates && imported.financeState.values) {
+              state = imported.financeState;
+              saveState();
+              restoredFinance = true;
+            }
+            if (imported.stockData && typeof applyAllData === 'function') {
+              applyAllData(imported.stockData);
+              if (typeof renderTabs === 'function') renderTabs();
+              if (typeof renderTable === 'function') renderTable();
+              restoredStock = true;
+            }
+            render();
+            if (restoredFinance || restoredStock) {
+              alert("資料匯入成功！" + (restoredFinance && restoredStock ? "(財務總覽 + 股票管理 一併還原)" : restoredFinance ? "(僅財務總覽)" : "(僅股票管理)"));
+            } else {
+              alert("檔案格式不正確！");
+            }
+          } else if (imported.dates && imported.values) {
+            // 相容舊版格式：只有「財務總覽」資料的備份檔
             state = imported;
             saveState();
             render();
-            alert("資料匯入成功！");
+            alert("資料匯入成功！(這是舊版格式的備份檔，僅還原財務總覽資料)");
+          } else if (imported.stocks && typeof applyAllData === 'function') {
+            // 相容「股票管理」自己匯出的備份檔
+            applyAllData(imported);
+            if (typeof renderTabs === 'function') renderTabs();
+            if (typeof renderTable === 'function') renderTable();
+            alert("資料匯入成功！(這是股票管理的備份檔，僅還原股票管理資料)");
           } else {
             alert("檔案格式不正確！");
           }

@@ -48,8 +48,8 @@
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item" onclick="openArchiveManager();">🗄️ 封存管理</button>
         <div class="settings-menu-divider"></div>
-        <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON)</button>
-        <button class="settings-menu-item" onclick="document.getElementById('fileInput').click(); closeSettingsMenu();">📂 匯入備份</button>
+        <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON - 全部資料)</button>
+        <button class="settings-menu-item" onclick="document.getElementById('fileInput').click(); closeSettingsMenu();">📂 匯入備份 (JSON)</button>
         <button class="settings-menu-item" id="btnExportExcelAll" onclick="exportAllDataToExcel(); closeSettingsMenu();">📊 匯出全部資料 (Excel)</button>
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item settings-menu-danger" onclick="resetAll(); closeSettingsMenu();">⚠️ 清空重置</button>
@@ -158,10 +158,10 @@
         <button class="btn btn-setting" onclick="toggleSettingDropdown(event)">⚙️ 設定 ▾</button>
         <div class="dropdown-content">
           <button onclick="openAddAccountModal()">🏛️ 新增證券帳戶</button>
-          <button onclick="exportStockData()">💾 匯出備份 (JSON)</button>
+          <button onclick="exportStockData()">💾 匯出備份 (JSON - 僅股票管理)</button>
           <button onclick="exportAllDataToExcel()">📊 匯出全部資料 (Excel)</button>
           <label style="cursor:pointer;">
-            📂 匯入備份 (JSON)
+            📂 匯入備份 (JSON - 僅股票管理)
             <input type="file" onchange="importStockData(event)" accept=".json" style="display:none;" />
           </label>
         </div>
