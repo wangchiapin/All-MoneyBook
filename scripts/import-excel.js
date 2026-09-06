@@ -13,7 +13,7 @@
    ======================================================================== */
 
 const XLSX_IMPORT_SHEETS = [
-  { key: 'holdings', sheetNames: ['全部持股'], label: '📈 全部持股' },
+  { key: 'holdings', sheetNames: ['全部持股'], label: '📈 全部持股', warning: '⚠️ 比對到同一檔股票時，會用 Excel 裡的數字覆蓋現有的「現金股利」「股票股利」等欄位，請確認選的是最新備份檔。' },
   { key: 'salesList', sheetNames: ['股票賣出明細表'], label: '💰 股票賣出明細表' },
   { key: 'salesHistory', sheetNames: ['股票賣出歷年紀錄'], label: '📅 股票賣出歷年紀錄' },
   { key: 'dividendPast', sheetNames: ['股利-非持股歷史'], label: '🎁 股利-非持股歷史' },
@@ -53,6 +53,22 @@ async function handleExcelImportFile(event) {
   }
 }
 
+function previewSheet(ws) {
+  let rowCount = 0;
+  let headers = [];
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) {
+      row.eachCell({ includeEmpty: false }, (cell) => {
+        const t = xlCellText(cell);
+        if (t !== '' && t !== undefined) headers.push(String(t));
+      });
+    } else {
+      rowCount++;
+    }
+  });
+  return { rowCount, headers };
+}
+
 function openExcelImportModal(wb) {
   const foundSheetNames = wb.worksheets.map(ws => ws.name);
   const list = document.getElementById('excelImportList');
@@ -63,12 +79,26 @@ function openExcelImportModal(wb) {
     const foundName = def.sheetNames.find(n => foundSheetNames.includes(n));
     const disabled = !foundName;
     pendingImportSelections[def.key] = !!foundName;
+
+    let statusHtml = '－未包含此分頁－';
+    if (foundName) {
+      const ws = wb.getWorksheet(foundName);
+      const preview = previewSheet(ws);
+      const headerPreview = preview.headers.slice(0, 6).join('、') + (preview.headers.length > 6 ? '…' : '');
+      statusHtml = `✅ 找到約 ${preview.rowCount} 列資料<br/><span class="excel-import-cols">欄位：${esc(headerPreview)}</span>`;
+    }
+
+    const warningHtml = (def.warning && !disabled)
+      ? `<div class="excel-import-note">${esc(def.warning)}</div>`
+      : '';
+
     return `
       <label class="excel-import-row${disabled ? ' disabled' : ''}">
         <input type="checkbox" ${foundName ? 'checked' : ''} ${disabled ? 'disabled' : ''}
           onchange="pendingImportSelections['${def.key}']=this.checked" />
         <span>${def.label}</span>
-        <span class="excel-import-status">${foundName ? '✅ 檔案中已找到' : '－未包含此分頁－'}</span>
+        <span class="excel-import-status">${statusHtml}</span>
+        ${warningHtml}
       </label>
     `;
   }).join('');
@@ -76,7 +106,7 @@ function openExcelImportModal(wb) {
   const knownNames = XLSX_IMPORT_SHEETS.flatMap(def => def.sheetNames);
   const unknown = foundSheetNames.filter(n => n !== '財務總覽' && !knownNames.includes(n));
   const unknownHtml = unknown.length
-    ? `<div class="excel-import-note">⚠️ 無法辨識、將略過的分頁：${unknown.join('、')}</div>`
+    ? `<div class="excel-import-note">⚠️ 無法辨識、將略過的分頁：${esc(unknown.join('、'))}</div>`
     : '';
 
   list.innerHTML = rowsHtml + unknownHtml;
@@ -104,8 +134,12 @@ function confirmExcelImport() {
     if (!foundName) return;
     const ws = wb.getWorksheet(foundName);
     try {
-      XLSX_IMPORT_HANDLERS[def.key](ws);
-      importedLabels.push(def.label);
+      const r = XLSX_IMPORT_HANDLERS[def.key](ws) || {};
+      const parts = [];
+      if (r.added) parts.push(`新增 ${r.added}`);
+      if (r.updated) parts.push(`更新 ${r.updated}`);
+      if (r.skipped) parts.push(`略過(已存在) ${r.skipped}`);
+      importedLabels.push(def.label + (parts.length ? '：' + parts.join('、') : '：無變動'));
     } catch (e) {
       console.error('匯入「' + def.label + '」時發生錯誤', e);
       failedLabels.push(def.label);
@@ -118,7 +152,7 @@ function confirmExcelImport() {
   closeExcelImportModal();
 
   let msg = '';
-  if (importedLabels.length) msg += '✅ 匯入完成：\n' + importedLabels.join('\n');
+  if (importedLabels.length) msg += '✅ 合併匯入完成（原有資料都還在）：\n' + importedLabels.join('\n');
   if (failedLabels.length) msg += (msg ? '\n\n' : '') + '❌ 匯入失敗（格式可能不符）：\n' + failedLabels.join('\n');
   if (!msg) msg = '沒有選擇任何可匯入的分頁。';
   alert(msg);
@@ -179,13 +213,14 @@ function xlIsBlankRow(row) {
    不會動到既有的「分類」與「歷年股利明細」） */
 function importHoldingsSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, updated: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '帳戶': 'account', '股票名稱': 'name', '代號': 'code', '現價': 'currentPrice',
     '市值': 'marketVal', '成本': 'totalCost', '持有股數': 'shares',
     '現金股利': 'cashDividends', '股票股利': 'stockDivVal', '出借張數': 'lentShares'
   });
 
+  let added = 0, updated = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (xlIsBlankRow(row)) continue;
@@ -215,6 +250,7 @@ function importHoldingsSheet(ws) {
     if (!existing) existing = stocks.find(s => s.name === name);
 
     if (existing) {
+      // 持股是「目前狀態」而不是歷史紀錄，比對到同一檔股票時用匯入的最新數字更新它
       existing.account = account || existing.account;
       existing.name = name;
       if (code) existing.code = code;
@@ -225,6 +261,7 @@ function importHoldingsSheet(ws) {
       existing.cashDividends = cashDividends;
       existing.stockShares = stockShares;
       existing.lentShares = lentShares;
+      updated++;
     } else {
       const category = isUS ? '美股' : (code && code.startsWith('00') ? 'ETF' : '台股');
       stocks.push({
@@ -232,14 +269,16 @@ function importHoldingsSheet(ws) {
         name, code, category, account, shares, totalCost, currentPrice, marketVal,
         cashDividends, stockShares, dividendHistory: [], lentShares
       });
+      added++;
     }
   }
+  return { added, updated };
 }
 
-/* 股票賣出明細表 → stockSales[]（整批取代） */
+/* 股票賣出明細表 → stockSales[]（沒有天然唯一鍵的交易記錄，採「附加」方式，保留既有資料） */
 function importSalesListSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '日期': 'date', '名稱': 'name', '股數': 'shares', '買進價格': 'buyPrice', '賣出價格': 'sellPrice',
     '成本': 'cost', '賣出': 'sellAmt', '價差': 'spread', '報酬率': 'returnRate',
@@ -270,23 +309,26 @@ function importSalesListSheet(ws) {
       dayTotal: null, note: '', note2: ''
     });
   }
-  if (out.length) stockSales = out;
+  stockSales.push(...out);
+  return { added: out.length };
 }
 
-/* 股票賣出歷年紀錄 → salesHistory[]（依年度比對更新，找不到則新增） */
+/* 股票賣出歷年紀錄 → salesHistory[]（依年度比對，本地已有的年度保留不覆蓋，只新增本地沒有的年度） */
 function importSalesHistorySheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '年度': 'year', '總成本': 'totalCost', '總賣出': 'totalSell', '價差': 'spread',
     '報酬率': 'returnRate', '狀態': 'status'
   });
 
+  let added = 0, skipped = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (xlIsBlankRow(row)) continue;
     const year = idx.year !== undefined ? xlStr(row[idx.year]) : '';
     if (!year) continue;
+    if (salesHistory.some(h => xlStr(h.year) === year)) { skipped++; continue; }
     const status = idx.status !== undefined ? xlStr(row[idx.status]) : '';
     const entry = {
       year,
@@ -296,17 +338,16 @@ function importSalesHistorySheet(ws) {
       returnRate: idx.returnRate !== undefined ? xlNum(row[idx.returnRate]) : 0
     };
     if (status.includes('手動')) entry.isManual = true;
-
-    const exIdx = salesHistory.findIndex(h => xlStr(h.year) === year);
-    if (exIdx >= 0) salesHistory[exIdx] = Object.assign({}, salesHistory[exIdx], entry);
-    else salesHistory.push(entry);
+    salesHistory.push(entry);
+    added++;
   }
+  return { added, skipped };
 }
 
-/* 股利-非持股歷史 → pastColumns[]（依「年度」欄位群組重建，格式：年度｜股票｜現金股利 反覆排列） */
+/* 股利-非持股歷史 → pastColumns[]（依「年度」欄位群組，本地已有的年度保留不覆蓋，只新增本地沒有的年度） */
 function importDividendPastSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 3) return;
+  if (rows.length < 3) return { added: 0, skipped: 0 };
   const headRow1 = rows[0];
 
   const yearBlocks = [];
@@ -316,7 +357,7 @@ function importDividendPastSheet(ws) {
       yearBlocks.push({ year: label.replace('年度', '').trim(), stockCol: c, cashCol: c + 1 });
     }
   }
-  if (!yearBlocks.length) return;
+  if (!yearBlocks.length) return { added: 0, skipped: 0 };
 
   const newColumns = yearBlocks.map(b => ({ year: b.year, items: [] }));
   for (let r = 2; r < rows.length; r++) {
@@ -330,13 +371,21 @@ function importDividendPastSheet(ws) {
       newColumns[i].items.push({ stock, amount: xlNum(amountRaw), cashDate: '' });
     });
   }
-  if (newColumns.some(c => c.items.length)) pastColumns = newColumns;
+
+  let added = 0, skipped = 0;
+  newColumns.forEach(col => {
+    if (!col.items.length) return;
+    if (pastColumns.some(c => xlStr(c.year) === xlStr(col.year))) { skipped++; return; }
+    pastColumns.push(col);
+    added++;
+  });
+  return { added, skipped };
 }
 
-/* 股利-年度預估 → dividendEstimates{}（欄位為各股票，列為「預估除息」「預估除權」） */
+/* 股利-年度預估 → dividendEstimates{}（本地已有數字的股票保留不覆蓋，只補本地沒有的股票） */
 function importDividendEstimateSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const header = rows[0];
 
   const colKeys = [];
@@ -353,50 +402,56 @@ function importDividendEstimateSheet(ws) {
     if (label === '預估除息') expCashRow = rows[r];
     else if (label === '預估除權') expStockRow = rows[r];
   }
-  if (!expCashRow && !expStockRow) return;
+  if (!expCashRow && !expStockRow) return { added: 0, skipped: 0 };
 
+  let added = 0, skipped = 0;
   colKeys.forEach((key, c) => {
     if (!key) return;
-    if (!dividendEstimates[key]) dividendEstimates[key] = { expCash: 0, expStock: 0 };
-    if (expCashRow) dividendEstimates[key].expCash = xlNum(expCashRow[c]);
-    if (expStockRow) dividendEstimates[key].expStock = xlNum(expStockRow[c]);
+    if (dividendEstimates[key] !== undefined) { skipped++; return; }
+    dividendEstimates[key] = {
+      expCash: expCashRow ? xlNum(expCashRow[c]) : 0,
+      expStock: expStockRow ? xlNum(expStockRow[c]) : 0
+    };
+    added++;
   });
+  return { added, skipped };
 }
 
-/* 股票借出-出借持股列表 → stockLending[]（整批取代，並同步出借張數回持股列） */
+/* 股票借出-出借持股列表 → stockLending[]（依股票名稱，本地已有的保留不覆蓋，只新增本地沒有的） */
 function importLendingHoldingsSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const idx = xlHeaderIndex(rows[0], { '股票名稱': 'name', '出借張數': 'lentShares', '成本': 'cost' });
 
-  const out = [];
+  let added = 0, skipped = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (xlIsBlankRow(row)) continue;
     const name = idx.name !== undefined ? xlStr(row[idx.name]) : '';
     if (!name) continue;
-    out.push({
+    if (stockLending.some(l => l.name === name)) { skipped++; continue; }
+    stockLending.push({
       name,
       lentShares: idx.lentShares !== undefined ? xlNum(row[idx.lentShares]) : 0,
       cost: idx.cost !== undefined ? xlNum(row[idx.cost]) : 0
     });
+    added++;
   }
-  if (out.length) {
-    stockLending = out;
-    if (typeof syncLentSharesToHoldings === 'function') syncLentSharesToHoldings();
-  }
+  if (added && typeof syncLentSharesToHoldings === 'function') syncLentSharesToHoldings();
+  return { added, skipped };
 }
 
-/* 股票借出-借卷收入 → lendingIncomeRows[] + lendingIncomeManualYearly{}（歷史年度手動加總） */
+/* 股票借出-借卷收入 → lendingIncomeRows[]（附加，保留既有資料）+ lendingIncomeManualYearly{}（本地已有的年度保留不覆蓋） */
 function importLendingIncomeSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '出借股票': 'name', '出借日期': 'lendDate', '出借張數': 'lentShares', '出借費率': 'feeRate',
     '還卷日期': 'returnDate', '收入': 'income', '服務費': 'serviceFee', '入款日期': 'paymentDate'
   });
 
   const out = [];
+  let added = 0, skipped = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     const label0 = xlStr(row[0]);
@@ -406,8 +461,10 @@ function importLendingIncomeSheet(ws) {
 
     const manualMatch = label0.match(/^(\d+)年.*手動記錄/);
     if (manualMatch) {
+      if (lendingIncomeManualYearly[manualMatch[1]] !== undefined) { skipped++; continue; }
       const amtCol = idx.income !== undefined ? idx.income : 7;
       lendingIncomeManualYearly[manualMatch[1]] = xlNum(row[amtCol]);
+      added++;
       continue;
     }
 
@@ -423,60 +480,69 @@ function importLendingIncomeSheet(ws) {
       paymentDate: idx.paymentDate !== undefined ? xlStr(row[idx.paymentDate]) : ''
     });
   }
-  if (out.length) lendingIncomeRows = out;
+  lendingIncomeRows.push(...out);
+  added += out.length;
+  return { added, skipped };
 }
 
-/* 定期定額 → dcaRows[]（「日期(扣款日)」欄位文字如「1日、15日、20日」會被解析回每月扣款日陣列） */
+/* 定期定額 → dcaRows[]（依股票名稱，本地已有的保留不覆蓋，只新增本地沒有的） */
 function importDcaSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '股票名稱': 'name', '日期(扣款日)': 'datesText', '扣款金額': 'amount'
   });
 
-  const out = [];
+  let added = 0, skipped = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (xlIsBlankRow(row)) continue;
     const name = idx.name !== undefined ? xlStr(row[idx.name]) : '';
     if (!name || name === '小計') continue;
+    if (dcaRows.some(d => (d.name || '').trim() === name)) { skipped++; continue; }
     const datesText = idx.datesText !== undefined ? xlStr(row[idx.datesText]) : '';
     const dates = (datesText.match(/\d+/g) || [])
       .map(n => parseInt(n, 10))
       .filter(n => n >= 1 && n <= 31);
-    out.push({
+    dcaRows.push({
       id: Date.now() + r,
       name,
       dates,
       amount: idx.amount !== undefined ? xlNum(row[idx.amount]) : 0
     });
+    added++;
   }
-  if (out.length) dcaRows = out;
+  return { added, skipped };
 }
 
-/* 媽的永豐 → yfDetail[] / yfAccount[] / yfDividendRows[] / yfOverview{}
+/* 媽的永豐 → yfDetail[] / yfAccount[] / yfDividendRows[]（沒有天然唯一鍵的交易記錄，採「附加」保留既有資料）
+   + yfOverview{}（只補目前是空/0 的欄位，已經有值的維持原樣）
    （版面是三張表並排：買賣明細 col0-3、帳戶明細 col4-9、除息資訊 col10-12；
      餘額/持有股數/股利/累計等為程式自動計算欄位，不從檔案讀入） */
 function importYfSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 3) return;
+  if (rows.length < 3) return { added: 0 };
 
   const titleText = xlStr(rows[0][0]);
   const nameMatch = titleText.replace('股票投資概況：', '').trim();
-  if (nameMatch) yfOverview.stockName = nameMatch;
+  if (!yfOverview.stockName && nameMatch) yfOverview.stockName = nameMatch;
 
   const ovHead = rows[1] || [];
   const ovVals = rows[2] || [];
   const curIdx = ovHead.findIndex(h => xlStr(h) === '現值');
-  if (curIdx >= 0 && ovVals[curIdx] !== undefined && ovVals[curIdx] !== '') {
+  if (!yfOverview.currentValue && curIdx >= 0 && ovVals[curIdx] !== undefined && ovVals[curIdx] !== '') {
     yfOverview.currentValue = xlNum(ovVals[curIdx]);
+  }
+  const appCostIdx = ovHead.findIndex(h => xlStr(h) === 'APP顯示成本');
+  if (!yfOverview.appCost && appCostIdx >= 0 && ovVals[appCostIdx] !== undefined && ovVals[appCostIdx] !== '') {
+    yfOverview.appCost = xlNum(ovVals[appCostIdx]);
   }
 
   let headerIdx = -1;
   for (let i = 0; i < rows.length; i++) {
     if (xlStr(rows[i][0]) === '日期' && xlStr(rows[i][1]) === '股數') { headerIdx = i; break; }
   }
-  if (headerIdx === -1) return;
+  if (headerIdx === -1) return { added: 0 };
 
   const newDetail = [], newAccount = [], newDividend = [];
   for (let r = headerIdx + 1; r < rows.length; r++) {
@@ -491,15 +557,17 @@ function importYfSheet(ws) {
       newDividend.push({ exDate: xlStr(row[10]), cashPerShare: xlNum(row[11]), payDate: xlStr(row[12]), heldShares: 0, divAmount: 0, cumulative: 0 });
     }
   }
-  if (newDetail.length) yfDetail = newDetail;
-  if (newAccount.length) yfAccount = newAccount;
-  if (newDividend.length) yfDividendRows = newDividend;
+  yfDetail.push(...newDetail);
+  yfAccount.push(...newAccount);
+  yfDividendRows.push(...newDividend);
+  return { added: newDetail.length + newAccount.length + newDividend.length };
 }
 
-/* 各股紀錄 → localStorage 的資產快照 (ASSET_SNAPSHOTS_V1)，依「快照日期」分組重建 */
+/* 各股紀錄 → localStorage 的資產快照 (ASSET_SNAPSHOTS_V1)，以「快照日期」為鍵，
+   本地已有的日期保留不覆蓋，只新增本地沒有的日期 */
 function importSnapshotsSheet(ws) {
   const rows = xlRowsOf(ws);
-  if (rows.length < 2) return;
+  if (rows.length < 2) return { added: 0, skipped: 0 };
   const idx = xlHeaderIndex(rows[0], {
     '快照日期': 'date', '帳戶': 'account', '股票名稱': 'name', '代號': 'code',
     '持有股數': 'shares', '成本': 'totalCost', '現價': 'currentPrice', '市值': 'marketVal', '未實現損益': 'profit'
@@ -524,21 +592,19 @@ function importSnapshotsSheet(ws) {
     });
   }
 
-  const snaps = Object.keys(byDate).map(date => ({ date, items: byDate[date] }));
-  if (snaps.length) {
-    try { localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(snaps)); } catch (e) { /* 略過 */ }
-  }
-}
+  let existingSnaps = [];
+  try { existingSnaps = JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'); } catch (e) { existingSnaps = []; }
+  const existingDates = new Set(existingSnaps.map(s => s.date));
 
-const XLSX_IMPORT_HANDLERS = {
-  holdings: importHoldingsSheet,
-  salesList: importSalesListSheet,
-  salesHistory: importSalesHistorySheet,
-  dividendPast: importDividendPastSheet,
-  dividendEstimate: importDividendEstimateSheet,
-  lendingHoldings: importLendingHoldingsSheet,
-  lendingIncome: importLendingIncomeSheet,
-  dca: importDcaSheet,
-  yf: importYfSheet,
-  snapshots: importSnapshotsSheet
-};
+  let added = 0, skipped = 0;
+  Object.keys(byDate).forEach(date => {
+    if (existingDates.has(date)) { skipped++; return; }
+    existingSnaps.push({ date, items: byDate[date] });
+    added++;
+  });
+
+  if (added) {
+    try { localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(existingSnaps)); } catch (e) { /* 略過 */ }
+  }
+  return { added, skipped };
+}

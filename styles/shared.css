@@ -97,3 +97,64 @@
 #floatingCalculator .calc-btn.clear:hover { background: #f0e2da; }
 #floatingCalculator .btn-del { color: #b3a998; border: none; background: transparent; padding: 4px 8px; font-size: 0.9rem; cursor: pointer; }
 #floatingCalculator .btn-del:hover { color: #b6533c; }
+
+/* ========================================================================
+   RWD：手機／小螢幕 (≤ 640px) 版面調整
+   表格本身維持可橫向捲動（.table-container 已經有 overflow-x），這裡主要是
+   縮小留白、字級、觸控熱區，並讓浮動元件（趨勢圖／計算機）不會超出螢幕寬度。
+   ======================================================================== */
+@media (max-width: 640px) {
+  body { padding: 8px !important; }
+
+  .toolbar, #stockView .header, #stockView .toolbar-bar, #stockView .filter-bar {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+  .toolbar .btn, #stockView .btn, #stockView .tab-pill-btn, #stockView .tab-btn {
+    padding: 9px 12px !important;
+    font-size: 0.82rem !important;
+  }
+  #stockView .header h1 { font-size: 1.15rem !important; }
+
+  #stockView .search-input { width: 140px !important; }
+
+  /* 卡片式統計區：小螢幕改為兩欄，數字才不會被壓得太小 */
+  .dashboard, #stockView .dashboard, #stockView .yf-dashboard-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .stat-card, #stockView .stat-card {
+    padding: 10px 8px !important;
+  }
+  .stat-value, #stockView .stat-value { font-size: 1.1rem !important; }
+
+  /* 表格：字級與內距縮小，讓手機上一次能看到更多欄位，仍可左右滑動捲動 */
+  #stockView table { font-size: 0.76rem !important; }
+  #stockView th, #stockView td { padding: 5px 4px !important; }
+  .table-container table th, .table-container table td { font-size: 0.76rem !important; padding: 5px 4px !important; }
+
+  /* 彈窗：留白縮小、寬度貼齊螢幕 */
+  #stockView .modal-card { width: 94vw !important; max-width: 94vw !important; }
+  #stockView .modal-body { padding: 12px !important; max-height: 70vh !important; }
+  #stockView .modal-header, #stockView .modal-footer { padding: 10px 12px !important; }
+
+  /* 浮動趨勢圖／計算機：限制最大寬度避免超出螢幕，位置仍可正常拖曳 */
+  #floatingChartPanel {
+    width: min(280px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  #floatingCalculator {
+    width: min(220px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  /* 定期定額日曆選擇器：格子縮小一點，7 欄仍能完整顯示 */
+  #stockView .dca-day-grid { gap: 4px !important; }
+  #stockView .dca-day-cell { padding: 6px 0 !important; font-size: 0.78rem !important; }
+}
+
+@media (max-width: 420px) {
+  .dashboard, #stockView .dashboard, #stockView .yf-dashboard-grid {
+    grid-template-columns: repeat(1, 1fr) !important;
+  }
+  #stockView .search-input { width: 100px !important; }
+}

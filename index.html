@@ -181,18 +181,17 @@
     <div class="yf-overview-panel" id="yfOverviewPanel" style="display:none;">
       <div class="yf-overview-header">
         <span>📊 股票投資概況</span>
-        <input type="text" id="yfOvName" class="yf-ov-input font-bold" value="國泰永續高股息00878" onchange="updateYfOverview('stockName', this.value)" style="max-width:200px; width:auto; text-align:left;" />
+        <input type="text" id="yfOvName" class="yf-ov-input font-bold" value="" onchange="updateYfOverview('stockName', this.value)" style="max-width:200px; width:auto; text-align:left;" />
       </div>
       <div class="yf-dashboard-grid">
         <div class="stat-card">
-          <div class="stat-title">App顯示成本</div>
-          <div class="stat-value" id="yfOvActualCost">$0</div>
-          <div class="stat-desc">依「永豐帳戶明細」出帳加總</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-title">實際扣款成本</div>
           <div class="stat-value" id="yfOvCost">$0</div>
-          <div class="stat-desc" id="yfOvCostDiff">依「買賣明細」成本欄加總</div>
+          <div class="stat-desc" id="yfOvCostDiff">依「買賣明細」成本欄加總，僅供參考</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">APP顯示成本</div>
+          <input type="number" step="any" id="yfOvActualCost" class="yf-ov-input font-mono font-bold" value="0" onchange="updateYfOverview('appCost', this.value)" />
         </div>
         <div class="stat-card">
           <div class="stat-title">現值</div>
@@ -207,12 +206,9 @@
           <div class="stat-value" id="yfOvShares">0</div>
         </div>
         <div class="stat-card">
-          <div class="stat-title">未實現損益</div>
+          <div class="stat-title">未實現損益 (含報酬率)</div>
           <div class="stat-value" id="yfOvProfit">$0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-title">投資報酬率</div>
-          <div class="stat-value" id="yfOvROI">0%</div>
+          <div class="stat-desc" id="yfOvROI">0%</div>
         </div>
         <div class="stat-card stat-card-blue">
           <div class="stat-title">總股利</div>
@@ -223,16 +219,13 @@
           <div class="stat-value" id="yfOvCostWithDiv">$0</div>
         </div>
         <div class="stat-card stat-card-blue">
-          <div class="stat-title">含息損益</div>
-          <div class="stat-value" id="yfOvProfitWithDiv">$0</div>
-        </div>
-        <div class="stat-card stat-card-blue">
           <div class="stat-title">含息均價</div>
           <div class="stat-value" id="yfOvAvgPriceWithDiv">0.00</div>
         </div>
         <div class="stat-card stat-card-blue">
-          <div class="stat-title">含息報酬率</div>
-          <div class="stat-value" id="yfOvROIWithDiv">0%</div>
+          <div class="stat-title">含息損益 (含報酬率)</div>
+          <div class="stat-value" id="yfOvProfitWithDiv">$0</div>
+          <div class="stat-desc" id="yfOvROIWithDiv">0%</div>
         </div>
         <div class="stat-card stat-card-blue">
           <div class="stat-title">尚欠 (目標 $100,000)</div>
@@ -549,7 +542,7 @@
         <button class="btn-del" style="font-size:1.2rem;" onclick="closeExcelImportModal()">✕</button>
       </div>
       <div class="modal-body">
-        <div style="margin-bottom:10px; font-size:0.82rem; color:#93897a;">會自動辨識檔案中的分頁，勾選要匯入的資料（會覆蓋目前該分頁的資料，其餘未勾選的分頁不受影響）：</div>
+        <div style="margin-bottom:10px; font-size:0.82rem; color:#93897a;">會自動辨識檔案中的分頁，勾選要匯入的資料。採「合併」方式：本地已有的資料會保留，只把本地沒有的項目加進來，不會覆蓋或刪除既有資料：</div>
         <div id="excelImportList"></div>
       </div>
       <div class="modal-footer">

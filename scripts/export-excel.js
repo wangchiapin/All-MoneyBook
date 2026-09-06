@@ -509,35 +509,32 @@ function buildYfSheet(wb) {
 
   // 總覽統計 (與畫面上方卡片一致)
   const totalShares = yfDetail.reduce((s, r) => s + (Number(r.shares) || 0), 0);
-  const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
-  const actualCost = yfAccount.reduce((s, r) => {
-    const amt = Number(r.amount) || 0;
-    return s + (amt < 0 ? -amt : 0);
-  }, 0);
+  const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0); // 實際扣款成本：買賣明細加總，僅供參考
+  const appCost = Number(yfOverview.appCost) || 0; // APP顯示成本：手動輸入，作為其他卡片的計算基礎
   const currentVal = Number(yfOverview.currentValue) || 0;
   const dividend = computeYfDividendDistribution();
-  const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
-  const unrealizedPL = currentVal - totalCost;
-  const roi = totalCost > 0 ? unrealizedPL / totalCost : 0;
-  const costWithDiv = totalCost - dividend;
+  const avgPrice = totalShares > 0 ? appCost / totalShares : 0;
+  const unrealizedPL = currentVal - appCost;
+  const roi = appCost > 0 ? unrealizedPL / appCost : 0;
+  const costWithDiv = appCost - dividend;
   const plWithDiv = currentVal - costWithDiv;
   const avgPriceWithDiv = totalShares > 0 ? costWithDiv / totalShares : 0;
   const roiWithDiv = costWithDiv > 0 ? plWithDiv / costWithDiv : 0;
-  const debt = 100000 - totalCost;
+  const debt = 100000 - appCost;
 
   const ovTitle = ws.addRow(['股票投資概況：' + (yfOverview.stockName || '')]);
   ws.mergeCells(1, 1, 1, 7);
   xlSetRow(ovTitle, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true, align: 'left' });
 
-  const ovHead = ws.addRow(['App顯示成本', '實際扣款成本', '現值', '均價', '股數', '未實現損益', '投資報酬率']);
-  const ovVals = ws.addRow([actualCost, totalCost, currentVal, avgPrice, totalShares, unrealizedPL, roi]);
-  const ovHead2 = ws.addRow(['總股利', '含息成本', '含息損益', '含息均價', '含息報酬率', '尚欠(目標$100,000)']);
-  const ovVals2 = ws.addRow([dividend, costWithDiv, plWithDiv, avgPriceWithDiv, roiWithDiv, debt]);
+  const ovHead = ws.addRow(['實際扣款成本(參考)', 'APP顯示成本', '現值', '均價', '股數', '未實現損益', '投資報酬率']);
+  const ovVals = ws.addRow([totalCost, appCost, currentVal, avgPrice, totalShares, unrealizedPL, roi]);
+  const ovHead2 = ws.addRow(['總股利', '含息成本', '含息均價', '含息損益', '含息報酬率', '尚欠(目標$100,000)']);
+  const ovVals2 = ws.addRow([dividend, costWithDiv, avgPriceWithDiv, plWithDiv, roiWithDiv, debt]);
   [ovHead, ovHead2].forEach(r => xlSetRow(r, { bg: XLSX_COLORS.summaryLabel, bold: true }));
   [ovVals, ovVals2].forEach(r => xlSetRow(r, { bg: XLSX_COLORS.summaryCell, bold: true }));
-  [ovVals.getCell(1), ovVals.getCell(2), ovVals.getCell(3), ovVals.getCell(4), ovVals.getCell(5), ovVals2.getCell(1), ovVals2.getCell(2), ovVals2.getCell(3), ovVals2.getCell(4), ovVals2.getCell(6)].forEach(c => c.numFmt = '#,##0');
+  [ovVals.getCell(1), ovVals.getCell(2), ovVals.getCell(3), ovVals.getCell(4), ovVals.getCell(5), ovVals2.getCell(1), ovVals2.getCell(2), ovVals2.getCell(3), ovVals2.getCell(6)].forEach(c => c.numFmt = '#,##0');
   ovVals.getCell(6).numFmt = '#,##0'; ovVals.getCell(7).numFmt = '0.00%'; ovVals2.getCell(5).numFmt = '0.00%';
-  [ovVals.getCell(6), ovVals2.getCell(3)].forEach(c => { c.font = xlFont({ bold: true, color: (c.value >= 0) ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen }); });
+  [ovVals.getCell(6), ovVals2.getCell(4)].forEach(c => { c.font = xlFont({ bold: true, color: (c.value >= 0) ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen }); });
 
   ws.addRow([]); // 空一行分隔
 

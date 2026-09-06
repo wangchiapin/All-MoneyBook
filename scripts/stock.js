@@ -13,119 +13,19 @@
     const STORAGE_KEY_LENDING_INCOME_YEARLY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME_YEARLY';
     const STORAGE_KEY_DCA = 'STOCK_INVESTMENT_EXCEL_PRO_V32_DCA';
 
-    const INITIAL_DATA = [
-      {"id": 1, "name": "元大高股息", "code": "0056", "category": "ETF", "account": "富邦證券", "shares": 7562, "totalCost": 250794, "currentPrice": 52.27, "cashDividends": 90698, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-15", "cash": 50000, "stockDate": "", "stockShares": 0}, {"year": 2025, "cashDate": "2025-08-15", "cash": 40698, "stockDate": "", "stockShares": 0}], "lentShares": 0},
-      {"id": 2, "name": "國泰台灣科技龍頭", "code": "00881", "category": "ETF", "account": "富邦證券", "shares": 6730, "totalCost": 127907, "currentPrice": 48.47, "cashDividends": 110860, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-10", "cash": 60000, "stockDate": "", "stockShares": 0}, {"year": 2025, "cashDate": "2025-08-10", "cash": 50860, "stockDate": "", "stockShares": 0}], "lentShares": 11000},
-      {"id": 3, "name": "台泥", "code": "1101", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 36, "currentPrice": 23.0, "cashDividends": 69, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-07-20", "cash": 69, "stockDate": "", "stockShares": 0}], "lentShares": 0},
-      {"id": 4, "name": "大成", "code": "1210", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 54, "currentPrice": 52.0, "cashDividends": 436, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-01", "cash": 436, "stockDate": "", "stockShares": 0}], "lentShares": 0},
-      {"id": 5, "name": "卜蜂", "code": "1215", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 155, "currentPrice": 111.0, "cashDividends": 939, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-05", "cash": 939, "stockDate": "", "stockShares": 0}], "lentShares": 0},
-      {"id": 6, "name": "愛之味", "code": "1217", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 11, "currentPrice": 9.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 7, "name": "聯華", "code": "1229", "category": "台股", "account": "富邦證券", "shares": 715, "totalCost": 18623, "currentPrice": 42.21, "cashDividends": 57662, "stockShares": 0, "dividendHistory": [{"year": 2023, "cashDate": "2023-08-25", "cash": 25000, "stockDate": "", "stockShares": 0}, {"year": 2024, "cashDate": "2024-08-25", "cash": 32662, "stockDate": "", "stockShares": 0}], "lentShares": 5000},
-      {"id": 8, "name": "大魯閣", "code": "1432", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 21, "currentPrice": 14.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 9, "name": "台肥", "code": "1722", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 52, "currentPrice": 45.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 10, "name": "正隆", "code": "1904", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 30, "currentPrice": 24.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 11, "name": "中鋼", "code": "2002", "category": "台股", "account": "富邦證券", "shares": 10, "totalCost": 290, "currentPrice": 19.3, "cashDividends": 3563, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-28", "cash": 3563, "stockDate": "", "stockShares": 0}], "lentShares": 0},
-      {"id": 12, "name": "聯電", "code": "2303", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 49, "currentPrice": 115.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 13, "name": "鴻海", "code": "2317", "category": "台股", "account": "富邦證券", "shares": 123, "totalCost": 28423, "currentPrice": 244.41, "cashDividends": 26, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 14, "name": "台積電", "code": "2330", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 2293, "currentPrice": 2400.0, "cashDividends": 850, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 15, "name": "佳世達", "code": "2352", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 24, "currentPrice": 27.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 16, "name": "山隆", "code": "2616", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 18, "currentPrice": 12.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 17, "name": "王品", "code": "2727", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 248, "currentPrice": 236.0, "cashDividends": 231, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 18, "name": "彰銀", "code": "2801", "category": "台股", "account": "富邦證券", "shares": 10, "totalCost": 203, "currentPrice": 24.0, "cashDividends": 528, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 19, "name": "臺企銀", "code": "2834", "category": "台股", "account": "富邦證券", "shares": 19000, "totalCost": 176657, "currentPrice": 16.48, "cashDividends": 522, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 20, "name": "華南金", "code": "2880", "category": "台股", "account": "富邦證券", "shares": 500, "totalCost": 14185, "currentPrice": 39.43, "cashDividends": 11495, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 21, "name": "富邦金", "code": "2881", "category": "台股", "account": "富邦證券", "shares": 230, "totalCost": 20837, "currentPrice": 133.41, "cashDividends": 541, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 22, "name": "凱基金", "code": "2883", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 15, "currentPrice": 30.0, "cashDividends": 3095, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 23, "name": "玉山金", "code": "2884", "category": "台股", "account": "富邦證券", "shares": 15306, "totalCost": 338553, "currentPrice": 37.83, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 24, "name": "元大金", "code": "2885", "category": "台股", "account": "富邦證券", "shares": 11300, "totalCost": 246130, "currentPrice": 63.72, "cashDividends": 24120, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 25, "name": "兆豐金", "code": "2886", "category": "台股", "account": "富邦證券", "shares": 1590, "totalCost": 63033, "currentPrice": 46.74, "cashDividends": 19795, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 26, "name": "永豐金", "code": "2890", "category": "台股", "account": "富邦證券", "shares": 10, "totalCost": 219, "currentPrice": 39.4, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 27, "name": "中信金", "code": "2891", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 41, "currentPrice": 64.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 28, "name": "第一金", "code": "2892", "category": "台股", "account": "富邦證券", "shares": 1310, "totalCost": 37114, "currentPrice": 33.5, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 29, "name": "富采", "code": "3714", "category": "台股", "account": "富邦證券", "shares": 1, "totalCost": 48, "currentPrice": 56.0, "cashDividends": 12017, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 30, "name": "合庫金", "code": "5880", "category": "台股", "account": "富邦證券", "shares": 310, "totalCost": 7438, "currentPrice": 24.94, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 31, "name": "富邦台50", "code": "006208", "category": "ETF", "account": "國泰證券", "shares": 48, "totalCost": 11048, "currentPrice": 238.9, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 32, "name": "富邦NASDAQ", "code": "00662", "category": "ETF", "account": "國泰證券", "shares": 77, "totalCost": 9192, "currentPrice": 119.7, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 33, "name": "國泰永續高股息", "code": "00878", "category": "ETF", "account": "國泰證券", "shares": 16169, "totalCost": 321974, "currentPrice": 32.34, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 34, "name": "富邦半導體", "code": "00892", "category": "ETF", "account": "國泰證券", "shares": 240, "totalCost": 9871, "currentPrice": 38.99, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 35, "name": "群益台灣精選", "code": "00919", "category": "ETF", "account": "國泰證券", "shares": 1732, "totalCost": 42070, "currentPrice": 30.76, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 36, "name": "卜蜂", "code": "1215", "category": "台股", "account": "國泰證券", "shares": 45, "totalCost": 5169, "currentPrice": 111.6, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 37, "name": "台積電", "code": "2330", "category": "台股", "account": "國泰證券", "shares": 11, "totalCost": 18411, "currentPrice": 2402.0, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 38, "name": "京元電子", "code": "2449", "category": "台股", "account": "國泰證券", "shares": 82, "totalCost": 20820, "currentPrice": 231.2, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 39, "name": "華南金", "code": "2880", "category": "台股", "account": "國泰證券", "shares": 50, "totalCost": 1978, "currentPrice": 39.48, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 40, "name": "神基", "code": "3005", "category": "台股", "account": "國泰證券", "shares": 175, "totalCost": 18819, "currentPrice": 123.26, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 41, "name": "寶雅", "code": "5904", "category": "台股", "account": "國泰證券", "shares": 10, "totalCost": 781, "currentPrice": 74.2, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 42, "name": "可口可樂", "code": "KO", "category": "美股", "account": "美股複委託", "shares": 0, "totalCost": 0, "currentPrice": 68.5, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0},
-      {"id": 43, "name": "BTI", "code": "BTI", "category": "美股", "account": "美股複委託", "shares": 50, "totalCost": 2006.24, "currentPrice": 38.2, "cashDividends": 0, "stockShares": 0, "dividendHistory": [], "lentShares": 0}
-    ];
+    const INITIAL_DATA = [];
 
-    const INITIAL_REALIZED_EXCEL_COLUMNS = [
-      {"year": "104-107", "items": [{"stock": "中聯資源", "amount": 490, "cashDate": ""}, {"stock": "得力", "amount": 2190, "cashDate": ""}, {"stock": "統一", "amount": 2236, "cashDate": ""}, {"stock": "山隆", "amount": 3758, "cashDate": ""}, {"stock": "長虹", "amount": 1230, "cashDate": ""}, {"stock": "潤弘104", "amount": 1115, "cashDate": ""}, {"stock": "潤弘105", "amount": 1600, "cashDate": ""}, {"stock": "潤弘106", "amount": 1390, "cashDate": ""}, {"stock": "潤弘107", "amount": 813, "cashDate": ""}, {"stock": "惠普", "amount": 24301, "cashDate": ""}]},
-      {"year": "108", "items": [{"stock": "美食KY", "amount": 490, "cashDate": ""}, {"stock": "仁寶", "amount": 2390, "cashDate": ""}, {"stock": "中聯資源", "amount": 1390, "cashDate": ""}, {"stock": "得力", "amount": 4490, "cashDate": ""}, {"stock": "統一", "amount": 490, "cashDate": ""}, {"stock": "山隆", "amount": 2390, "cashDate": ""}, {"stock": "長虹", "amount": 2090, "cashDate": ""}, {"stock": "潤弘", "amount": 4790, "cashDate": ""}, {"stock": "惠普", "amount": 10006, "cashDate": ""}]},
-      {"year": "109", "items": [{"stock": "美食KY", "amount": 440, "cashDate": ""}, {"stock": "仁寶", "amount": 3590, "cashDate": ""}, {"stock": "中聯資源", "amount": 1990, "cashDate": ""}, {"stock": "得力", "amount": 4994, "cashDate": ""}, {"stock": "統一", "amount": 490, "cashDate": ""}, {"stock": "台橡", "amount": 1490, "cashDate": ""}, {"stock": "山隆", "amount": 2870, "cashDate": ""}, {"stock": "長虹", "amount": 2157, "cashDate": ""}, {"stock": "潤弘", "amount": 4490, "cashDate": ""}, {"stock": "惠普", "amount": 10534, "cashDate": ""}]},
-      {"year": "110", "items": [{"stock": "美食KY", "amount": 1310, "cashDate": ""}, {"stock": "康全電訊", "amount": 985, "cashDate": ""}, {"stock": "台積電", "amount": 626, "cashDate": ""}, {"stock": "中聯資源", "amount": 2440, "cashDate": ""}, {"stock": "得力", "amount": 1520, "cashDate": ""}, {"stock": "統一", "amount": 557, "cashDate": ""}, {"stock": "榮成", "amount": 650, "cashDate": ""}, {"stock": "台橡", "amount": 1178, "cashDate": ""}, {"stock": "山隆", "amount": 3510, "cashDate": ""}, {"stock": "長虹", "amount": 2590, "cashDate": ""}, {"stock": "潤弘", "amount": 6490, "cashDate": ""}, {"stock": "群創", "amount": 811, "cashDate": ""}, {"stock": "大樹", "amount": 134, "cashDate": ""}, {"stock": "惠普", "amount": 10534, "cashDate": ""}, {"stock": "富邦半導體", "amount": 1515, "cashDate": ""}]},
-      {"year": "111", "items": [{"stock": "美食KY", "amount": 1785, "cashDate": ""}, {"stock": "仁寶", "amount": 1990, "cashDate": ""}, {"stock": "康全電訊", "amount": 580, "cashDate": ""}, {"stock": "中聯資源", "amount": 3090, "cashDate": ""}, {"stock": "中信綠能電動車", "amount": 566, "cashDate": ""}, {"stock": "永豐ESG", "amount": 1195, "cashDate": ""}, {"stock": "台積電", "amount": 1262, "cashDate": ""}, {"stock": "得力", "amount": 1340, "cashDate": ""}, {"stock": "統一", "amount": 584, "cashDate": ""}, {"stock": "榮成", "amount": 518, "cashDate": ""}, {"stock": "台橡", "amount": 8426, "cashDate": ""}, {"stock": "山隆", "amount": 4240, "cashDate": ""}, {"stock": "長虹", "amount": 2516, "cashDate": ""}, {"stock": "潤弘", "amount": 11150, "cashDate": ""}, {"stock": "群創", "amount": 4262, "cashDate": ""}, {"stock": "大樹", "amount": 848, "cashDate": ""}, {"stock": "惠普", "amount": 111852, "cashDate": ""}, {"stock": "富邦半導體", "amount": 3278, "cashDate": ""}]},
-      {"year": "112", "items": [{"stock": "美食KY", "amount": 127, "cashDate": ""}, {"stock": "桂盟", "amount": 215, "cashDate": ""}, {"stock": "融程電", "amount": 113, "cashDate": ""}, {"stock": "中信綠能電動車", "amount": 690, "cashDate": ""}, {"stock": "永豐ESG", "amount": 1667, "cashDate": ""}, {"stock": "國際中橡", "amount": 190, "cashDate": ""}, {"stock": "台積電", "amount": 1295, "cashDate": ""}, {"stock": "富邦媒", "amount": 770, "cashDate": ""}, {"stock": "鐿鈦", "amount": 12806, "cashDate": ""}, {"stock": "承業醫", "amount": 94, "cashDate": ""}, {"stock": "長佳", "amount": 908, "cashDate": ""}, {"stock": "台灣高鐵", "amount": 160, "cashDate": ""}, {"stock": "全科", "amount": 651, "cashDate": ""}, {"stock": "華紙", "amount": 641, "cashDate": ""}, {"stock": "寶島科", "amount": 33, "cashDate": ""}, {"stock": "三陽工業", "amount": 2240, "cashDate": ""}, {"stock": "生達", "amount": 15, "cashDate": ""}, {"stock": "森崴能源", "amount": 1065, "cashDate": ""}, {"stock": "六角", "amount": 766, "cashDate": ""}, {"stock": "駐龍", "amount": 95, "cashDate": ""}, {"stock": "亞翔", "amount": 112, "cashDate": ""}, {"stock": "漢來美食", "amount": 983, "cashDate": ""}, {"stock": "盛弘", "amount": 100, "cashDate": ""}, {"stock": "台積電", "amount": 67, "cashDate": ""}, {"stock": "得力", "amount": 2190, "cashDate": ""}, {"stock": "統一", "amount": 210, "cashDate": ""}, {"stock": "榮成", "amount": 15, "cashDate": ""}, {"stock": "台橡", "amount": 3894, "cashDate": ""}, {"stock": "山隆", "amount": 310, "cashDate": ""}, {"stock": "長虹", "amount": 3840, "cashDate": ""}, {"stock": "潤弘", "amount": 10990, "cashDate": ""}, {"stock": "大樹", "amount": 2349, "cashDate": ""}, {"stock": "惠普", "amount": 13385, "cashDate": ""}, {"stock": "元大台灣價值高息", "amount": 40, "cashDate": ""}, {"stock": "復華台灣科技", "amount": 40, "cashDate": ""}, {"stock": "統一台灣高息", "amount": 40, "cashDate": ""}, {"stock": "富邦半導體", "amount": 4409, "cashDate": ""}]},
-      {"year": "113", "items": [{"stock": "台積電", "amount": 25, "cashDate": ""}, {"stock": "台積電", "amount": 54, "cashDate": ""}, {"stock": "八貫", "amount": 4140, "cashDate": ""}, {"stock": "豐達科", "amount": 101, "cashDate": ""}, {"stock": "六角", "amount": 4172, "cashDate": ""}, {"stock": "美食KY", "amount": 2772, "cashDate": ""}, {"stock": "台積電", "amount": 152, "cashDate": ""}, {"stock": "潤弘", "amount": 530, "cashDate": ""}, {"stock": "鴻海", "amount": 589, "cashDate": ""}, {"stock": "鐿鈦", "amount": 11764, "cashDate": ""}, {"stock": "宏全", "amount": 43, "cashDate": ""}, {"stock": "至上", "amount": 433, "cashDate": ""}, {"stock": "中探針", "amount": 48, "cashDate": ""}, {"stock": "京元電子", "amount": 6, "cashDate": ""}, {"stock": "生達", "amount": 111, "cashDate": ""}, {"stock": "森崴能源", "amount": 101, "cashDate": ""}, {"stock": "彰銀", "amount": 292, "cashDate": ""}, {"stock": "大樹", "amount": 360, "cashDate": ""}, {"stock": "台積電", "amount": 255, "cashDate": ""}, {"stock": "六角", "amount": 3779, "cashDate": ""}, {"stock": "惠普", "amount": 11710, "cashDate": ""}, {"stock": "富邦半導體", "amount": 3862, "cashDate": ""}, {"stock": "元大台灣價值高息", "amount": 507, "cashDate": ""}, {"stock": "復華台灣科技", "amount": 1051, "cashDate": ""}, {"stock": "統一台灣高息", "amount": 775, "cashDate": ""}]},
-      {"year": "114", "items": [{"stock": "台積電", "amount": 258, "cashDate": ""}, {"stock": "台積電", "amount": 319, "cashDate": ""}, {"stock": "六角", "amount": 2490, "cashDate": ""}, {"stock": "台積電", "amount": 359, "cashDate": ""}, {"stock": "元大台灣價值高息", "amount": 178, "cashDate": ""}, {"stock": "富邦半導體", "amount": 376, "cashDate": ""}, {"stock": "復華台灣科技", "amount": 1132, "cashDate": ""}, {"stock": "統一台灣高息", "amount": 449, "cashDate": ""}, {"stock": "統一台灣高息", "amount": 136, "cashDate": ""}]},
-      {"year": "115", "items": [{"stock": "台積電", "amount": 20, "cashDate": ""}, {"stock": "台積電", "amount": 25, "cashDate": ""}, {"stock": "神基", "amount": 37, "cashDate": ""}, {"stock": "台積電", "amount": 43, "cashDate": ""}, {"stock": "佳世達", "amount": 1, "cashDate": ""}]}
-    ];
+    const INITIAL_REALIZED_EXCEL_COLUMNS = [];
 
-    const INITIAL_STOCK_SALES = [
-      {"date": "1150102", "name": "京元電子", "shares": 5, "buyPrice": 249.5, "sellPrice": 268.5, "cost": 1248, "sellAmt": 1338, "spread": 90, "returnRate": 0.072115, "buyFee": 0, "sellFee": 1, "tax": 8, "status": "獲益", "dayTotal": 435, "note": "", "note2": ""},
-      {"date": "1150102", "name": "京元電子", "shares": 5, "buyPrice": 247, "sellPrice": 268.5, "cost": 1236, "sellAmt": 1338, "spread": 102, "returnRate": 0.082524, "buyFee": 0, "sellFee": 0, "tax": 0, "status": "", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150102", "name": "神基", "shares": 1000, "buyPrice": 116.5, "sellPrice": 117, "cost": 116541, "sellAmt": 116784, "spread": 243, "returnRate": 0.002085, "buyFee": 41, "sellFee": 41, "tax": 175, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "卜蜂", "shares": 5000, "buyPrice": 132, "sellPrice": 132.5, "cost": 660235, "sellAmt": 661271, "spread": 1036, "returnRate": 0.001569, "buyFee": 235, "sellFee": 236, "tax": 993, "status": "當沖", "dayTotal": -3012, "note": "", "note2": ""},
-      {"date": "1150105", "name": "卜蜂", "shares": 1000, "buyPrice": 133, "sellPrice": 133.5, "cost": 133047, "sellAmt": 133253, "spread": 206, "returnRate": 0.001548, "buyFee": 47, "sellFee": 47, "tax": 200, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "神基", "shares": 1000, "buyPrice": 113.5, "sellPrice": 113.5, "cost": 113540, "sellAmt": 113289, "spread": -251, "returnRate": -0.00221, "buyFee": 40, "sellFee": 40, "tax": 170, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "神基", "shares": 1000, "buyPrice": 113.5, "sellPrice": 113.5, "cost": 113540, "sellAmt": 113289, "spread": -251, "returnRate": -0.00221, "buyFee": 40, "sellFee": 40, "tax": 170, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "神基", "shares": 1000, "buyPrice": 113.5, "sellPrice": 113.5, "cost": 113540, "sellAmt": 113289, "spread": -251, "returnRate": -0.00221, "buyFee": 40, "sellFee": 40, "tax": 170, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "神基", "shares": 1000, "buyPrice": 115.5, "sellPrice": 113.5, "cost": 115541, "sellAmt": 113290, "spread": -2251, "returnRate": -0.01948, "buyFee": 41, "sellFee": 40, "tax": 170, "status": "當沖", "dayTotal": null, "note": "", "note2": ""},
-      {"date": "1150105", "name": "神基", "shares": 1000, "buyPrice": 114.5, "sellPrice": 113.5, "cost": 114540, "sellAmt": 113290, "spread": -1250, "returnRate": -0.01091, "buyFee": 40, "sellFee": 42, "tax": 171, "status": "當沖", "dayTotal": null, "note": "", "note2": ""}
-    ];
+    const INITIAL_STOCK_SALES = [];
 
-    const INITIAL_SALES_HISTORY = [
-      {"year": "115", "totalCost": 19347163, "totalSell": 19237985, "spread": -109178, "returnRate": -0.0056},
-      {"year": "114", "totalCost": 174855651, "totalSell": 174259914, "spread": -595737, "returnRate": -0.0034},
-      {"year": "113", "totalCost": 252624364, "totalSell": 251889895, "spread": -785981, "returnRate": -0.0031},
-      {"year": "112", "totalCost": 209644677, "totalSell": 209098913, "spread": -554478, "returnRate": -0.0026},
-      {"year": "111", "totalCost": 31464741, "totalSell": 31542502, "spread": 77761, "returnRate": 0.0025},
-      {"year": "110", "totalCost": 1143589, "totalSell": 1206890, "spread": 63301, "returnRate": 0.0554},
-      {"year": "109", "totalCost": 659407, "totalSell": 692619, "spread": 33212, "returnRate": 0.0504},
-      {"year": "108", "totalCost": 443181, "totalSell": 492060, "spread": 48879, "returnRate": 0.1103},
-      {"year": "107", "totalCost": 278860, "totalSell": 310378, "spread": 11306, "returnRate": 0.0405}
-    ];
+    const INITIAL_SALES_HISTORY = [];
 
     // 媽的永豐 獨立資料變數 (完全安全的 JSON 序列化載入) —— 買賣明細 / 帳戶明細 / 除息資訊 三表 + 總覽
-    let yfDetail = JSON.parse(localStorage.getItem('YONG_FENG_DETAIL_V1') || JSON.stringify([
-      { date: '1130726', shares: 30, price: 30.00, cost: 900 },
-      { date: '1130815', shares: 30, price: 30.00, cost: 900 },
-      { date: '1131216', shares: 30, price: 30.00, cost: 900 },
-      { date: '1131217', shares: 30, price: 30.00, cost: 900 },
-      { date: '1141106', shares: 30, price: 30.00, cost: 900 },
-      { date: '1141208', shares: 30, price: 30.00, cost: 900 },
-      { date: '1150706', shares: 30, price: 30.00, cost: 900 },
-      { date: '1150730', shares: 60, price: 30.00, cost: 1800 }
-    ]));
-    let yfAccount = JSON.parse(localStorage.getItem('YONG_FENG_ACCOUNT_V1') || JSON.stringify([
-      { date: '1130528', type: '入帳', detail: '媽媽的錢', amount: 20000, balance: 0, note: '' },
-      { date: '1130606', type: '出帳', detail: '國泰永續高股息', amount: -990, balance: 0, note: '' },
-      { date: '1130617', type: '出帳', detail: '國泰永續高股息', amount: -982, balance: 0, note: '' },
-      { date: '1130621', type: '入帳', detail: '利息', amount: 8, balance: 0, note: '' },
-      { date: '1130626', type: '出帳', detail: '國泰永續高股息', amount: -995, balance: 0, note: '' }
-    ]));
-    let yfDividendRows = JSON.parse(localStorage.getItem('YONG_FENG_DIVIDEND_V1') || JSON.stringify([
-      { exDate: '1130816', cashPerShare: 0.55, payDate: '1130911', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1131118', cashPerShare: 0.55, payDate: '1131212', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1140220', cashPerShare: 0.50, payDate: '1140318', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1140519', cashPerShare: 0.47, payDate: '1140613', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1140818', cashPerShare: 0.40, payDate: '1140911', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1141118', cashPerShare: 0.40, payDate: '1141212', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1150226', cashPerShare: 0.42, payDate: '1150323', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1150519', cashPerShare: 0.66, payDate: '1150612', heldShares: 0, divAmount: 0, cumulative: 0 },
-      { exDate: '1150818', cashPerShare: 1.01, payDate: '1150911', heldShares: 0, divAmount: 0, cumulative: 0 }
-    ]));
-    let yfOverview = JSON.parse(localStorage.getItem('YONG_FENG_OVERVIEW_V2') || JSON.stringify({ stockName: '國泰永續高股息00878', currentValue: 0, goal: 100000 }));
+    let yfDetail = JSON.parse(localStorage.getItem('YONG_FENG_DETAIL_V1') || '[]');
+    let yfAccount = JSON.parse(localStorage.getItem('YONG_FENG_ACCOUNT_V1') || '[]');
+    let yfDividendRows = JSON.parse(localStorage.getItem('YONG_FENG_DIVIDEND_V1') || '[]');
+    let yfOverview = JSON.parse(localStorage.getItem('YONG_FENG_OVERVIEW_V2') || JSON.stringify({ stockName: '', currentValue: 0, appCost: 0, goal: 100000 }));
 
     let stocks = [];
     let pastColumns = [];
@@ -136,7 +36,7 @@
     let lendingManagedIds = []; // 本次執行期間，曾被「股票借出」分頁同步過出借張數的持股 id
     let lendingIncomeRows = []; // 借卷收入明細列 (股票借出 > 借卷收入 子分頁)
     // 110~114 手動輸入的歷史年度加總 (依圖片數字記錄)；115年(含)以後改由明細列自動加總
-    let lendingIncomeManualYearly = { '110': 218, '111': 3864, '112': 5733, '113': 4336, '114': 6610 };
+    let lendingIncomeManualYearly = {};
     let dcaRows = []; // 定期定額分頁：{ id, name, dates: number[] (每月扣款日 1~31), amount (每次扣款金額) }
     let dividendEstimates = {};
     let historyStack = [];
@@ -200,7 +100,7 @@
         salesHistory = INITIAL_SALES_HISTORY;
         stockLending = [];
         lendingIncomeRows = [];
-        lendingIncomeManualYearly = { '110': 218, '111': 3864, '112': 5733, '113': 4336, '114': 6610 };
+        lendingIncomeManualYearly = {};
         dcaRows = [];
         dividendEstimates = {};
       }
@@ -272,7 +172,15 @@
         localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
         localStorage.setItem('YONG_FENG_DIVIDEND_V1', JSON.stringify(yfDividendRows));
         localStorage.setItem('YONG_FENG_OVERVIEW_V2', JSON.stringify(yfOverview));
-      } catch(e) {}
+      } catch (e) {
+        console.error('本機儲存失敗', e);
+        const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+        if (typeof showToast === 'function') {
+          showToast(isQuota ? '⚠️ 儲存空間已滿，這次的變更沒有存進去！請匯出備份後清理舊資料' : '⚠️ 本機儲存失敗，這次的變更可能沒有存進去', 'error');
+        } else {
+          alert('⚠️ 儲存失敗，這次的變更可能沒有存進去：\n' + (e && e.message ? e.message : e));
+        }
+      }
       renderSummary();
       scheduleCloudSync();
     }
@@ -325,10 +233,91 @@
       renderTable();
     }
 
+    /* ====== JSON 備份「合併」匯入：保留現有資料，只把匯入檔裡「本地沒有的」項目加進來，
+       不會覆蓋或刪除任何既有資料。與 applyAllData()（整份覆蓋，僅供「讀取雲端」時使用）分開。 ====== */
+    function mergeApplyAllData(data) {
+      if (!data) return { added: 0, skipped: 0 };
+      let added = 0, skipped = 0;
+
+      // 1) 有明確唯一鍵的資料：已存在的鍵一律略過（保留舊資料），只新增本地沒有的
+      function upsertByKey(existingArr, importedArr, keyFn) {
+        if (!Array.isArray(importedArr)) return;
+        const existingKeys = new Set(existingArr.map(keyFn));
+        importedArr.forEach(item => {
+          const k = keyFn(item);
+          if (k && existingKeys.has(k)) { skipped++; return; }
+          existingArr.push(item);
+          if (k) existingKeys.add(k);
+          added++;
+        });
+      }
+
+      upsertByKey(stocks, data.stocks, s => (s.code ? String(s.code).trim() : '') + '|' + (s.name || '').trim() + '|' + (s.account || ''));
+      upsertByKey(salesHistory, data.salesHistory, h => String(h.year || ''));
+      upsertByKey(stockLending, data.stockLending, l => (l.name || '').trim());
+      upsertByKey(dcaRows, data.dcaRows, r => (r.name || '').trim());
+      upsertByKey(pastColumns, data.pastColumns, c => String(c.year || ''));
+      if (Array.isArray(data.customAccounts)) {
+        data.customAccounts.forEach(acc => {
+          if (!customAccounts.includes(acc)) { customAccounts.push(acc); added++; }
+          else skipped++;
+        });
+      }
+
+      // 2) 沒有天然唯一鍵的交易明細記錄：直接附加在後面（保留舊資料，不覆蓋，可能重複匯入需自行檢查）
+      ['stockSales', 'lendingIncomeRows', 'yfDetail', 'yfAccount', 'yfDividendRows'].forEach(key => {
+        if (Array.isArray(data[key]) && data[key].length) {
+          const target = { stockSales, lendingIncomeRows, yfDetail, yfAccount, yfDividendRows }[key];
+          target.push(...data[key]);
+          added += data[key].length;
+        }
+      });
+
+      // 3) 物件型資料 (以鍵值儲存)：只補本地沒有的鍵，不覆蓋既有的
+      if (data.lendingIncomeManualYearly) {
+        Object.keys(data.lendingIncomeManualYearly).forEach(y => {
+          if (lendingIncomeManualYearly[y] === undefined) { lendingIncomeManualYearly[y] = data.lendingIncomeManualYearly[y]; added++; }
+          else skipped++;
+        });
+      }
+      if (data.dividendEstimates) {
+        Object.keys(data.dividendEstimates).forEach(k => {
+          if (dividendEstimates[k] === undefined) { dividendEstimates[k] = data.dividendEstimates[k]; added++; }
+          else skipped++;
+        });
+      }
+
+      // 4) 媽的永豐總覽：只補目前是空/0 的欄位，已經有值的維持原樣
+      if (data.yfOverview) {
+        if (!yfOverview.stockName && data.yfOverview.stockName) { yfOverview.stockName = data.yfOverview.stockName; added++; }
+        if (!yfOverview.currentValue && data.yfOverview.currentValue) { yfOverview.currentValue = data.yfOverview.currentValue; added++; }
+        if (!yfOverview.appCost && data.yfOverview.appCost) { yfOverview.appCost = data.yfOverview.appCost; added++; }
+      }
+
+      // 5) 各股紀錄快照：以「快照日期」為鍵，本地沒有的日期才加入
+      if (Array.isArray(data.snapshots) && data.snapshots.length) {
+        let existingSnaps = [];
+        try { existingSnaps = JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'); } catch (e) { existingSnaps = []; }
+        const existingDates = new Set(existingSnaps.map(s => s.date));
+        data.snapshots.forEach(s => {
+          if (s && s.date && !existingDates.has(s.date)) { existingSnaps.push(s); existingDates.add(s.date); added++; }
+          else skipped++;
+        });
+        localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(existingSnaps));
+      }
+
+      saveToStorage();
+      renderTabs();
+      renderTable();
+      return { added, skipped };
+    }
+
     function stockDocRef() {
       if (!fbDb || !fbUser) return null;
       return fbDb.collection(CLOUD_COLLECTION).doc(fbUser.uid);
     }
+
+    let lastKnownStockCloudUpdatedAt = null; // 上次成功讀取/寫入雲端時的 updatedAt，用來偵測其他裝置的變更
 
     async function loadStockFromCloud() {
       const ref = stockDocRef();
@@ -337,11 +326,45 @@
         const snap = await ref.get();
         if (snap.exists) {
           applyAllData(snap.data());
+          lastKnownStockCloudUpdatedAt = (snap.data() && snap.data().updatedAt) || null;
         } else {
-          await ref.set(gatherAllData());
+          const data = gatherAllData();
+          await ref.set(data);
+          lastKnownStockCloudUpdatedAt = data.updatedAt;
         }
       } catch (e) {
         console.warn('讀取股票雲端資料失敗', e);
+        if (typeof showToast === 'function') showToast('⚠️ 讀取雲端資料失敗，目前顯示的是本機資料', 'error');
+      }
+    }
+
+    async function pushStockToCloud() {
+      const ref = stockDocRef();
+      if (!ref) return;
+      try {
+        // 先偵測衝突：雲端 updatedAt 跟上次讀到的不同，代表其他裝置在這之後也存過檔，
+        // 直接整份覆蓋會蓋掉那邊的變更，先跟使用者確認。
+        const snap = await ref.get();
+        if (snap.exists) {
+          const cloudUpdatedAt = (snap.data() && snap.data().updatedAt) || null;
+          if (lastKnownStockCloudUpdatedAt && cloudUpdatedAt && cloudUpdatedAt !== lastKnownStockCloudUpdatedAt) {
+            const proceed = confirm(
+              '⚠️ 偵測到雲端的股票管理資料在你上次同步之後，已經被其他裝置更新過（可能是手機或另一台電腦）。\n\n' +
+              '按「確定」會用這台裝置目前的內容覆蓋雲端（另一台裝置的變更會遺失）。\n' +
+              '按「取消」不會儲存，建議重新整理頁面，拉取雲端最新版本後再繼續編輯。'
+            );
+            if (!proceed) {
+              if (typeof showToast === 'function') showToast('已暫停同步：雲端有更新的版本，尚未覆蓋', 'error');
+              return;
+            }
+          }
+        }
+        const data = gatherAllData();
+        await ref.set(data);
+        lastKnownStockCloudUpdatedAt = data.updatedAt;
+      } catch (err) {
+        console.warn('股票資料自動同步失敗', err);
+        if (typeof showToast === 'function') showToast('⚠️ 股票資料雲端同步失敗（本機已儲存）', 'error');
       }
     }
 
@@ -349,9 +372,7 @@
       if (!fbUser) return;
       clearTimeout(stockCloudSyncTimer);
       stockCloudSyncTimer = setTimeout(() => {
-        const ref = stockDocRef();
-        if (!ref) return;
-        ref.set(gatherAllData()).catch((err) => console.warn('股票資料自動同步失敗', err));
+        pushStockToCloud();
       }, 2000);
     }
 
@@ -512,17 +533,21 @@
           countText = ` (${countByFilter(t.id)})`;
         }
 
+        // 安全性修正：帳戶名稱可能是使用者自訂的自由文字，塞進 onclick="..."
+        // 字串前一定要先跳脫單引號，否則名稱裡如果剛好有一個單引號，
+        // 就能斷開這個屬性、注入任意 JS（stored XSS，資料還會同步進 Firestore）。
+        const safeId = esc(t.id).replace(/'/g, "\\'");
         if (t.isCustom) {
           return `
             <div class="tab-pill-group ${currentFilter === t.id ? 'active' : ''}">
-              <button class="tab-pill-btn" onclick="setFilter('${t.id}')">${t.label}${countText}</button>
-              <button class="tab-pill-del" title="刪除此證券帳戶" onclick="deleteCustomAccount(event, '${t.id}')">✕</button>
+              <button class="tab-pill-btn" onclick="setFilter('${safeId}')">${esc(t.label)}${countText}</button>
+              <button class="tab-pill-del" title="刪除此證券帳戶" onclick="deleteCustomAccount(event, '${safeId}')">✕</button>
             </div>
           `;
         } else {
           return `
-            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''} ${t.isLending ? 'tab-btn-lending' : ''} ${t.isDCA ? 'tab-btn-dca' : ''}" onclick="setFilter('${t.id}')">
-              ${t.label}${countText}
+            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''} ${t.isLending ? 'tab-btn-lending' : ''} ${t.isDCA ? 'tab-btn-dca' : ''}" onclick="setFilter('${safeId}')">
+              ${esc(t.label)}${countText}
             </button>
           `;
         }
@@ -1000,21 +1025,21 @@
 
           return `
             <tr${rowBg ? ` style="background:${rowBg};"` : ''}>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>
-              <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${r.name || ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${r.shares !== undefined && r.shares !== '' ? r.shares : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="3" value="${r.buyPrice !== undefined && r.buyPrice !== '' ? r.buyPrice : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 3)" onchange="updateSaleRow(${rIdx}, 'buyPrice', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${r.sellPrice !== undefined && r.sellPrice !== '' ? r.sellPrice : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${esc(r.name || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${esc(r.shares !== undefined && r.shares !== '' ? r.shares : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="3" value="${esc(r.buyPrice !== undefined && r.buyPrice !== '' ? r.buyPrice : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 3)" onchange="updateSaleRow(${rIdx}, 'buyPrice', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${esc(r.sellPrice !== undefined && r.sellPrice !== '' ? r.sellPrice : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>
               
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="5" value="${r.cost !== undefined && r.cost !== '' ? r.cost : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 5)" onchange="updateSaleRow(${rIdx}, 'cost', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="6" value="${r.sellAmt !== undefined && r.sellAmt !== '' ? r.sellAmt : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 6)" onchange="updateSaleRow(${rIdx}, 'sellAmt', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="5" value="${esc(r.cost !== undefined && r.cost !== '' ? r.cost : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 5)" onchange="updateSaleRow(${rIdx}, 'cost', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="6" value="${esc(r.sellAmt !== undefined && r.sellAmt !== '' ? r.sellAmt : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 6)" onchange="updateSaleRow(${rIdx}, 'sellAmt', this.value)" /></td>
 
               <td class="font-mono" style="font-weight:700; color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${isPos ? '+' : ''}$${formatNum(r.spread, 0)}</td>
-              <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${retRateStr}</td>
+              <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${esc(retRateStr)}</td>
 
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="9" value="${r.buyFee !== undefined && r.buyFee !== '' ? r.buyFee : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 9)" onchange="updateSaleRow(${rIdx}, 'buyFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${r.sellFee !== undefined && r.sellFee !== '' ? r.sellFee : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${r.tax !== undefined && r.tax !== '' ? r.tax : ''}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="9" value="${esc(r.buyFee !== undefined && r.buyFee !== '' ? r.buyFee : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 9)" onchange="updateSaleRow(${rIdx}, 'buyFee', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${esc(r.sellFee !== undefined && r.sellFee !== '' ? r.sellFee : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${esc(r.tax !== undefined && r.tax !== '' ? r.tax : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>
               
               <td class="editable-col">
                 <select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-sale-idx="${rIdx}" data-col="12" onchange="updateSaleRow(${rIdx}, 'status', this.value)" onkeydown="handleSaleKey(event, ${rIdx}, 12)">
@@ -1052,7 +1077,7 @@
             <td class="font-mono">$${formatNum(sumCost, 0)}</td>
             <td class="font-mono">$${formatNum(sumSellAmt, 0)}</td>
             <td class="font-mono" style="color:${isPosSum ? 'var(--up-red)' : 'var(--down-green)'};">${isPosSum ? '+' : ''}$${formatNum(sumSpread, 0)}</td>
-            <td class="font-mono" style="color:${isPosSum ? 'var(--up-red)' : 'var(--down-green)'};">${avgRetRate}</td>
+            <td class="font-mono" style="color:${isPosSum ? 'var(--up-red)' : 'var(--down-green)'};">${esc(avgRetRate)}</td>
             <td class="font-mono">${formatNum(sumBuyFee, 0)}</td>
             <td class="font-mono">${formatNum(sumSellFee, 0)}</td>
             <td class="font-mono">${formatNum(sumTax, 0)}</td>
@@ -1146,9 +1171,9 @@
           const isP = r.profit >= 0;
           return `
             <tr>
-              <td>${r.account}</td>
-              <td style="font-weight:700;">${r.name}</td>
-              <td style="color:#64748b;">${r.code}</td>
+              <td>${esc(r.account)}</td>
+              <td style="font-weight:700;">${esc(r.name)}</td>
+              <td style="color:#64748b;">${esc(r.code)}</td>
               <td class="font-mono">${formatNum(r.shares, 0)}</td>
               <td class="font-mono">$${formatNum(r.totalCost, 0)}</td>
               <td class="font-mono">$${formatNum(r.currentPrice, 2)}</td>
@@ -1245,7 +1270,7 @@
             ` : ''}
 
             <td>
-              <div style="font-weight:700;">${s.name} <span style="font-size:0.75rem; color:#64748b;">${s.code ? '(' + s.code + ')' : ''}</span></div>
+              <div style="font-weight:700;">${esc(s.name)} <span style="font-size:0.75rem; color:#64748b;">${s.code ? '(' + esc(s.code) + ')' : ''}</span></div>
               <div style="font-size:0.72rem; color:${isMergedRow ? '#766c5a' : '#b3a998'}; font-weight:${isMergedRow ? '700' : 'normal'};">
                 ${s.account} ${isMergedRow ? '⚡' : ''} ${isUS ? '(美金)' : ''}
               </div>
@@ -1255,19 +1280,19 @@
 
             <td class="editable-col">
               ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(marketVal / fxRate, isUS ? 2 : 0)}</span>` : `
-                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="marketVal" value="${Number(s.marketVal) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'marketVal', this.value)" />
+                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="marketVal" value="${esc(Number(s.marketVal) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'marketVal', this.value)" />
               `}
             </td>
 
             <td class="editable-col">
               ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(Number(s.totalCost) || 0, isUS ? 2 : 0)}</span>` : `
-                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="1" data-field="totalCost" value="${Number(s.totalCost) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 1)" onchange="updateValue(${s.id}, 'totalCost', this.value)" />
+                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="1" data-field="totalCost" value="${esc(Number(s.totalCost) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 1)" onchange="updateValue(${s.id}, 'totalCost', this.value)" />
               `}
             </td>
 
             <td class="editable-col">
               ${isMergedRow ? `<span class="font-mono font-bold">${formatNum(shares, 0)}</span>` : `
-                <input type="number" step="any" class="cell-input" data-row="${rowIndex}" data-col="2" data-field="shares" value="${shares}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 2)" onchange="updateValue(${s.id}, 'shares', this.value)" />
+                <input type="number" step="any" class="cell-input" data-row="${rowIndex}" data-col="2" data-field="shares" value="${esc(shares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 2)" onchange="updateValue(${s.id}, 'shares', this.value)" />
               `}
             </td>
 
@@ -1301,7 +1326,7 @@
 
             <td class="editable-col">
               ${isMergedRow ? `<span class="font-mono">${formatNum(lentShares, 0)}</span>` : `
-                <input type="number" step="any" class="cell-input" style="color:#64748b;" data-row="${rowIndex}" data-col="3" data-field="lentShares" value="${lentShares}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 3)" onchange="updateValue(${s.id}, 'lentShares', this.value)" />
+                <input type="number" step="any" class="cell-input" style="color:#64748b;" data-row="${rowIndex}" data-col="3" data-field="lentShares" value="${esc(lentShares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 3)" onchange="updateValue(${s.id}, 'lentShares', this.value)" />
               `}
             </td>
 
@@ -1459,10 +1484,10 @@
         const bgStyle = bg ? ` style="background:${bg};"` : '';
         return `
         <tr${bgStyle}>
-          <td class="editable-col"${bgStyle}><input type="text" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 0)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'date', this.value), 0)" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
-          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="1" value="${r.shares || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 1)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'shares', this.value), 0)" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
-          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="2" value="${r.price || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 2)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'price', this.value), 0)" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
-          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono font-bold" data-yf-table="detail" data-row="${idx}" data-col="3" value="${r.cost || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 3)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'cost', this.value), 0)" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="text" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 0)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'date', this.value), 0)" onchange="updateYfDetail(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="1" value="${esc(r.shares || 0)}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 1)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'shares', this.value), 0)" onchange="updateYfDetail(${idx}, 'shares', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono" data-yf-table="detail" data-row="${idx}" data-col="2" value="${esc(r.price || 0)}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 2)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'price', this.value), 0)" onchange="updateYfDetail(${idx}, 'price', this.value)" /></td>
+          <td class="editable-col"${bgStyle}><input type="number" step="any" class="cell-input font-mono font-bold" data-yf-table="detail" data-row="${idx}" data-col="3" value="${esc(r.cost || 0)}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'detail', ${idx}, 3)" onpaste="setTimeout(() => updateYfDetail(${idx}, 'cost', this.value), 0)" onchange="updateYfDetail(${idx}, 'cost', this.value)" /></td>
           <td${bgStyle}><button class="btn-del" onclick="deleteYfDetailRow(${idx})">✕</button></td>
         </tr>
       `;
@@ -1526,17 +1551,17 @@
 
       tbody.innerHTML = yfAccount.map((r, idx) => `
         <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="0" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 0)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'date', this.value), 0)" onchange="updateYfAccount(${idx}, 'date', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 0)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'date', this.value), 0)" onchange="updateYfAccount(${idx}, 'date', this.value)" /></td>
           <td class="editable-col">
             <select class="cell-input" data-yf-table="account" data-row="${idx}" data-col="1" onkeydown="handleYfTableKey(event, 'account', ${idx}, 1)" onchange="updateYfAccount(${idx}, 'type', this.value)">
               <option value="入帳" ${r.type === '入帳' ? 'selected' : ''}>入帳</option>
               <option value="出帳" ${r.type === '出帳' ? 'selected' : ''}>出帳</option>
             </select>
           </td>
-          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="2" value="${r.detail || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 2)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'detail', this.value), 0)" onchange="updateYfAccount(${idx}, 'detail', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="3" value="${r.amount || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 3)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'amount', this.value), 0)" onchange="updateYfAccount(${idx}, 'amount', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="2" value="${esc(r.detail || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 2)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'detail', this.value), 0)" onchange="updateYfAccount(${idx}, 'detail', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="account" data-row="${idx}" data-col="3" value="${esc(r.amount || 0)}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 3)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'amount', this.value), 0)" onchange="updateYfAccount(${idx}, 'amount', this.value)" /></td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.balance || 0, 0)}</td>
-          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="4" value="${r.note || ''}" title="${(r.note || '').replace(/"/g, '&quot;')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 4)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'note', this.value), 0)" onchange="updateYfAccount(${idx}, 'note', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input" data-yf-table="account" data-row="${idx}" data-col="4" value="${esc(r.note || '')}" title="${esc(r.note || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'account', ${idx}, 4)" onpaste="setTimeout(() => updateYfAccount(${idx}, 'note', this.value), 0)" onchange="updateYfAccount(${idx}, 'note', this.value)" /></td>
           <td><button class="btn-del" onclick="deleteYfAccountRow(${idx})">✕</button></td>
         </tr>
       `).join('');
@@ -1595,9 +1620,9 @@
 
       tbody.innerHTML = yfDividendRows.map((r, idx) => `
         <tr>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="0" value="${r.exDate || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 0)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'exDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'exDate', this.value)" /></td>
-          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="1" value="${r.cashPerShare || 0}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 1)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'cashPerShare', this.value), 0)" onchange="updateYfDividend(${idx}, 'cashPerShare', this.value)" /></td>
-          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="2" value="${r.payDate || ''}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 2)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'payDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'payDate', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="0" value="${esc(r.exDate || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 0)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'exDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'exDate', this.value)" /></td>
+          <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="1" value="${esc(r.cashPerShare || 0)}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 1)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'cashPerShare', this.value), 0)" onchange="updateYfDividend(${idx}, 'cashPerShare', this.value)" /></td>
+          <td class="editable-col"><input type="text" class="cell-input font-mono" data-yf-table="dividend" data-row="${idx}" data-col="2" value="${esc(r.payDate || '')}" onfocus="this.select()" onkeydown="handleYfTableKey(event, 'dividend', ${idx}, 2)" onpaste="setTimeout(() => updateYfDividend(${idx}, 'payDate', this.value), 0)" onchange="updateYfDividend(${idx}, 'payDate', this.value)" /></td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.heldShares || 0, 0)}</td>
           <td class="font-mono" style="text-align:right; padding-right:8px; color:var(--text-muted);">${formatNum(r.divAmount || 0, 0)}</td>
           <td class="font-mono font-bold" style="text-align:right; padding-right:8px;">${formatNum(r.cumulative || 0, 0)}</td>
@@ -1646,36 +1671,33 @@
 
       const nameEl = document.getElementById('yfOvName');
       const currentEl = document.getElementById('yfOvCurrent');
+      const appCostEl = document.getElementById('yfOvActualCost');
       if (nameEl && document.activeElement !== nameEl) nameEl.value = yfOverview.stockName || '';
       if (currentEl && document.activeElement !== currentEl) currentEl.value = yfOverview.currentValue || 0;
+      if (appCostEl && document.activeElement !== appCostEl) appCostEl.value = yfOverview.appCost || 0;
 
       const totalShares = yfDetail.reduce((s, r) => s + (Number(r.shares) || 0), 0);
-      const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
-      const actualCost = yfAccount.reduce((s, r) => {
-        const amt = Number(r.amount) || 0;
-        return s + (amt < 0 ? -amt : 0);
-      }, 0);
+      const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0); // 實際扣款成本：買賣明細加總，僅供參考
+      const appCost = Number(yfOverview.appCost) || 0; // APP顯示成本：手動輸入，作為其他卡片的計算基礎
       const currentVal = Number(yfOverview.currentValue) || 0;
       const goal = 100000; // 固定目標本金，不提供編輯欄位
       const dividend = computeYfDividendDistribution();
       yfOverview.totalDividend = dividend;
 
-      const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
-      const unrealizedPL = currentVal - totalCost;
-      const roi = totalCost > 0 ? (unrealizedPL / totalCost) * 100 : 0;
+      const avgPrice = totalShares > 0 ? appCost / totalShares : 0;
+      const unrealizedPL = currentVal - appCost;
+      const roi = appCost > 0 ? (unrealizedPL / appCost) * 100 : 0;
 
-      const costWithDiv = totalCost - dividend;
+      const costWithDiv = appCost - dividend;
       const plWithDiv = currentVal - costWithDiv;
       const avgPriceWithDiv = totalShares > 0 ? costWithDiv / totalShares : 0;
       const roiWithDiv = costWithDiv > 0 ? (plWithDiv / costWithDiv) * 100 : 0;
-      const debt = goal - totalCost;
+      const debt = goal - appCost;
 
       document.getElementById('yfOvCost').textContent = '$' + formatNum(totalCost, 0);
-      const elActualCost = document.getElementById('yfOvActualCost');
-      if (elActualCost) elActualCost.textContent = '$' + formatNum(actualCost, 0);
       const elCostDiff = document.getElementById('yfOvCostDiff');
       if (elCostDiff) {
-        const diff = actualCost - totalCost;
+        const diff = appCost - totalCost;
         if (Math.abs(diff) < 1) {
           elCostDiff.textContent = '與App顯示成本相符';
           elCostDiff.style.color = '';
@@ -1690,7 +1712,9 @@
       const elProfit = document.getElementById('yfOvProfit');
       elProfit.textContent = '$' + formatNum(unrealizedPL, 0);
       elProfit.style.color = unrealizedPL >= 0 ? 'var(--up-red)' : 'var(--down-green)';
-      document.getElementById('yfOvROI').textContent = roi.toFixed(2) + '%';
+      const elROI = document.getElementById('yfOvROI');
+      elROI.textContent = roi.toFixed(2) + '%';
+      elROI.style.color = roi >= 0 ? 'var(--up-red)' : 'var(--down-green)';
 
       document.getElementById('yfOvTotalDiv').textContent = '$' + formatNum(dividend, 0);
       document.getElementById('yfOvCostWithDiv').textContent = '$' + formatNum(costWithDiv, 0);
@@ -1698,7 +1722,9 @@
       elProfitDiv.textContent = '$' + formatNum(plWithDiv, 0);
       elProfitDiv.style.color = plWithDiv >= 0 ? 'var(--up-red)' : 'var(--down-green)';
       document.getElementById('yfOvAvgPriceWithDiv').textContent = formatNum(avgPriceWithDiv, 2);
-      document.getElementById('yfOvROIWithDiv').textContent = roiWithDiv.toFixed(2) + '%';
+      const elROIWithDiv = document.getElementById('yfOvROIWithDiv');
+      elROIWithDiv.textContent = roiWithDiv.toFixed(2) + '%';
+      elROIWithDiv.style.color = roiWithDiv >= 0 ? 'var(--up-red)' : 'var(--down-green)';
 
       document.getElementById('yfOvRemain').textContent = '$' + formatNum(debt, 0);
     }
@@ -1735,7 +1761,7 @@
         const ratio = grandYearlyTotal > 0 ? ((item.totalAmount / grandYearlyTotal) * 100).toFixed(1) : 0;
         return `
           <tr>
-            <td style="font-weight:700; font-size:0.92rem;">${item.displayYear}</td>
+            <td style="font-weight:700; font-size:0.92rem;">${esc(item.displayYear)}</td>
             <td class="font-mono" style="color:#5c5445;">$${formatNum(item.pastAmount, 0)}</td>
             <td class="font-mono font-bold" style="color:#766c5a;">$${formatNum(item.currentAmount, 0)}</td>
             <td class="font-mono font-bold" style="font-size:1.05rem; color:#9c7c52; background:#f4ecd4;">
@@ -1842,7 +1868,7 @@
       thead.innerHTML = `
         <tr>
           <th style="width: 140px; background:#ece6d9;">項目 / 股票</th>
-          ${uniqueStocks.map(us => `<th style="width: 120px;">${us.name} <span style="font-size:0.75rem; color:#93897a;">${us.code ? '(' + us.code + ')' : ''}</span></th>`).join('')}
+          ${uniqueStocks.map(us => `<th style="width: 120px;">${esc(us.name)} <span style="font-size:0.75rem; color:#93897a;">${us.code ? '(' + esc(us.code) + ')' : ''}</span></th>`).join('')}
         </tr>
       `;
 
@@ -1871,7 +1897,7 @@
             const val = est[row.field] !== undefined ? est[row.field] : 0;
             return `
               <td class="editable-col">
-                <input type="number" step="any" class="cell-input font-mono font-bold" value="${val}" onchange="updateEstDividend('${key}', '${row.field}', this.value)" />
+                <input type="number" step="any" class="cell-input font-mono font-bold" value="${esc(val)}" onchange="updateEstDividend('${key}', '${row.field}', this.value)" />
               </td>
             `;
           } else if (row.type === 'display_shares') {
@@ -1903,7 +1929,7 @@
 
         return `
           <tr>
-            <td style="font-weight:700; background:#fdfbf7; text-align:left; padding-left:12px;">${row.label}</td>
+            <td style="font-weight:700; background:#fdfbf7; text-align:left; padding-left:12px;">${esc(row.label)}</td>
             ${cellsHtml}
           </tr>
         `;
@@ -1958,20 +1984,20 @@
                 <div class="stock-cell-box">
                   <input type="text" class="cell-input ${isStockHit ? 'highlight-cell' : ''}" style="font-weight:700;"
                     data-past-row="${r}" data-past-col="${stockColIdx}" data-year-idx="${colIdx}" data-field="stock"
-                    value="${item.stock || ''}" placeholder="-"
+                    value="${esc(item.stock || '')}" placeholder="-"
                     onfocus="this.select()" onkeydown="handlePastCellKey(event, ${r}, ${stockColIdx})"
                     onchange="updatePastCellValue(${colIdx}, ${r}, 'stock', this.value)" />
                   <button class="btn-cal-icon" title="${hasDate ? '入帳日: ' + item.cashDate : '點擊記錄入帳日'}" onclick="openPastSingleDivModal(${colIdx}, ${r})">
                     ${hasDate ? '📅' : '🗓️'}
                   </button>
                 </div>
-                ${hasDate ? `<div class="stock-cell-date">${item.cashDate}</div>` : ''}
+                ${hasDate ? `<div class="stock-cell-date">${esc(item.cashDate)}</div>` : ''}
               </div>
             </td>
             <td class="${cellTheme}">
               <input type="number" step="any" class="cell-input font-mono ${isStockHit ? 'highlight-cell' : ''}"
                 data-past-row="${r}" data-past-col="${amtColIdx}" data-year-idx="${colIdx}" data-field="amount"
-                value="${item.amount !== '' && item.amount !== undefined ? item.amount : ''}" placeholder="-"
+                value="${esc(item.amount !== '' && item.amount !== undefined ? item.amount : '')}" placeholder="-"
                 onfocus="this.select()" onkeydown="handlePastCellKey(event, ${r}, ${amtColIdx})"
                 onchange="updatePastCellValue(${colIdx}, ${r}, 'amount', this.value)" />
             </td>
@@ -2169,7 +2195,7 @@
 
       const yrSel = document.getElementById('summaryYearSelect');
       if (yrSel) {
-        yrSel.innerHTML = sortedYears.map(yr => `<option value="${yr}" ${yr === selectedSummaryYear ? 'selected' : ''}>${yr}年</option>`).join('');
+        yrSel.innerHTML = sortedYears.map(yr => `<option value="${esc(yr)}" ${yr === selectedSummaryYear ? 'selected' : ''}>${yr}年</option>`).join('');
       }
 
       const monthData = Array.from({length: 12}, () => new Map());
@@ -2244,7 +2270,7 @@
           const amtColor = amtVal !== '' ? (isPos ? 'color:var(--up-red); font-weight:700;' : 'color:var(--down-green); font-weight:700;') : '';
 
           rowsHtml += `
-            <td style="${cellBg} font-family:monospace;">${item.dayStr}</td>
+            <td style="${cellBg} font-family:monospace;">${esc(item.dayStr)}</td>
             <td style="${cellBg} font-family:monospace; ${amtColor}">${amtVal !== '' ? (isPos ? '+' : '') + formatNum(amtVal, 0) : ''}</td>
           `;
         });
@@ -2371,11 +2397,11 @@
           : `<span title="114年以前一律手動固定" style="margin-right:4px; opacity:0.5;">🔒</span>`;
         return `
           <tr>
-            <td class="editable-col"><input type="text" class="cell-input font-bold" data-hist-idx="${hIdx}" data-col="0" value="${h.year || ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 0)" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="1" value="${h.totalCost !== undefined ? h.totalCost : ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 1)" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="2" value="${h.totalSell !== undefined ? h.totalSell : ''}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 2)" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
+            <td class="editable-col"><input type="text" class="cell-input font-bold" data-hist-idx="${hIdx}" data-col="0" value="${esc(h.year || '')}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 0)" onchange="updateHistoryRow(${hIdx}, 'year', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="1" value="${esc(h.totalCost !== undefined ? h.totalCost : '')}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 1)" onchange="updateHistoryRow(${hIdx}, 'totalCost', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-hist-idx="${hIdx}" data-col="2" value="${esc(h.totalSell !== undefined ? h.totalSell : '')}" onfocus="this.select()" onkeydown="handleHistoryKey(event, ${hIdx}, 2)" onchange="updateHistoryRow(${hIdx}, 'totalSell', this.value)" /></td>
             <td class="font-mono" style="font-weight:700; color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${isPos ? '+' : ''}$${formatNum(h.spread, 0)}</td>
-            <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${retStr}</td>
+            <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${esc(retStr)}</td>
             <td style="white-space:nowrap;">
               ${lockBtn}<button class="btn-del" title="刪除" onclick="deleteHistoryRow(${hIdx})">✕</button>
             </td>
@@ -2665,7 +2691,7 @@
       const list = document.getElementById('stockNameDatalist');
       if (!list) return;
       const uniqueNames = Array.from(new Set(stocks.map(s => s.name).filter(Boolean)));
-      list.innerHTML = uniqueNames.map(n => `<option value="${n}"></option>`).join('');
+      list.innerHTML = uniqueNames.map(n => `<option value="${esc(n)}"></option>`).join('');
     }
 
     function renderStockLendingTable(thead, tbody) {
@@ -2712,15 +2738,15 @@
         return `
           <tr>
             <td class="editable-col">
-              <input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingRow(${idx}, 'name', this.value)" />
+              <input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${esc(r.name || '')}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingRow(${idx}, 'name', this.value)" />
             </td>
             <td class="font-mono">${matched ? unitSymbol + formatNum(currentPrice, 2) : '<span style="color:#c9bfa8;">—</span>'}</td>
             <td class="editable-col">
-              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="1" value="${lentShares}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingRow(${idx}, 'lentShares', this.value)" />
+              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="1" value="${esc(lentShares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingRow(${idx}, 'lentShares', this.value)" />
             </td>
             <td class="font-mono font-bold">${matched ? unitSymbol + formatNum(marketVal, 0) : '<span style="color:#c9bfa8;">—</span>'}</td>
             <td class="editable-col">
-              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="2" value="${Number(r.cost) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingRow(${idx}, 'cost', this.value)" />
+              <input type="number" step="any" class="cell-input" data-row="${idx}" data-col="2" value="${esc(Number(r.cost) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingRow(${idx}, 'cost', this.value)" />
             </td>
             <td class="font-mono" style="font-weight:700; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
               ${isProfit ? '+' : ''}${unitSymbol}${formatNum(profit, 0)}
@@ -2815,7 +2841,7 @@
           <td colspan="2" class="font-mono font-bold" style="font-size:1rem;">
             ${y.isAuto
               ? `$${formatNum(y.amount, 0)}`
-              : `<input type="number" step="any" class="cell-input font-bold" value="${y.amount}" onfocus="this.select()" onchange="updateLendingManualYearly('${y.year}', this.value)" />`
+              : `<input type="number" step="any" class="cell-input font-bold" value="${esc(y.amount)}" onfocus="this.select()" onchange="updateLendingManualYearly('${y.year}', this.value)" />`
             }
           </td>
           <td></td>
@@ -2888,15 +2914,15 @@
 
           return `
             <tr>
-              <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingIncomeRow(${idx}, 'name', this.value)" /></td>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${r.lendDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingIncomeRow(${idx}, 'lendDate', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${Number(r.lentShares) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingIncomeRow(${idx}, 'lentShares', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="3" value="${Number(r.feeRate) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 3)" onchange="updateLendingIncomeRow(${idx}, 'feeRate', this.value)" /></td>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="4" value="${r.returnDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 4)" onchange="updateLendingIncomeRow(${idx}, 'returnDate', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="5" value="${income}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 5)" onchange="updateLendingIncomeRow(${idx}, 'income', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="6" value="${serviceFee}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 6)" onchange="updateLendingIncomeRow(${idx}, 'serviceFee', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${esc(r.name || '')}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingIncomeRow(${idx}, 'name', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${esc(r.lendDate || '')}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingIncomeRow(${idx}, 'lendDate', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${esc(Number(r.lentShares) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingIncomeRow(${idx}, 'lentShares', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="3" value="${esc(Number(r.feeRate) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 3)" onchange="updateLendingIncomeRow(${idx}, 'feeRate', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="4" value="${esc(r.returnDate || '')}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 4)" onchange="updateLendingIncomeRow(${idx}, 'returnDate', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="5" value="${esc(income)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 5)" onchange="updateLendingIncomeRow(${idx}, 'income', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="6" value="${esc(serviceFee)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 6)" onchange="updateLendingIncomeRow(${idx}, 'serviceFee', this.value)" /></td>
               <td class="font-mono font-bold" style="color:${actualIncome >= 0 ? 'var(--up-red)' : 'var(--down-green)'};">$${formatNum(actualIncome, 0)}</td>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="7" value="${r.paymentDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 7)" onchange="updateLendingIncomeRow(${idx}, 'paymentDate', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="7" value="${esc(r.paymentDate || '')}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 7)" onchange="updateLendingIncomeRow(${idx}, 'paymentDate', this.value)" /></td>
               ${monthTotalHtml}
               <td><button class="btn-del" title="刪除" onclick="deleteLendingIncomeRow(${idx})">✕</button></td>
             </tr>
@@ -2999,13 +3025,13 @@
 
         return `
           <tr>
-            <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateDcaRow(${idx}, 'name', this.value)" /></td>
+            <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${esc(r.name || '')}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateDcaRow(${idx}, 'name', this.value)" /></td>
             <td class="editable-col">
               <button type="button" class="dca-date-picker-btn" data-row="${idx}" data-col="1" onkeydown="handleCellKey(event, ${idx}, 1)" onclick="openDcaDatePicker(${idx})" title="點擊選擇每月扣款日">
                 📅 ${dateDisplay}
               </button>
             </td>
-            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${amount}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateDcaRow(${idx}, 'amount', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${esc(amount)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateDcaRow(${idx}, 'amount', this.value)" /></td>
             <td class="font-mono font-bold" style="background:#f0f7f8;">$${formatNum(rowTotal, 0)}</td>
             <td><button class="btn-del" title="刪除" onclick="deleteDcaRow(${idx})">✕</button></td>
           </tr>
@@ -3094,7 +3120,7 @@
       let html = '';
       for (let d = 1; d <= 31; d++) {
         const isSelected = dcaDatePickerSelection.includes(d);
-        html += `<button type="button" class="dca-day-cell${isSelected ? ' selected' : ''}" onclick="toggleDcaDatePickerDay(${d})">${d}</button>`;
+        html += `<button type="button" class="dca-day-cell${isSelected ? ' selected' : ''}" onclick="toggleDcaDatePickerDay(${d})">${esc(d)}</button>`;
       }
       grid.innerHTML = html;
       const summary = document.getElementById('dcaDatePickerSummary');
@@ -3867,7 +3893,7 @@
       
       const accSelect = document.getElementById('newStockAccount');
       const allAccs = getAllAccounts();
-      accSelect.innerHTML = allAccs.map(acc => `<option value="${acc}">${acc}</option>`).join('');
+      accSelect.innerHTML = allAccs.map(acc => `<option value="${esc(acc)}">${esc(acc)}</option>`).join('');
 
       if (allAccs.includes(currentFilter)) {
         accSelect.value = currentFilter;
@@ -3963,8 +3989,8 @@
       if (bodyEl) {
         bodyEl.innerHTML = rows.length ? rows.map(r => `
           <tr>
-            <td>${r.name}</td>
-            <td class="font-mono">${r.date}</td>
+            <td>${esc(r.name)}</td>
+            <td class="font-mono">${esc(r.date)}</td>
             <td class="font-mono">$${formatNum(r.cash, 0)}</td>
           </tr>
         `).join('') : `<tr><td colspan="3" style="color:#93897a;">該年度沒有現金股利紀錄</td></tr>`;
@@ -4108,18 +4134,18 @@
           return `
             <tr>
               <td>
-                ${isReadOnly ? `<span class="font-bold">${item.year}</span>` : `
-                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-weight:700;" value="${item.year || 2024}" onchange="updateDividendRow(${idx}, 'year', this.value)" />
+                ${isReadOnly ? `<span class="font-bold">${esc(item.year)}</span>` : `
+                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-weight:700;" value="${esc(item.year || 2024)}" onchange="updateDividendRow(${idx}, 'year', this.value)" />
                 `}
               </td>
               <td>
-                ${isReadOnly ? `<span>${item.cashDate || '-'}</span>` : `
-                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-size:0.85rem;" placeholder="YYYY-MM-DD" value="${item.cashDate || ''}" onchange="updateDividendRow(${idx}, 'cashDate', this.value)" />
+                ${isReadOnly ? `<span>${esc(item.cashDate || '-')}</span>` : `
+                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-size:0.85rem;" placeholder="YYYY-MM-DD" value="${esc(item.cashDate || '')}" onchange="updateDividendRow(${idx}, 'cashDate', this.value)" />
                 `}
               </td>
               <td>
                 ${isReadOnly ? `<span class="font-mono font-bold" style="color:#d97706;">${unitSymbol}${formatNum(cash, 0)}</span>` : `
-                  <input type="number" step="any" class="cell-input font-mono" style="border:1px solid #cbd5e1; color:#d97706; font-weight:700;" value="${cash}" onchange="updateDividendRow(${idx}, 'cash', this.value)" />
+                  <input type="number" step="any" class="cell-input font-mono" style="border:1px solid #cbd5e1; color:#d97706; font-weight:700;" value="${esc(cash)}" onchange="updateDividendRow(${idx}, 'cash', this.value)" />
                 `}
               </td>
               <td>
@@ -4143,18 +4169,18 @@
           return `
             <tr>
               <td>
-                ${isReadOnly ? `<span class="font-bold">${item.year}</span>` : `
-                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-weight:700;" value="${item.year || 2024}" onchange="updateDividendRow(${idx}, 'year', this.value)" />
+                ${isReadOnly ? `<span class="font-bold">${esc(item.year)}</span>` : `
+                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-weight:700;" value="${esc(item.year || 2024)}" onchange="updateDividendRow(${idx}, 'year', this.value)" />
                 `}
               </td>
               <td>
-                ${isReadOnly ? `<span>${item.stockDate || '-'}</span>` : `
-                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-size:0.85rem;" placeholder="YYYY-MM-DD" value="${item.stockDate || ''}" onchange="updateDividendRow(${idx}, 'stockDate', this.value)" />
+                ${isReadOnly ? `<span>${esc(item.stockDate || '-')}</span>` : `
+                  <input type="text" class="cell-input" style="border:1px solid #cbd5e1; font-size:0.85rem;" placeholder="YYYY-MM-DD" value="${esc(item.stockDate || '')}" onchange="updateDividendRow(${idx}, 'stockDate', this.value)" />
                 `}
               </td>
               <td>
                 ${isReadOnly ? `<span class="font-mono font-bold" style="color:#1d4ed8;">${formatNum(sShares, 0)}</span>` : `
-                  <input type="number" step="any" class="cell-input font-mono" style="border:1px solid #cbd5e1; color:#1d4ed8; font-weight:700;" value="${sShares}" onchange="updateDividendRow(${idx}, 'stockShares', this.value)" />
+                  <input type="number" step="any" class="cell-input font-mono" style="border:1px solid #cbd5e1; color:#1d4ed8; font-weight:700;" value="${esc(sShares)}" onchange="updateDividendRow(${idx}, 'stockShares', this.value)" />
                 `}
               </td>
               <td class="font-mono font-bold" style="background:#f8fafc; color:#1d4ed8;">
@@ -4247,29 +4273,17 @@
       reader.onload = function(e) {
         try {
           const imported = JSON.parse(e.target.result);
-          if (Array.isArray(imported)) {
-            stocks = imported;
-          } else if (imported && imported.stocks) {
-            stocks = imported.stocks;
-            if (imported.pastColumns) pastColumns = imported.pastColumns;
-            if (imported.customAccounts) customAccounts = imported.customAccounts;
-            if (imported.stockSales) stockSales = imported.stockSales;
-            if (imported.salesHistory) salesHistory = imported.salesHistory;
-            if (imported.stockLending) stockLending = imported.stockLending;
-            if (imported.lendingIncomeRows) lendingIncomeRows = imported.lendingIncomeRows;
-            if (imported.lendingIncomeManualYearly) lendingIncomeManualYearly = imported.lendingIncomeManualYearly;
-            if (imported.dcaRows) dcaRows = imported.dcaRows;
-            if (imported.yfDetail) yfDetail = imported.yfDetail;
-            if (imported.yfAccount) yfAccount = imported.yfAccount;
-            if (imported.yfDividendRows) yfDividendRows = imported.yfDividendRows;
-            if (imported.yfOverview) yfOverview = imported.yfOverview;
-            if (imported.snapshots) localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(imported.snapshots));
-          }
           recordSnapshot();
-          saveToStorage();
-          renderTabs();
-          renderTable();
-          alert('匯入成功！');
+          let result;
+          if (Array.isArray(imported)) {
+            result = mergeApplyAllData({ stocks: imported });
+          } else if (imported && imported.stocks) {
+            result = mergeApplyAllData(imported);
+          } else {
+            alert('匯入失敗：檔案格式不正確');
+            return;
+          }
+          alert(`匯入完成！\n新增：${result.added} 筆\n略過（本地已有，未覆蓋）：${result.skipped} 筆`);
         } catch (err) {
           alert('匯入失敗：檔案格式不正確');
         }

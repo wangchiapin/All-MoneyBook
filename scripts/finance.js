@@ -1,96 +1,13 @@
 
     const defaultData = {
-      dates: ["1150401", "1150422", "1150501", "1150601", "1150630", "1150730", "1150822"],
-      rates: [31.885, 31.48, 31.575, 31.35, 31.765, 32.415, 31.775],
-      bankItems: [
-        { id: "b1", name: "郵局" },
-        { id: "b2", name: "台新" },
-        { id: "b3", name: "台新外匯活存", isForeign: true },
-        { id: "b4", name: "RICHART活存" },
-        { id: "b5", name: "RICHART外幣活存(美金)", isForeign: true },
-        { id: "b6", name: "RICHART外幣活存(日幣)", isForeign: true },
-        { id: "b7", name: "RICHART外幣定存", isForeign: true },
-        { id: "b8", name: "第一" },
-        { id: "b9", name: "ileo網銀" },
-        { id: "b10", name: "國泰世華(數位)" },
-        { id: "b11", name: "國泰世華KOKO" },
-        { id: "b12", name: "國泰世華外幣活存(美金)", isForeign: true },
-        { id: "b13", name: "Line Bank" },
-        { id: "b14", name: "Line Bank 子帳戶" },
-        { id: "b15", name: "富邦銀行" },
-        { id: "b16", name: "將來銀行" },
-        { id: "b17", name: "永豐銀行" },
-        { id: "b18", name: "中國信託" },
-        { id: "b19", name: "華南銀行" },
-        { id: "b20", name: "玉山銀行" },
-        { id: "b21", name: "玉山銀行(美金)" },
-        { id: "b22", name: "土地銀行" },
-        { id: "b23", name: "台灣銀行" },
-        { id: "b25", name: "在姐富邦" },
-        { id: "b26", name: "PayPal", isUSD: true, isForeign: true },
-        { id: "b27", name: "WISE", isUSD: true, isForeign: true }
-      ],
-      badDebtItems: [
-        { id: "d1", name: "借款(姊)" }
-      ],
-      insuranceItems: [
-        { id: "i1", name: "三商美邦6年外匯壽險", isUSD: true },
-        { id: "i2", name: "富邦享安定期壽險" },
-        { id: "i3", name: "富邦終身健保" },
-        { id: "i4", name: "富邦富利旺終身壽險" },
-        { id: "i5", name: "媽媽壽險" }
-      ],
-      stockItems: [
-        { id: "s1", name: "富邦股票" },
-        { id: "s2", name: "國泰股票" },
-        { id: "s3", name: "永豐股票" },
-        { id: "s4", name: "美股(折合台幣)", isUSD: true }
-      ],
-      values: {
-        b1: [4700, 700, 700, 10549, 2513, 1513, 2892],
-        b2: [11150, 134, 134, 134, 1712, 21678, 145],
-        b3: [0, 0, 0, 0, 0, 0, 0],
-        b4: [123, 809, 3136, 6911, 58344, 313, 1073],
-        b5: [0, 0, 0, 0, 0, 3219.13365, 0],
-        b6: [0, 0, 0, 0, 0, 0, 0],
-        b7: [0, 0, 0, 0, 0, 0, 0],
-        b8: [279, 279, 279, 279, 279, 279, 279],
-        b9: [21699, 312, 3021, 30857, 5822, 2213, 663],
-        b10: [13581, 703, 28289, 58413, 26528, 4607, 113969],
-        b11: [154, 154, 154, 154, 165, 165, 165],
-        b12: [60, 59, 60, 2644, 2690, 2748, 8044],
-        b13: [564, 358, 268, 2034, 426, 2135, 1443],
-        b14: [0, 0, 0, 0, 0, 0, 0],
-        b15: [8154, 11739, 2835, 5572, 35145, 17837, 20887],
-        b16: [0, 0, 92008, 2111, 2118, 0, 0],
-        b17: [266, 2294, 1318, 3359, 589, 658, 1965],
-        b18: [64, 861, 861, 8207, 8212, 9717, 11128],
-        b19: [0, 0, 0, 0, 0, 0, 0],
-        b20: [16, 350, 6365, 6365, 15588, 15588, 23464],
-        b21: [0, 0, 0, 0, 0, 0, 0],
-        b22: [0, 0, 0, 0, 0, 0, 0],
-        b23: [0, 0, 0, 0, 0, 0, 0],
-        b25: [4113, 4113, 4113, 4113, 4113, 4113, 4113],
-        b26_usd: [348.14, 173.4, 81.31, 490.63, 31.85, 299.77, 100.5],
-        b27_usd: [31.375, 31.375, 31.375, 31.375, 31.375, 31.375, 31.38],
-        i2: [0, 0, 0, 0, 0, 0, 0],
-        i3: [0, 0, 0, 0, 0, 0, 0],
-        i4: [0, 0, 0, 0, 0, 0, 0],
-        i5: [149800, 149800, 149800, 149800, 149800, 149800, 149800],
-        i1_usd: [3654, 3654, 0, 0, 0, 0, 0],
-        s1: [2672928, 2906733, 2923722, 3380986, 3391453, 3394887, 3320746],
-        s1_cost: [1680118, 1681875, 1685319, 1689977, 1662176, 1666778, 1691181],
-        s2: [427352, 499873, 487725, 639364, 648696, 666450, 680858],
-        s2_cost: [383661, 408269, 391851, 401938, 412832, 448188, 460133],
-        s3: [63894, 75513, 77376, 103767, 107477, 106907, 108654],
-        s3_cost: [66178, 64870, 65846, 67805, 70776, 73708, 75672],
-        s4_usdval: [5847, 5483, 5906, 5964, 6274, 6274, 2810.5],
-        s4_usdcost: [4012.49, 4012.49, 4012.49, 4012.49, 4012.49, 4012.49, 2006.24],
-        s1_profit: [605401, 715850, 699938, 981869, 1045538, 1327441, 1240755],
-        s2_profit: [43691, 91604, 95874, 237426, 235864, 218262, 220725],
-        d1: [95000, 95000, 95000, 95000, 95000, 95000, 95000]
-      },
-      colNotes: ["", "", "", "", "", "", ""]
+      dates: [],
+      rates: [],
+      bankItems: [],
+      badDebtItems: [],
+      insuranceItems: [],
+      stockItems: [],
+      values: {},
+      colNotes: []
     };
 
     let state = JSON.parse(localStorage.getItem('finance_data_v6')) || defaultData;
@@ -250,6 +167,8 @@
       });
     }
 
+    let lastKnownCloudUpdatedAt = null; // 上次成功讀取/寫入雲端時，雲端文件的 updatedAt，用來偵測其他裝置的變更
+
     async function loadFromCloud() {
       const ref = fbDocRef();
       if (!ref) return;
@@ -257,13 +176,16 @@
         const snap = await ref.get();
         if (snap.exists) {
           state = snap.data().state || state;
+          lastKnownCloudUpdatedAt = snap.data().updatedAt || null;
           migrateLegacyData();
           localStorage.setItem('finance_data_v6', JSON.stringify(state));
           render();
           saveToCloud(); // 把搬遷/補欄位後的結果同步回雲端，避免下次登入又讀到舊格式
         } else {
           // 雲端還沒有資料：把目前(本機)的狀態第一次推上去
-          await ref.set({ state, updatedAt: new Date().toISOString() });
+          const nowIso = new Date().toISOString();
+          await ref.set({ state, updatedAt: nowIso });
+          lastKnownCloudUpdatedAt = nowIso;
         }
         document.getElementById('syncStatus').textContent = '☁️ 已同步';
       } catch (e) {
@@ -278,27 +200,56 @@
       }
     }
 
-    function saveToCloud() {
+    async function saveToCloud() {
       const ref = fbDocRef();
       if (!ref) return;
-      // 整份覆蓋（不用 merge:true），避免刪除的項目又被合併回來
-      ref.set({ state, updatedAt: new Date().toISOString() }).then(() => {
-        const el = document.getElementById('syncStatus');
-        if (el) { el.textContent = '☁️ 已同步'; el.title = ''; }
-      }).catch(e => {
+      const el = document.getElementById('syncStatus');
+      try {
+        // 先偵測衝突：如果雲端文件的 updatedAt 跟我們上次讀到的不一樣，
+        // 代表在這之後有其他裝置（例如手機）也存過檔，直接整份覆蓋會蓋掉那邊的變更。
+        const snap = await ref.get();
+        if (snap.exists) {
+          const cloudUpdatedAt = snap.data().updatedAt || null;
+          if (lastKnownCloudUpdatedAt && cloudUpdatedAt && cloudUpdatedAt !== lastKnownCloudUpdatedAt) {
+            const proceed = confirm(
+              '⚠️ 偵測到雲端資料在你上次同步之後，已經被其他裝置更新過（可能是手機或另一台電腦）。\n\n' +
+              '按「確定」會用這台裝置目前的內容覆蓋雲端（另一台裝置的變更會遺失）。\n' +
+              '按「取消」不會儲存，建議重新整理頁面，拉取雲端最新版本後再繼續編輯。'
+            );
+            if (!proceed) {
+              if (el) { el.textContent = '☁️ 已暫停同步（雲端有更新的版本）'; el.style.cursor = ''; el.title = ''; el.onclick = null; }
+              return;
+            }
+          }
+        }
+        const nowIso = new Date().toISOString();
+        // 整份覆蓋（不用 merge:true），避免刪除的項目又被合併回來
+        await ref.set({ state, updatedAt: nowIso });
+        lastKnownCloudUpdatedAt = nowIso;
+        if (el) { el.textContent = '☁️ 已同步'; el.style.cursor = ''; el.title = ''; el.onclick = null; }
+      } catch (e) {
         console.error("寫入雲端失敗：", e);
-        const el = document.getElementById('syncStatus');
         if (el) {
           el.textContent = '☁️ 同步失敗（點我看原因）';
           el.style.cursor = 'pointer';
           el.title = (e.code || '') + ' ' + (e.message || '');
           el.onclick = () => alert('雲端同步失敗：\n\n' + (e.code || '') + '\n' + (e.message || e));
         }
-      });
+      }
     }
 
     function saveState() {
-      localStorage.setItem('finance_data_v6', JSON.stringify(state));
+      try {
+        localStorage.setItem('finance_data_v6', JSON.stringify(state));
+      } catch (e) {
+        console.error('本機儲存失敗', e);
+        const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+        if (typeof showToast === 'function') {
+          showToast(isQuota ? '⚠️ 儲存空間已滿，這次的變更沒有存進去！請匯出備份後清理舊資料' : '⚠️ 本機儲存失敗，這次的變更可能沒有存進去', 'error');
+        } else {
+          alert('⚠️ 儲存失敗，這次的變更可能沒有存進去：\n' + (e && e.message ? e.message : e));
+        }
+      }
       // 雲端同步：debounce 800ms，避免每個按鍵/儲存格編輯都寫一次 Firestore
       if (fbUser) {
         clearTimeout(cloudSaveTimer);
@@ -552,7 +503,7 @@
       const rowsHtml = archivedList.length
         ? archivedList.map(({ type, item }) =>
             '<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 4px; border-bottom:1px solid var(--border-color); font-size:13px;">' +
-              '<span>【' + typeLabel(type) + '】' + item.name + '</span>' +
+              '<span>【' + typeLabel(type) + '】' + esc(item.name) + '</span>' +
               '<span>' +
                 '<button class="btn btn-outline" style="padding:3px 8px; font-size:11px; margin-right:6px;" onclick="restoreItem(\'' + type + '\',\'' + item.id + '\')">還原</button>' +
                 '<button class="btn btn-danger" style="padding:3px 8px; font-size:11px;" onclick="permanentDeleteItem(\'' + type + '\',\'' + item.id + '\')">永久刪除</button>' +
@@ -653,7 +604,7 @@
       state.dates.forEach((d, i) => {
         theadHtml += '<th class="col-header">' +
           '<div class="header-content">' +
-            '<input type="text" class="date-input" value="' + d + '" onchange="updateDate(' + i + ', this.value)">' +
+            '<input type="text" class="date-input" value="' + esc(d) + '" onchange="updateDate(' + i + ', this.value)">' +
             '<span class="note-btn" title="備註" onclick="openNoteEditor(event, ' + i + ')">📝' + (state.colNotes[i] ? '<span class="note-dot"></span>' : '') + '</span>' +
             '<span class="del-btn" title="刪除整欄" onclick="deleteColumn(' + i + ')">🗑️</span>' +
           '</div>' +
@@ -759,7 +710,7 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'bank\', \'' + b.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'bank\', \'' + b.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + b.name + '" onchange="updateItemName(\'bank\', \'' + b.id + '\', this.value)"><span class="badge-auto">USD自動</span>' +
+            '<input type="text" class="name-input" value="' + esc(b.name) + '" onchange="updateItemName(\'bank\', \'' + b.id + '\', this.value)"><span class="badge-auto">USD自動</span>' +
           '</div>';
           tbodyHtml += createDataRow(label, "bank-row", { type: 'calc', calcFn: c => formatNumber(bankTWD(b, c, colCalcs[c].rate)) }, dropAttrs);
         } else {
@@ -768,7 +719,7 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'bank\', \'' + b.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'bank\', \'' + b.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + b.name + '" onchange="updateItemName(\'bank\', \'' + b.id + '\', this.value)">' +
+            '<input type="text" class="name-input" value="' + esc(b.name) + '" onchange="updateItemName(\'bank\', \'' + b.id + '\', this.value)">' +
           '</div>';
           tbodyHtml += createDataRow(label, "bank-row", { type: 'editable', key: b.id }, dropAttrs);
         }
@@ -783,7 +734,7 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'baddebt\', \'' + d.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'baddebt\', \'' + d.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + d.name + '" onchange="updateItemName(\'baddebt\', \'' + d.id + '\', this.value)">' +
+            '<input type="text" class="name-input" value="' + esc(d.name) + '" onchange="updateItemName(\'baddebt\', \'' + d.id + '\', this.value)">' +
           '</div>';
           const dropAttrs = 'ondragover="handleDragOver(event, \'baddebt\', \'' + d.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'baddebt\', \'' + d.id + '\')"';
           tbodyHtml += createDataRow(label, "baddebt-row", { type: 'editable', key: d.id }, dropAttrs);
@@ -799,7 +750,7 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'insurance\', \'' + ins.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'insurance\', \'' + ins.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + ins.name + '" onchange="updateItemName(\'insurance\', \'' + ins.id + '\', this.value)"><span class="badge-auto">USD自動</span>' +
+            '<input type="text" class="name-input" value="' + esc(ins.name) + '" onchange="updateItemName(\'insurance\', \'' + ins.id + '\', this.value)"><span class="badge-auto">USD自動</span>' +
           '</div>';
           const dropAttrs = 'ondragover="handleDragOver(event, \'insurance\', \'' + ins.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'insurance\', \'' + ins.id + '\')"';
           tbodyHtml += createDataRow(label, "ins-row", { type: 'calc', calcFn: c => formatNumber(insTWD(ins, c, colCalcs[c].rate)) }, dropAttrs);
@@ -809,7 +760,7 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'insurance\', \'' + ins.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'insurance\', \'' + ins.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + ins.name + '" onchange="updateItemName(\'insurance\', \'' + ins.id + '\', this.value)">' +
+            '<input type="text" class="name-input" value="' + esc(ins.name) + '" onchange="updateItemName(\'insurance\', \'' + ins.id + '\', this.value)">' +
           '</div>';
           const dropAttrs = 'ondragover="handleDragOver(event, \'insurance\', \'' + ins.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'insurance\', \'' + ins.id + '\')"';
           tbodyHtml += createDataRow(label, "ins-row", { type: 'editable', key: ins.id }, dropAttrs);
@@ -825,22 +776,22 @@
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'stock\', \'' + s.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'stock\', \'' + s.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + s.name + '" onchange="updateItemName(\'stock\', \'' + s.id + '\', this.value)"> [現值]<span class="badge-auto">USD自動</span>' +
+            '<input type="text" class="name-input" value="' + esc(s.name) + '" onchange="updateItemName(\'stock\', \'' + s.id + '\', this.value)"> [現值]<span class="badge-auto">USD自動</span>' +
           '</div>';
           const dropAttrs = 'ondragover="handleDragOver(event, \'stock\', \'' + s.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'stock\', \'' + s.id + '\')"';
           tbodyHtml += createDataRow(labelVal, "stock-row", { type: 'calc', calcFn: c => formatNumber(stockValTWD(s, c, colCalcs[c].rate)) }, dropAttrs);
-          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">' + s.name + ' [成本]<span class="badge-auto">USD自動</span></span></div>', "stock-row", { type: 'calc', calcFn: c => formatNumber(stockCostTWD(s, c, colCalcs[c].rate)) });
+          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">' + esc(s.name) + ' [成本]<span class="badge-auto">USD自動</span></span></div>', "stock-row", { type: 'calc', calcFn: c => formatNumber(stockCostTWD(s, c, colCalcs[c].rate)) });
         } else {
           const labelVal = '<div class="row-label-content">' +
             '<div class="row-label-left">' +
               '<span class="drag-handle" draggable="true" ondragstart="handleDragStart(event, \'stock\', \'' + s.id + '\')" ondragend="handleDragEnd(event)" title="按住拖曳以排序">☰</span>' +
               '<span class="del-btn" onclick="deleteItem(\'stock\', \'' + s.id + '\')">✖</span>' +
             '</div>' +
-            '<input type="text" class="name-input" value="' + s.name + '" onchange="updateItemName(\'stock\', \'' + s.id + '\', this.value)"> [現值]' +
+            '<input type="text" class="name-input" value="' + esc(s.name) + '" onchange="updateItemName(\'stock\', \'' + s.id + '\', this.value)"> [現值]' +
           '</div>';
           const dropAttrs = 'ondragover="handleDragOver(event, \'stock\', \'' + s.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'stock\', \'' + s.id + '\')"';
           tbodyHtml += createDataRow(labelVal, "stock-row", { type: 'editable', key: s.id }, dropAttrs);
-          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">' + s.name + ' [成本]</span></div>', "stock-row", { type: 'editable', key: s.id + '_cost' });
+          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">' + esc(s.name) + ' [成本]</span></div>', "stock-row", { type: 'editable', key: s.id + '_cost' });
         }
       });
 
@@ -876,20 +827,20 @@
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">七、美金原始金額輸入區 (USD，自動用當期匯率換算台幣)</td></tr>';
       activeBankItems.forEach(b => {
         if (b.isUSD) {
-          const label = '<div class="row-label-content"><span class="row-label-text">↳ ' + b.name + ' (USD)</span></div>';
+          const label = '<div class="row-label-content"><span class="row-label-text">↳ ' + esc(b.name) + ' (USD)</span></div>';
           tbodyHtml += createDataRow(label, "usd-row", { type: 'editable', key: b.id + '_usd', decimals: 2 });
         }
       });
       activeInsuranceItems.forEach(ins => {
         if (ins.isUSD) {
-          const label = '<div class="row-label-content"><span class="row-label-text">↳ ' + ins.name + ' (USD)</span></div>';
+          const label = '<div class="row-label-content"><span class="row-label-text">↳ ' + esc(ins.name) + ' (USD)</span></div>';
           tbodyHtml += createDataRow(label, "usd-row", { type: 'editable', key: ins.id + '_usd', decimals: 2 });
         }
       });
       activeStockItems.forEach(s => {
         if (s.isUSD) {
-          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">↳ ' + s.name + ' 現值 (USD)</span></div>', "usd-row", { type: 'editable', key: s.id + '_usdval', decimals: 2 });
-          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">↳ ' + s.name + ' 成本 (USD)</span></div>', "usd-row", { type: 'editable', key: s.id + '_usdcost', decimals: 2 });
+          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">↳ ' + esc(s.name) + ' 現值 (USD)</span></div>', "usd-row", { type: 'editable', key: s.id + '_usdval', decimals: 2 });
+          tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">↳ ' + esc(s.name) + ' 成本 (USD)</span></div>', "usd-row", { type: 'editable', key: s.id + '_usdcost', decimals: 2 });
         }
       });
       tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">美金匯率 (當期獨立計算) 💱</span></div>', "rate-row", { type: 'rate' });
@@ -904,7 +855,7 @@
       // 9. 損益
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">九、股票目前帳面損益（可手動輸入覆蓋，留空則自動以現值－成本計算）</td></tr>';
       activeStockItems.forEach(s => {
-        tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">股票投資損益 (' + s.name + ')</span></div>', "stock-row", {
+        tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">股票投資損益 (' + esc(s.name) + ')</span></div>', "stock-row", {
           type: 'editable',
           key: s.id + '_profit',
           colorize: true,
@@ -1120,8 +1071,12 @@
     });
 
     // 複製與貼上
+    // 注意：這兩個監聽器掛在 window 上，範圍涵蓋整個頁面。必須先確認目前操作的是
+    // 「財務總覽」表格本身（container 有 focus），否則會連「媽的永豐」等其他分頁
+    // input 欄位原生的 Ctrl+C / Ctrl+V 都一併攔截、導致無法複製貼上。
     window.addEventListener('copy', (e) => {
       if (selection.isEditing) return;
+      if (document.activeElement !== container) return;
       const minR = Math.min(selection.startR, selection.endR);
       const maxR = Math.max(selection.startR, selection.endR);
       const minC = Math.min(selection.startC, selection.endC);
@@ -1149,6 +1104,7 @@
 
     window.addEventListener('paste', (e) => {
       if (selection.isEditing) return;
+      if (document.activeElement !== container) return;
       const text = e.clipboardData.getData('text/plain');
       if (!text) return;
 
@@ -1194,6 +1150,56 @@
       downloadAnchor.remove();
     }
 
+    /* ====== JSON 備份「合併」匯入：保留現有的「財務總覽」資料，只把匯入檔裡本地
+       沒有的日期欄位加進來；已經存在的日期欄位維持原樣、不會被覆蓋。
+       銀行/保險/股票/呆帳等項目列表也是同樣邏輯：只新增本地沒有的 id，不覆蓋既有的。 ====== */
+    function mergeFinanceState(imported) {
+      if (!imported || !Array.isArray(imported.dates) || !imported.values) return { added: 0, skipped: 0 };
+      let added = 0, skipped = 0;
+
+      state.dates = state.dates || [];
+      state.rates = state.rates || [];
+      state.colNotes = state.colNotes || [];
+      state.values = state.values || {};
+      ['bankItems', 'badDebtItems', 'insuranceItems', 'stockItems'].forEach(key => {
+        state[key] = state[key] || [];
+      });
+
+      // 1) 列定義：只新增本地沒有的 id，既有的不覆蓋
+      ['bankItems', 'badDebtItems', 'insuranceItems', 'stockItems'].forEach(key => {
+        const existingIds = new Set(state[key].map(it => it.id));
+        (imported[key] || []).forEach(it => {
+          if (it && it.id && !existingIds.has(it.id)) {
+            state[key].push(it);
+            existingIds.add(it.id);
+            added++;
+          }
+        });
+      });
+
+      // 2) 日期欄位：本地已有的日期一律保留、不覆蓋；只把本地沒有的日期當成新欄位加進來
+      const existingDates = state.dates.slice();
+      (imported.dates || []).forEach((d, importedIdx) => {
+        if (existingDates.includes(d)) { skipped++; return; }
+        const newColIdx = state.dates.length;
+        state.dates.push(d);
+        state.rates.push((imported.rates && imported.rates[importedIdx] !== undefined) ? imported.rates[importedIdx] : 31.0);
+        state.colNotes.push((imported.colNotes && imported.colNotes[importedIdx]) || '');
+
+        const allRowKeys = new Set([...Object.keys(state.values), ...Object.keys(imported.values || {})]);
+        allRowKeys.forEach(rowKey => {
+          if (!state.values[rowKey]) state.values[rowKey] = [];
+          while (state.values[rowKey].length < newColIdx) state.values[rowKey].push(0);
+          const importedVal = (imported.values[rowKey] && imported.values[rowKey][importedIdx] !== undefined) ? imported.values[rowKey][importedIdx] : 0;
+          state.values[rowKey][newColIdx] = importedVal;
+        });
+        added++;
+      });
+
+      saveState();
+      return { added, skipped };
+    }
+
     function importData(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1203,37 +1209,27 @@
           const imported = JSON.parse(e.target.result);
 
           if (imported.backupType === 'combined_v1') {
-            // 新版整合備份：財務總覽 + 股票管理 一起還原
-            let restoredFinance = false, restoredStock = false;
+            // 新版整合備份：財務總覽 + 股票管理 一起「合併」還原（保留現有資料，只新增本地沒有的）
+            let msgParts = [];
             if (imported.financeState && imported.financeState.dates && imported.financeState.values) {
-              state = imported.financeState;
-              saveState();
-              restoredFinance = true;
+              const r = mergeFinanceState(imported.financeState);
+              msgParts.push(`財務總覽：新增 ${r.added} 欄、略過(本地已有) ${r.skipped} 欄`);
             }
-            if (imported.stockData && typeof applyAllData === 'function') {
-              applyAllData(imported.stockData);
-              if (typeof renderTabs === 'function') renderTabs();
-              if (typeof renderTable === 'function') renderTable();
-              restoredStock = true;
+            if (imported.stockData && typeof mergeApplyAllData === 'function') {
+              const r = mergeApplyAllData(imported.stockData);
+              msgParts.push(`股票管理：新增 ${r.added} 筆、略過(本地已有) ${r.skipped} 筆`);
             }
             render();
-            if (restoredFinance || restoredStock) {
-              alert("資料匯入成功！" + (restoredFinance && restoredStock ? "(財務總覽 + 股票管理 一併還原)" : restoredFinance ? "(僅財務總覽)" : "(僅股票管理)"));
-            } else {
-              alert("檔案格式不正確！");
-            }
+            alert(msgParts.length ? ('✅ 資料合併匯入完成（原有資料都還在）：\n' + msgParts.join('\n')) : '檔案格式不正確！');
           } else if (imported.dates && imported.values) {
             // 相容舊版格式：只有「財務總覽」資料的備份檔
-            state = imported;
-            saveState();
+            const r = mergeFinanceState(imported);
             render();
-            alert("資料匯入成功！(這是舊版格式的備份檔，僅還原財務總覽資料)");
-          } else if (imported.stocks && typeof applyAllData === 'function') {
+            alert(`✅ 財務總覽合併匯入完成（原有資料都還在）：新增 ${r.added} 欄、略過(本地已有) ${r.skipped} 欄`);
+          } else if (imported.stocks && typeof mergeApplyAllData === 'function') {
             // 相容「股票管理」自己匯出的備份檔
-            applyAllData(imported);
-            if (typeof renderTabs === 'function') renderTabs();
-            if (typeof renderTable === 'function') renderTable();
-            alert("資料匯入成功！(這是股票管理的備份檔，僅還原股票管理資料)");
+            const r = mergeApplyAllData(imported);
+            alert(`✅ 股票管理合併匯入完成（原有資料都還在）：新增 ${r.added} 筆、略過(本地已有) ${r.skipped} 筆`);
           } else {
             alert("檔案格式不正確！");
           }
