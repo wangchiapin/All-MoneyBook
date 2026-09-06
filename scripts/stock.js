@@ -137,7 +137,7 @@
     let lendingIncomeRows = []; // 借卷收入明細列 (股票借出 > 借卷收入 子分頁)
     // 110~114 手動輸入的歷史年度加總 (依圖片數字記錄)；115年(含)以後改由明細列自動加總
     let lendingIncomeManualYearly = { '110': 218, '111': 3864, '112': 5733, '113': 4336, '114': 6610 };
-    let dcaRows = []; // 定期定額分頁：{ id, name, date, amount }
+    let dcaRows = []; // 定期定額分頁：{ id, name, dates: number[] (每月扣款日 1~31), amount (每次扣款金額) }
     let dividendEstimates = {};
     let historyStack = [];
     let currentFilter = 'ALL';
@@ -1651,6 +1651,10 @@
 
       const totalShares = yfDetail.reduce((s, r) => s + (Number(r.shares) || 0), 0);
       const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+      const actualCost = yfAccount.reduce((s, r) => {
+        const amt = Number(r.amount) || 0;
+        return s + (amt < 0 ? -amt : 0);
+      }, 0);
       const currentVal = Number(yfOverview.currentValue) || 0;
       const goal = 100000; // 固定目標本金，不提供編輯欄位
       const dividend = computeYfDividendDistribution();
@@ -1667,6 +1671,19 @@
       const debt = goal - totalCost;
 
       document.getElementById('yfOvCost').textContent = '$' + formatNum(totalCost, 0);
+      const elActualCost = document.getElementById('yfOvActualCost');
+      if (elActualCost) elActualCost.textContent = '$' + formatNum(actualCost, 0);
+      const elCostDiff = document.getElementById('yfOvCostDiff');
+      if (elCostDiff) {
+        const diff = actualCost - totalCost;
+        if (Math.abs(diff) < 1) {
+          elCostDiff.textContent = '與App顯示成本相符';
+          elCostDiff.style.color = '';
+        } else {
+          elCostDiff.textContent = `${diff > 0 ? '比App顯示成本少記 $' : '比App顯示成本多記 $'}${formatNum(Math.abs(diff), 0)}`;
+          elCostDiff.style.color = 'var(--up-red)';
+        }
+      }
       document.getElementById('yfOvShares').textContent = formatNum(totalShares, 0);
       document.getElementById('yfOvAvgPrice').textContent = formatNum(avgPrice, 2);
 
@@ -2927,21 +2944,35 @@
       renderTable();
     }
 
-    /* ====== 定期定額分頁 (DCA_TAB) ====== */
+    /* ====== 定期定額分頁 (DCA_TAB) ======
+       dcaRows: { id, name, dates: number[] (每月扣款日，1~31), amount (每次扣款金額) }
+       每月扣款總金額 (單一股票) = amount × dates.length */
+    function migrateDcaRowLegacyDate(row) {
+      // 舊資料格式為單一 date 字串 (例如 "2024-01-15")，搬遷成 dates: [15]
+      if (!Array.isArray(row.dates)) {
+        const legacyDay = row.date ? parseInt(String(row.date).match(/\d+/g)?.slice(-1)[0], 10) : NaN;
+        row.dates = (!isNaN(legacyDay) && legacyDay >= 1 && legacyDay <= 31) ? [legacyDay] : [];
+        delete row.date;
+      }
+      row.dates = (row.dates || []).filter(d => Number.isInteger(d) && d >= 1 && d <= 31).sort((a, b) => a - b);
+      return row;
+    }
+
     function renderDcaTable(thead, tbody) {
       refreshStockNameDatalist();
+      dcaRows.forEach(migrateDcaRowLegacyDate);
 
       thead.innerHTML = `
         <tr>
           <th style="width: 180px;">股票名稱</th>
-          <th style="width: 110px;">日期 (扣款日)</th>
+          <th style="width: 150px;">日期 (扣款日)</th>
           <th style="width: 120px;">扣款金額 ($)</th>
-          <th style="width: 140px;">扣款總金額 ($)</th>
+          <th style="width: 140px;">每月扣款總金額 ($)</th>
           <th style="width: 60px;">操作</th>
         </tr>
       `;
 
-      // 依股票名稱分組排序，讓同一檔股票的多筆扣款日相鄰，方便合併「扣款總金額」欄位
+      // 依股票名稱分組排序，讓同一檔股票相鄰，方便瀏覽
       sortDcaRowsByName();
 
       const searchBox = document.getElementById('searchBox');
@@ -2957,40 +2988,25 @@
         return;
       }
 
-      const nameCount = {};
-      rows.forEach(({ r }) => {
-        const key = (r.name || '').trim();
-        if (key) nameCount[key] = (nameCount[key] || 0) + 1;
-      });
-      const renderedNames = {};
-
       let grandTotal = 0;
 
       const bodyHtml = rows.map(({ r, idx }) => {
         const amount = Number(r.amount) || 0;
-        grandTotal += amount;
-        const nameKey = (r.name || '').trim();
-
-        let totalHtml = `<td class="font-mono" style="color:#c9bfa8;">—</td>`;
-        if (nameKey) {
-          if (!renderedNames[nameKey]) {
-            renderedNames[nameKey] = true;
-            const span = nameCount[nameKey];
-            const stockTotal = rows
-              .filter(({ r: rr }) => (rr.name || '').trim() === nameKey)
-              .reduce((s, { r: rr }) => s + (Number(rr.amount) || 0), 0);
-            totalHtml = `<td class="font-mono font-bold" style="background:#f0f7f8; vertical-align:middle;" ${span > 1 ? `rowspan="${span}"` : ''}>$${formatNum(stockTotal, 0)}</td>`;
-          } else {
-            totalHtml = '';
-          }
-        }
+        const dates = r.dates || [];
+        const rowTotal = amount * dates.length;
+        grandTotal += rowTotal;
+        const dateDisplay = dates.length ? dates.map(d => `${d}日`).join('、') : '尚未設定';
 
         return `
           <tr>
             <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateDcaRow(${idx}, 'name', this.value)" /></td>
-            <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateDcaRow(${idx}, 'date', this.value)" /></td>
+            <td class="editable-col">
+              <button type="button" class="dca-date-picker-btn" data-row="${idx}" data-col="1" onkeydown="handleCellKey(event, ${idx}, 1)" onclick="openDcaDatePicker(${idx})" title="點擊選擇每月扣款日">
+                📅 ${dateDisplay}
+              </button>
+            </td>
             <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${amount}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateDcaRow(${idx}, 'amount', this.value)" /></td>
-            ${totalHtml}
+            <td class="font-mono font-bold" style="background:#f0f7f8;">$${formatNum(rowTotal, 0)}</td>
             <td><button class="btn-del" title="刪除" onclick="deleteDcaRow(${idx})">✕</button></td>
           </tr>
         `;
@@ -3025,8 +3041,10 @@
       recordSnapshot();
       const row = dcaRows[index];
       if (!row) return;
-      if (field === 'name' || field === 'date') {
+      if (field === 'name') {
         row[field] = value;
+      } else if (field === 'dates') {
+        row.dates = Array.isArray(value) ? value.slice().sort((a, b) => a - b) : [];
       } else {
         row[field] = parseFloat(value) || 0;
       }
@@ -3036,7 +3054,7 @@
 
     function addDcaRow() {
       recordSnapshot();
-      dcaRows.push({ id: Date.now(), name: '', date: '', amount: 0 });
+      dcaRows.push({ id: Date.now(), name: '', dates: [], amount: 0 });
       saveToStorage();
       renderTable();
     }
@@ -3048,6 +3066,55 @@
         saveToStorage();
         renderTable();
       }
+    }
+
+    /* ====== 定期定額：扣款日曆選擇器 (只選「每月的哪幾天」，不分月份) ====== */
+    let dcaDatePickerTargetIdx = null;
+    let dcaDatePickerSelection = [];
+
+    function openDcaDatePicker(idx) {
+      const row = dcaRows[idx];
+      if (!row) return;
+      dcaDatePickerTargetIdx = idx;
+      dcaDatePickerSelection = (row.dates || []).slice();
+      renderDcaDatePickerGrid();
+      const modal = document.getElementById('dcaDatePickerModal');
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeDcaDatePicker() {
+      const modal = document.getElementById('dcaDatePickerModal');
+      if (modal) modal.classList.remove('open');
+      dcaDatePickerTargetIdx = null;
+    }
+
+    function renderDcaDatePickerGrid() {
+      const grid = document.getElementById('dcaDatePickerGrid');
+      if (!grid) return;
+      let html = '';
+      for (let d = 1; d <= 31; d++) {
+        const isSelected = dcaDatePickerSelection.includes(d);
+        html += `<button type="button" class="dca-day-cell${isSelected ? ' selected' : ''}" onclick="toggleDcaDatePickerDay(${d})">${d}</button>`;
+      }
+      grid.innerHTML = html;
+      const summary = document.getElementById('dcaDatePickerSummary');
+      if (summary) {
+        const sorted = dcaDatePickerSelection.slice().sort((a, b) => a - b);
+        summary.textContent = sorted.length ? `已選擇：每月 ${sorted.map(d => d + '日').join('、')} 扣款` : '尚未選擇任何日期';
+      }
+    }
+
+    function toggleDcaDatePickerDay(d) {
+      const pos = dcaDatePickerSelection.indexOf(d);
+      if (pos >= 0) dcaDatePickerSelection.splice(pos, 1);
+      else dcaDatePickerSelection.push(d);
+      renderDcaDatePickerGrid();
+    }
+
+    function confirmDcaDatePicker() {
+      if (dcaDatePickerTargetIdx === null) return;
+      updateDcaRow(dcaDatePickerTargetIdx, 'dates', dcaDatePickerSelection);
+      closeDcaDatePicker();
     }
 
     /* ====== 媽的永豐三表：方向鍵/Enter 在格子間移動 (Ctrl+C/V 由瀏覽器原生處理，貼上後靠 onpaste 同步資料) ====== */
@@ -3270,7 +3337,7 @@
         if (subCardValContainer) subCardValContainer.style.display = 'block';
 
         const uniqueDcaStocks = new Set(dcaRows.map(r => (r.name || '').trim()).filter(Boolean));
-        const totalDcaMonthly = dcaRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+        const totalDcaMonthly = dcaRows.reduce((s, r) => s + (Number(r.amount) || 0) * ((r.dates || []).length), 0);
 
         const elTitle = document.getElementById('filterTabCostTitle');
         const elCost = document.getElementById('filterCost');

@@ -184,17 +184,26 @@
       const panel = document.getElementById('floatingChartPanel');
       const handle = document.getElementById('chartDragHandle');
       if (!panel || !handle) return;
-      let dragging = false, offsetX = 0, offsetY = 0;
+      let dragging = false, moved = false, offsetX = 0, offsetY = 0;
       handle.addEventListener('mousedown', (e) => {
+        // 點在關閉鈕（或任何標記為不可拖曳的元素）上時，完全不進入拖曳流程，
+        // 避免面板在點擊當下就先跳到左邊、導致第一次點擊關閉沒有反應。
+        if (e.target.closest('[data-no-drag]')) return;
         dragging = true;
+        moved = false;
         const rect = panel.getBoundingClientRect();
         offsetX = e.clientX - rect.left;
         offsetY = e.clientY - rect.top;
-        panel.style.right = 'auto';
         e.preventDefault();
       });
       document.addEventListener('mousemove', (e) => {
         if (!dragging) return;
+        // 只有滑鼠實際移動時才切換成 left/top 定位並開始跟隨拖曳，
+        // 單純點擊（沒有移動）不會改變面板位置。
+        if (!moved) {
+          moved = true;
+          panel.style.right = 'auto';
+        }
         const maxLeft = window.innerWidth - panel.offsetWidth;
         const maxTop = window.innerHeight - 40;
         panel.style.left = Math.max(0, Math.min(maxLeft, e.clientX - offsetX)) + 'px';

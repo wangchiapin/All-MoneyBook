@@ -471,34 +471,29 @@ function buildLendingIncomeSheet(wb) {
   xlBorderThin(ws);
 }
 
-/* 7.7 定期定額 */
+/* 7.7 定期定額 (每筆為一檔股票，日期(扣款日) = 每月哪幾天扣款，扣款總金額 = 扣款金額 × 扣款次數) */
 function buildDcaSheet(wb) {
   const ws = wb.addWorksheet('定期定額');
-  const headRow = ws.addRow(['股票名稱', '日期(扣款日)', '扣款金額', '扣款總金額(同股票加總)']);
+  const headRow = ws.addRow(['股票名稱', '日期(扣款日)', '扣款金額', '扣款總金額']);
   xlSetRow(headRow, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true });
-  ws.columns.forEach((c, i) => c.width = i === 0 ? 18 : 16);
+  ws.columns.forEach((c, i) => { c.width = i === 0 ? 18 : (i === 1 ? 22 : 16); });
   ws.views = [{ state: 'frozen', ySplit: 1 }];
-
-  const totalsByName = {};
-  dcaRows.forEach(r0 => {
-    const key = (r0.name || '').trim();
-    if (!key) return;
-    totalsByName[key] = (totalsByName[key] || 0) + (Number(r0.amount) || 0);
-  });
 
   let grandTotal = 0;
   dcaRows.forEach(r0 => {
     const amount = Number(r0.amount) || 0;
-    grandTotal += amount;
-    const key = (r0.name || '').trim();
-    const r = ws.addRow([r0.name || '', r0.date || '', amount, key ? totalsByName[key] : '']);
+    const dates = Array.isArray(r0.dates) ? r0.dates.slice().sort((a, b) => a - b) : [];
+    const rowTotal = amount * dates.length;
+    grandTotal += rowTotal;
+    const dateText = dates.length ? dates.map(d => `${d}日`).join('、') : '';
+    const r = ws.addRow([r0.name || '', dateText, amount, rowTotal]);
     r.getCell(3).numFmt = '#,##0';
-    if (key) r.getCell(4).numFmt = '#,##0';
+    r.getCell(4).numFmt = '#,##0';
   });
 
-  const totalRow = ws.addRow(['小計', '', grandTotal, '']);
+  const totalRow = ws.addRow(['小計', '', '', grandTotal]);
   xlSetRow(totalRow, { bg: XLSX_COLORS.totalBg, bold: true });
-  totalRow.getCell(3).numFmt = '#,##0';
+  totalRow.getCell(4).numFmt = '#,##0';
   xlBorderThin(ws);
 }
 
@@ -515,6 +510,10 @@ function buildYfSheet(wb) {
   // 總覽統計 (與畫面上方卡片一致)
   const totalShares = yfDetail.reduce((s, r) => s + (Number(r.shares) || 0), 0);
   const totalCost = yfDetail.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+  const actualCost = yfAccount.reduce((s, r) => {
+    const amt = Number(r.amount) || 0;
+    return s + (amt < 0 ? -amt : 0);
+  }, 0);
   const currentVal = Number(yfOverview.currentValue) || 0;
   const dividend = computeYfDividendDistribution();
   const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
@@ -527,18 +526,18 @@ function buildYfSheet(wb) {
   const debt = 100000 - totalCost;
 
   const ovTitle = ws.addRow(['股票投資概況：' + (yfOverview.stockName || '')]);
-  ws.mergeCells(1, 1, 1, 6);
+  ws.mergeCells(1, 1, 1, 7);
   xlSetRow(ovTitle, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true, align: 'left' });
 
-  const ovHead = ws.addRow(['成本', '現值', '均價', '股數', '未實現損益', '投資報酬率']);
-  const ovVals = ws.addRow([totalCost, currentVal, avgPrice, totalShares, unrealizedPL, roi]);
+  const ovHead = ws.addRow(['App顯示成本', '實際扣款成本', '現值', '均價', '股數', '未實現損益', '投資報酬率']);
+  const ovVals = ws.addRow([actualCost, totalCost, currentVal, avgPrice, totalShares, unrealizedPL, roi]);
   const ovHead2 = ws.addRow(['總股利', '含息成本', '含息損益', '含息均價', '含息報酬率', '尚欠(目標$100,000)']);
   const ovVals2 = ws.addRow([dividend, costWithDiv, plWithDiv, avgPriceWithDiv, roiWithDiv, debt]);
   [ovHead, ovHead2].forEach(r => xlSetRow(r, { bg: XLSX_COLORS.summaryLabel, bold: true }));
   [ovVals, ovVals2].forEach(r => xlSetRow(r, { bg: XLSX_COLORS.summaryCell, bold: true }));
-  [ovVals.getCell(1), ovVals.getCell(2), ovVals.getCell(3), ovVals.getCell(4), ovVals2.getCell(1), ovVals2.getCell(2), ovVals2.getCell(3), ovVals2.getCell(4), ovVals2.getCell(6)].forEach(c => c.numFmt = '#,##0');
-  ovVals.getCell(5).numFmt = '#,##0'; ovVals.getCell(6).numFmt = '0.00%'; ovVals2.getCell(5).numFmt = '0.00%';
-  [ovVals.getCell(5), ovVals2.getCell(3)].forEach(c => { c.font = xlFont({ bold: true, color: (c.value >= 0) ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen }); });
+  [ovVals.getCell(1), ovVals.getCell(2), ovVals.getCell(3), ovVals.getCell(4), ovVals.getCell(5), ovVals2.getCell(1), ovVals2.getCell(2), ovVals2.getCell(3), ovVals2.getCell(4), ovVals2.getCell(6)].forEach(c => c.numFmt = '#,##0');
+  ovVals.getCell(6).numFmt = '#,##0'; ovVals.getCell(7).numFmt = '0.00%'; ovVals2.getCell(5).numFmt = '0.00%';
+  [ovVals.getCell(6), ovVals2.getCell(3)].forEach(c => { c.font = xlFont({ bold: true, color: (c.value >= 0) ? XLSX_COLORS.upRed : XLSX_COLORS.downGreen }); });
 
   ws.addRow([]); // 空一行分隔
 

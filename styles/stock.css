@@ -203,7 +203,7 @@
       margin-bottom: 10px;
     }#stockView .yf-dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
       gap: 10px;
     }#stockView .yf-dashboard-grid .stat-card { padding: 10px 8px; border-color: #ddc4b3; }#stockView .stat-card-blue { background: var(--blue-pill-bg, #eef0e6); border-color: var(--blue-pill-border, #ddd5c4); }#stockView .yf-ov-input {
       text-align: center;
@@ -458,3 +458,53 @@
   bottom: 0;
   z-index: 5;
 }
+
+/* ====== 定期定額：每月扣款日按鈕 + 日曆式多選格子 ====== */
+#stockView .dca-date-picker-btn {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #5c5445;
+  cursor: pointer;
+  transition: 0.15s;
+}
+#stockView .dca-date-picker-btn:hover { background: #ece6d9; border-color: #b3a998; }
+#stockView .dca-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+#stockView .dca-day-cell {
+  padding: 8px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #fdfbf7;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: #5c5445;
+  transition: 0.1s;
+}
+#stockView .dca-day-cell:hover { background: #ece6d9; }
+#stockView .dca-day-cell.selected { background: var(--excel-green); color: #fff; border-color: var(--excel-green); }
+
+/* ====== 匯入備份 (Excel) 選擇清單 ====== */
+#stockView .excel-import-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-bottom: 1px solid #ece7dc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+#stockView .excel-import-row:last-child { border-bottom: none; }
+#stockView .excel-import-row.disabled { color: #b3a998; cursor: not-allowed; }
+#stockView .excel-import-row span:nth-child(2) { flex: 1; font-weight: 600; }
+#stockView .excel-import-row .excel-import-status { font-size: 0.75rem; color: #93897a; font-weight: 500; }
+#stockView .excel-import-note { margin-top: 8px; font-size: 0.78rem; color: #b6533c; }

@@ -38,6 +38,7 @@
   <div class="toolbar">
     <button class="btn btn-primary" onclick="addColumn()">➕ 新增紀錄時間</button>
 
+    <button class="btn btn-outline" onclick="toggleCalculator()">🧮 計算機</button>
     <div class="settings-wrap">
       <button class="btn btn-outline" id="settingsToggleBtn" onclick="toggleSettingsMenu(event)">⚙️ 設定</button>
       <div class="settings-menu" id="settingsMenu">
@@ -73,7 +74,7 @@
   <div id="floatingChartPanel" style="position:fixed; top:90px; right:24px; width:440px; z-index:1000; background:var(--card-bg); border:1px solid var(--border-color); border-radius:4px; box-shadow:0 6px 20px rgba(60,54,46,0.18); overflow:hidden;">
     <div id="chartDragHandle" style="cursor:move; background:#4a4438; color:#f4f0e8; padding:9px 12px; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:500; letter-spacing:0.02em;">
       <span>📈 總資產趨勢（成本 / 現值）</span>
-      <span style="cursor:pointer; padding:0 4px;" onclick="toggleChartPanel(false)">✖</span>
+      <span data-no-drag style="cursor:pointer; padding:0 4px;" onclick="toggleChartPanel(false)">✖</span>
     </div>
     <div style="padding:14px; position:relative; height:230px;">
       <canvas id="assetTrendChart"></canvas>
@@ -164,6 +165,8 @@
             📂 匯入備份 (JSON - 僅股票管理)
             <input type="file" onchange="importStockData(event)" accept=".json" style="display:none;" />
           </label>
+          <button onclick="triggerExcelImport()">🗂️ 匯入備份 (Excel)</button>
+          <input type="file" id="excelImportFileInput" onchange="handleExcelImportFile(event)" accept=".xlsx" style="display:none;" />
         </div>
       </div>
     </div>
@@ -182,8 +185,14 @@
       </div>
       <div class="yf-dashboard-grid">
         <div class="stat-card">
-          <div class="stat-title">成本</div>
+          <div class="stat-title">App顯示成本</div>
+          <div class="stat-value" id="yfOvActualCost">$0</div>
+          <div class="stat-desc">依「永豐帳戶明細」出帳加總</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">實際扣款成本</div>
           <div class="stat-value" id="yfOvCost">$0</div>
+          <div class="stat-desc" id="yfOvCostDiff">依「買賣明細」成本欄加總</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">現值</div>
@@ -354,36 +363,6 @@
       <span>💡 <strong>操作指南：</strong></span>
       <span>• 點擊上方 <strong>「⚙️ 設定」</strong> 可進行新增證券、匯出與匯入備份；在表格內可直接輸入新資料、使用 <strong>方向鍵/Enter鍵</strong> 移動、選取複製多格、或使用 <strong>Ctrl + Z</strong> 復原！美股帳戶與股利預設以美金計算，總計時以匯率 29 折算台幣。</span>
     </div>
-  <!-- 懸浮小型計算機 (具備焦點偵測，不干擾表格輸入) -->
-  <div id="floatingCalculator" tabindex="0">
-    <div class="calc-header" id="calcDragHandle">
-      <span>🧮 簡易計算機</span>
-      <button class="btn-del" style="font-size:1.1rem; padding:0 4px;" onclick="toggleCalculator()">✕</button>
-    </div>
-    <div class="calc-body">
-      <div class="calc-screen" id="calcScreen">0</div>
-      <div class="calc-keys">
-        <button class="calc-btn clear" onclick="calcClear()">C</button>
-        <button class="calc-btn op" onclick="calcAppend('/')">÷</button>
-        <button class="calc-btn op" onclick="calcAppend('*')">×</button>
-        <button class="calc-btn op" onclick="calcBackspace()">⌫</button>
-        <button class="calc-btn" onclick="calcAppend('7')">7</button>
-        <button class="calc-btn" onclick="calcAppend('8')">8</button>
-        <button class="calc-btn" onclick="calcAppend('9')">9</button>
-        <button class="calc-btn op" onclick="calcAppend('-')">-</button>
-        <button class="calc-btn" onclick="calcAppend('4')">4</button>
-        <button class="calc-btn" onclick="calcAppend('5')">5</button>
-        <button class="calc-btn" onclick="calcAppend('6')">6</button>
-        <button class="calc-btn op" onclick="calcAppend('+')">+</button>
-        <button class="calc-btn" onclick="calcAppend('1')">1</button>
-        <button class="calc-btn" onclick="calcAppend('2')">2</button>
-        <button class="calc-btn" onclick="calcAppend('3')">3</button>
-        <button class="calc-btn" onclick="calcAppend('.')">.</button>
-        <button class="calc-btn" onclick="calcAppend('0')" style="grid-column: span 2;">0</button>
-        <button class="calc-btn eq" onclick="calcEvaluate()">=</button>
-      </div>
-    </div>
-  </div>
 
   <!-- 新增證券帳戶彈窗 -->
   <div class="modal-overlay" id="addAccountModal">
@@ -543,11 +522,79 @@
       </div>
     </div>
   </div>
+
+  <!-- 定期定額：扣款日曆選擇器 (只選「每月的哪幾天」，不分月份) -->
+  <div class="modal-overlay" id="dcaDatePickerModal">
+    <div class="modal-card" style="width: 360px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">📅 選擇每月扣款日</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeDcaDatePicker()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="dcaDatePickerSummary" style="margin-bottom:10px; font-size:0.85rem; color:#5c5445; font-weight:600;">尚未選擇任何日期</div>
+        <div class="dca-day-grid" id="dcaDatePickerGrid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeDcaDatePicker()">取消</button>
+        <button class="btn btn-primary" onclick="confirmDcaDatePicker()">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 股票管理：匯入備份 (Excel) 選擇彈窗 -->
+  <div class="modal-overlay" id="excelImportModal">
+    <div class="modal-card" style="width: 480px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🗂️ 匯入備份 (Excel)</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeExcelImportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom:10px; font-size:0.82rem; color:#93897a;">會自動辨識檔案中的分頁，勾選要匯入的資料（會覆蓋目前該分頁的資料，其餘未勾選的分頁不受影響）：</div>
+        <div id="excelImportList"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeExcelImportModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmExcelImport()">開始匯入</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- 懸浮小型計算機 (具備焦點偵測，不干擾表格輸入；放在 financeView / stockView 外層，兩個分頁都能使用) -->
+  <div id="floatingCalculator" tabindex="0">
+    <div class="calc-header" id="calcDragHandle">
+      <span>🧮 簡易計算機</span>
+      <button class="btn-del" style="font-size:1.1rem; padding:0 4px;" onclick="toggleCalculator()">✕</button>
+    </div>
+    <div class="calc-body">
+      <div class="calc-screen" id="calcScreen">0</div>
+      <div class="calc-keys">
+        <button class="calc-btn clear" onclick="calcClear()">C</button>
+        <button class="calc-btn op" onclick="calcAppend('/')">÷</button>
+        <button class="calc-btn op" onclick="calcAppend('*')">×</button>
+        <button class="calc-btn op" onclick="calcBackspace()">⌫</button>
+        <button class="calc-btn" onclick="calcAppend('7')">7</button>
+        <button class="calc-btn" onclick="calcAppend('8')">8</button>
+        <button class="calc-btn" onclick="calcAppend('9')">9</button>
+        <button class="calc-btn op" onclick="calcAppend('-')">-</button>
+        <button class="calc-btn" onclick="calcAppend('4')">4</button>
+        <button class="calc-btn" onclick="calcAppend('5')">5</button>
+        <button class="calc-btn" onclick="calcAppend('6')">6</button>
+        <button class="calc-btn op" onclick="calcAppend('+')">+</button>
+        <button class="calc-btn" onclick="calcAppend('1')">1</button>
+        <button class="calc-btn" onclick="calcAppend('2')">2</button>
+        <button class="calc-btn" onclick="calcAppend('3')">3</button>
+        <button class="calc-btn" onclick="calcAppend('.')">.</button>
+        <button class="calc-btn" onclick="calcAppend('0')" style="grid-column: span 2;">0</button>
+        <button class="calc-btn eq" onclick="calcEvaluate()">=</button>
+      </div>
+    </div>
   </div>
 
   <script src="scripts/shared.js"></script>
   <script src="scripts/finance.js"></script>
   <script src="scripts/stock.js"></script>
   <script src="scripts/export-excel.js"></script>
+  <script src="scripts/import-excel.js"></script>
 </body>
 </html>

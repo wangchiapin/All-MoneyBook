@@ -28,3 +28,72 @@
     .app-header-cloud .btn { font-size: 12px; padding: 6px 12px; background: transparent; color: #f4f0e8; border-color: rgba(244,240,232,0.35); }
     .app-header-cloud .btn:hover { background: rgba(244,240,232,0.12); }
     .app-header-cloud #syncStatus { color: #ddd5c4; }
+
+/* ====== 懸浮小型計算機 (全域版本，financeView / stockView 皆可使用) ======
+   與 stock.css 內 #stockView 專用樣式規則相同，僅移除 #stockView 前綴、
+   並將 var(--border) 換成實際色碼，避免離開 #stockView 後變數失效。 */
+#floatingCalculator {
+  position: fixed;
+  top: 120px;
+  right: 40px;
+  width: 240px;
+  background: #ffffff;
+  border: 1px solid #ddd5c4;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  z-index: 1000;
+  display: none;
+  user-select: none;
+  overflow: hidden;
+}
+#floatingCalculator .calc-header {
+  background: #ece7dc;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  border-bottom: 1px solid #ddd5c4;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #5c5445;
+}
+#floatingCalculator .calc-body { padding: 12px; }
+#floatingCalculator .calc-screen {
+  width: 100%;
+  height: 40px;
+  background: #2c2820;
+  color: #ddc4b3;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 1.25rem;
+  text-align: right;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid #5c5445;
+}
+#floatingCalculator .calc-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+#floatingCalculator .calc-btn {
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #fdfbf7;
+  border: 1px solid #ddd5c4;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.1s;
+}
+#floatingCalculator .calc-btn:hover { background: #ece6d9; }
+#floatingCalculator .calc-btn.op { background: #eef0e6; color: #5c5445; border-color: #ddd5c4; }
+#floatingCalculator .calc-btn.op:hover { background: #ece7dc; }
+#floatingCalculator .calc-btn.eq { background: #766c5a; color: #fff; border-color: #766c5a; grid-column: span 2; }
+#floatingCalculator .calc-btn.eq:hover { background: #5c5445; }
+#floatingCalculator .calc-btn.clear { background: #f5eee0; color: #b6533c; border-color: #ddc4b3; }
+#floatingCalculator .calc-btn.clear:hover { background: #f0e2da; }
+#floatingCalculator .btn-del { color: #b3a998; border: none; background: transparent; padding: 4px 8px; font-size: 0.9rem; cursor: pointer; }
+#floatingCalculator .btn-del:hover { color: #b6533c; }
