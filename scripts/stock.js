@@ -9,6 +9,9 @@
     const STORAGE_KEY_STOCK_SALES = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_SALES';
     const STORAGE_KEY_SALES_HISTORY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_SALES_HISTORY';
     const STORAGE_KEY_STOCK_LENDING = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_LENDING';
+    const STORAGE_KEY_LENDING_INCOME = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME';
+    const STORAGE_KEY_LENDING_INCOME_YEARLY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME_YEARLY';
+    const STORAGE_KEY_DCA = 'STOCK_INVESTMENT_EXCEL_PRO_V32_DCA';
 
     const INITIAL_DATA = [
       {"id": 1, "name": "元大高股息", "code": "0056", "category": "ETF", "account": "富邦證券", "shares": 7562, "totalCost": 250794, "currentPrice": 52.27, "cashDividends": 90698, "stockShares": 0, "dividendHistory": [{"year": 2024, "cashDate": "2024-08-15", "cash": 50000, "stockDate": "", "stockShares": 0}, {"year": 2025, "cashDate": "2025-08-15", "cash": 40698, "stockDate": "", "stockShares": 0}], "lentShares": 0},
@@ -131,10 +134,15 @@
     let salesHistory = [];
     let stockLending = [];
     let lendingManagedIds = []; // 本次執行期間，曾被「股票借出」分頁同步過出借張數的持股 id
+    let lendingIncomeRows = []; // 借卷收入明細列 (股票借出 > 借卷收入 子分頁)
+    // 110~114 手動輸入的歷史年度加總 (依圖片數字記錄)；115年(含)以後改由明細列自動加總
+    let lendingIncomeManualYearly = { '110': 218, '111': 3864, '112': 5733, '113': 4336, '114': 6610 };
+    let dcaRows = []; // 定期定額分頁：{ id, name, date, amount }
     let dividendEstimates = {};
     let historyStack = [];
     let currentFilter = 'ALL';
     let salesSubTab = 'list';
+    let lendingSubTab = 'holdings'; // 'holdings', 'income'
     let dividendsSubTab = 'summary'; // 'summary', 'past', 'estimate'
     let selectedSummaryYear = '115';
     let selectedSnapshotDate = null;
@@ -173,6 +181,15 @@
         const savedLending = localStorage.getItem(STORAGE_KEY_STOCK_LENDING);
         stockLending = savedLending ? JSON.parse(savedLending) : [];
 
+        const savedLendingIncome = localStorage.getItem(STORAGE_KEY_LENDING_INCOME);
+        lendingIncomeRows = savedLendingIncome ? JSON.parse(savedLendingIncome) : [];
+
+        const savedLendingYearly = localStorage.getItem(STORAGE_KEY_LENDING_INCOME_YEARLY);
+        lendingIncomeManualYearly = savedLendingYearly ? JSON.parse(savedLendingYearly) : lendingIncomeManualYearly;
+
+        const savedDca = localStorage.getItem(STORAGE_KEY_DCA);
+        dcaRows = savedDca ? JSON.parse(savedDca) : [];
+
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
       } catch (e) {
@@ -182,6 +199,9 @@
         stockSales = INITIAL_STOCK_SALES;
         salesHistory = INITIAL_SALES_HISTORY;
         stockLending = [];
+        lendingIncomeRows = [];
+        lendingIncomeManualYearly = { '110': 218, '111': 3864, '112': 5733, '113': 4336, '114': 6610 };
+        dcaRows = [];
         dividendEstimates = {};
       }
 
@@ -197,7 +217,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -212,6 +232,9 @@
           if (prev.stockSales) stockSales = prev.stockSales;
           if (prev.salesHistory) salesHistory = prev.salesHistory;
           if (prev.stockLending) stockLending = prev.stockLending;
+          if (prev.lendingIncomeRows) lendingIncomeRows = prev.lendingIncomeRows;
+          if (prev.lendingIncomeManualYearly) lendingIncomeManualYearly = prev.lendingIncomeManualYearly;
+          if (prev.dcaRows) dcaRows = prev.dcaRows;
           if (prev.dividendEstimates) dividendEstimates = prev.dividendEstimates;
           if (prev.yfDetail) yfDetail = prev.yfDetail;
           if (prev.yfAccount) yfAccount = prev.yfAccount;
@@ -241,6 +264,9 @@
         localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
         localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
         localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
+        localStorage.setItem(STORAGE_KEY_LENDING_INCOME, JSON.stringify(lendingIncomeRows));
+        localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
+        localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
         localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
         localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
@@ -255,6 +281,7 @@
     function gatherAllData() {
       return {
         stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending,
+        lendingIncomeRows, lendingIncomeManualYearly, dcaRows,
         dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         updatedAt: new Date().toISOString()
@@ -269,6 +296,9 @@
       if (data.stockSales) stockSales = data.stockSales;
       if (data.salesHistory) salesHistory = data.salesHistory;
       if (data.stockLending) stockLending = data.stockLending;
+      if (data.lendingIncomeRows) lendingIncomeRows = data.lendingIncomeRows;
+      if (data.lendingIncomeManualYearly) lendingIncomeManualYearly = data.lendingIncomeManualYearly;
+      if (data.dcaRows) dcaRows = data.dcaRows;
       if (data.dividendEstimates) dividendEstimates = data.dividendEstimates;
       if (data.yfDetail) yfDetail = data.yfDetail;
       if (data.yfAccount) yfAccount = data.yfAccount;
@@ -282,6 +312,9 @@
       localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
       localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
       localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
+      localStorage.setItem(STORAGE_KEY_LENDING_INCOME, JSON.stringify(lendingIncomeRows));
+      localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
+      localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
       localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
       localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
       localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
@@ -461,8 +494,10 @@
         { id: 'ETF', label: 'ETF' },
         { id: '台股', label: '台股個股 (合併)' },
         { id: 'STOCK_SALES', label: '📉 股票賣出', isSales: true },
+        { id: 'STOCK_LENDING_TAB', label: '📦 股票借出', isLending: true },
         { id: 'DIVIDENDS_TAB', label: '📊 股利', isDividends: true },
         { id: 'YONG_FENG_TAB', label: '🌸 媽的永豐', isYF: true },
+        { id: 'DCA_TAB', label: '📆 定期定額', isDCA: true },
         { id: 'SNAPSHOT_LOGS', label: '📋 各股紀錄', isSnapshot: true }
       ];
 
@@ -471,7 +506,7 @@
 
       tabContainer.innerHTML = tabs.map(t => {
         let countText = '';
-        if (t.id === 'DIVIDENDS_TAB' || t.id === 'STOCK_SALES' || t.id === 'SNAPSHOT_LOGS' || t.id === 'YONG_FENG_TAB') {
+        if (t.id === 'DIVIDENDS_TAB' || t.id === 'STOCK_SALES' || t.id === 'STOCK_LENDING_TAB' || t.id === 'SNAPSHOT_LOGS' || t.id === 'YONG_FENG_TAB' || t.id === 'DCA_TAB') {
           countText = '';
         } else {
           countText = ` (${countByFilter(t.id)})`;
@@ -486,7 +521,7 @@
           `;
         } else {
           return `
-            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''}" onclick="setFilter('${t.id}')">
+            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''} ${t.isLending ? 'tab-btn-lending' : ''} ${t.isDCA ? 'tab-btn-dca' : ''}" onclick="setFilter('${t.id}')">
               ${t.label}${countText}
             </button>
           `;
@@ -508,6 +543,9 @@
       if (filterId === 'STOCK_SALES') {
         salesSubTab = 'list';
       }
+      if (filterId === 'STOCK_LENDING_TAB') {
+        lendingSubTab = 'holdings';
+      }
       if (filterId === 'DIVIDENDS_TAB') {
         dividendsSubTab = 'summary';
       }
@@ -521,8 +559,14 @@
       document.getElementById('subBtnList').classList.toggle('active', subTab === 'list');
       document.getElementById('subBtnSummary').classList.toggle('active', subTab === 'summary');
       document.getElementById('subBtnHistory').classList.toggle('active', subTab === 'history');
-      const btnLending = document.getElementById('subBtnLending');
-      if (btnLending) btnLending.classList.toggle('active', subTab === 'lending');
+      renderTable();
+      saveNavState();
+    }
+
+    function setLendingSubTab(subTab) {
+      lendingSubTab = subTab;
+      document.getElementById('subBtnLendHoldings').classList.toggle('active', subTab === 'holdings');
+      document.getElementById('subBtnLendIncome').classList.toggle('active', subTab === 'income');
       renderTable();
       saveNavState();
     }
@@ -547,7 +591,8 @@
           appView: appView,
           stockFilter: currentFilter,
           dividendsSubTab: dividendsSubTab,
-          salesSubTab: salesSubTab
+          salesSubTab: salesSubTab,
+          lendingSubTab: lendingSubTab
         }));
       } catch (e) {}
     }
@@ -566,6 +611,9 @@
             }
             if (saved.stockFilter === 'STOCK_SALES' && saved.salesSubTab) {
               setSalesSubTab(saved.salesSubTab);
+            }
+            if (saved.stockFilter === 'STOCK_LENDING_TAB' && saved.lendingSubTab) {
+              setLendingSubTab(saved.lendingSubTab);
             }
           }
         }
@@ -719,6 +767,7 @@
       const pastCalcCard = document.getElementById('pastStockCalcCard');
       const snapshotDateBar = document.getElementById('snapshotDateBar');
       const salesSubBar = document.getElementById('salesSubBar');
+      const lendingSubBar = document.getElementById('lendingSubBar');
       const dividendsSubBar = document.getElementById('dividendsSubBar');
       const topScrollWrapper = document.getElementById('topScrollWrapper');
       const mainTableContainer = document.getElementById('mainTableContainer');
@@ -756,23 +805,35 @@
         if (pastCalcCard) pastCalcCard.style.display = 'flex';
         if (snapshotDateBar) snapshotDateBar.style.display = 'none';
         if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = 'block';
         if (mainTableContainer) mainTableContainer.classList.add('with-top-scroll');
       } else if (currentFilter === 'STOCK_SALES') {
         if (btnAddStock) {
-          btnAddStock.textContent = salesSubTab === 'history' ? '➕ 新增歷年紀錄列'
-            : salesSubTab === 'lending' ? '➕ 新增借出紀錄列'
-            : '➕ 新增賣出紀錄列';
+          btnAddStock.textContent = salesSubTab === 'history' ? '➕ 新增歷年紀錄列' : '➕ 新增賣出紀錄列';
         }
         if (btnDel) btnDel.style.display = 'none';
         if (btnAddYear) btnAddYear.style.display = 'none';
         if (pastCalcCard) pastCalcCard.style.display = 'none';
         if (snapshotDateBar) snapshotDateBar.style.display = 'none';
         if (salesSubBar) salesSubBar.style.display = 'flex';
-        
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
+
         const yrContainer = document.getElementById('summaryYearSelectorContainer');
         if (yrContainer) yrContainer.style.display = (salesSubTab === 'summary') ? 'flex' : 'none';
 
+        if (topScrollWrapper) topScrollWrapper.style.display = 'none';
+        if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
+      } else if (currentFilter === 'STOCK_LENDING_TAB') {
+        if (btnAddStock) {
+          btnAddStock.textContent = lendingSubTab === 'income' ? '➕ 新增借卷收入列' : '➕ 新增借出持股列';
+        }
+        if (btnDel) btnDel.style.display = 'none';
+        if (btnAddYear) btnAddYear.style.display = 'none';
+        if (pastCalcCard) pastCalcCard.style.display = 'none';
+        if (snapshotDateBar) snapshotDateBar.style.display = 'none';
+        if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'flex';
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       } else if (currentFilter === 'YONG_FENG_TAB') {
@@ -781,6 +842,17 @@
         if (pastCalcCard) pastCalcCard.style.display = 'none';
         if (snapshotDateBar) snapshotDateBar.style.display = 'none';
         if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
+        if (topScrollWrapper) topScrollWrapper.style.display = 'none';
+        if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
+      } else if (currentFilter === 'DCA_TAB') {
+        if (btnAddStock) btnAddStock.textContent = '➕ 新增定期定額列';
+        if (btnDel) btnDel.style.display = 'none';
+        if (btnAddYear) btnAddYear.style.display = 'none';
+        if (pastCalcCard) pastCalcCard.style.display = 'none';
+        if (snapshotDateBar) snapshotDateBar.style.display = 'none';
+        if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       } else if (currentFilter === 'DIVIDENDS_TAB') {
@@ -790,6 +862,7 @@
         if (pastCalcCard) pastCalcCard.style.display = dividendsSubTab === 'past' ? 'flex' : 'none';
         if (snapshotDateBar) snapshotDateBar.style.display = 'none';
         if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = dividendsSubTab === 'past' ? 'block' : 'none';
         if (mainTableContainer) {
           if (dividendsSubTab === 'past') mainTableContainer.classList.add('with-top-scroll');
@@ -802,6 +875,7 @@
         if (pastCalcCard) pastCalcCard.style.display = 'none';
         if (snapshotDateBar) snapshotDateBar.style.display = 'flex';
         if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       } else {
@@ -811,6 +885,7 @@
         if (pastCalcCard) pastCalcCard.style.display = 'none';
         if (snapshotDateBar) snapshotDateBar.style.display = 'none';
         if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       }
@@ -847,10 +922,6 @@
           renderSalesHistoryTable(thead, tbody);
           return;
         }
-        if (salesSubTab === 'lending') {
-          renderStockLendingTable(thead, tbody);
-          return;
-        }
 
         thead.innerHTML = `
           <tr>
@@ -868,6 +939,7 @@
             <th style="width: 90px;">交易稅</th>
             <th style="width: 100px;">狀態</th>
             <th style="width: 100px;">當日共計</th>
+            <th style="width: 50px;">備考</th>
             <th style="width: 60px;">操作</th>
           </tr>
         `;
@@ -954,6 +1026,9 @@
               </td>
 
               ${dayTotalHtml}
+              <td style="text-align:center;">
+                <button class="btn-icon-plain" title="${(r.note || '').trim() ? '查看/編輯備註' : '新增備註'}" onclick="openNoteModal('sale', ${rIdx})" style="font-size:1.05rem; background:none; border:none; cursor:pointer;">${(r.note || '').trim() ? '📝' : '🗒️'}</button>
+              </td>
               <td>
                 <button class="btn-del" title="刪除" onclick="deleteStockSale(${rIdx})">✕</button>
               </td>
@@ -984,6 +1059,7 @@
             <td>-</td>
             <td class="font-mono" style="color:${isPosSum ? 'var(--up-red)' : 'var(--down-green)'};">${isPosSum ? '+' : ''}$${formatNum(sumSpread, 0)}</td>
             <td>-</td>
+            <td>-</td>
           </tr>
         `;
 
@@ -992,6 +1068,22 @@
         setTimeout(() => {
           if (mainTableContainer) mainTableContainer.scrollTop = mainTableContainer.scrollHeight;
         }, 50);
+        return;
+      }
+
+      // 1.5 股票借出分頁 (STOCK_LENDING_TAB)
+      if (currentFilter === 'STOCK_LENDING_TAB') {
+        if (lendingSubTab === 'income') {
+          renderLendingIncomeTable(thead, tbody);
+        } else {
+          renderStockLendingTable(thead, tbody);
+        }
+        return;
+      }
+
+      // 1.6 定期定額分頁 (DCA_TAB)
+      if (currentFilter === 'DCA_TAB') {
+        renderDcaTable(thead, tbody);
         return;
       }
 
@@ -2516,7 +2608,7 @@
       renderTable();
     }
 
-    /* ====== 股票借出分頁 (STOCK_SALES 的子分頁 salesSubTab === 'lending') ====== */
+    /* ====== 股票借出分頁 (STOCK_LENDING_TAB) - 子分頁一：出借持股列表 ====== */
     function findStockByName(name) {
       if (!name) return null;
       const trimmed = String(name).trim();
@@ -2651,6 +2743,308 @@
         recordSnapshot();
         stockLending.splice(index, 1);
         syncLentSharesToHoldings();
+        saveToStorage();
+        renderTable();
+      }
+    }
+
+    /* ====== 股票借出分頁 (STOCK_LENDING_TAB) - 子分頁二：借卷收入 ====== */
+    function lendingMonthKeyOf(dateStr) {
+      const digits = String(dateStr || '').replace(/[^0-9]/g, '');
+      if (digits.length === 7) return digits.slice(0, 5);
+      if (digits.length === 6) return digits.slice(0, 4);
+      return null;
+    }
+
+    function lendingYearKeyOf(dateStr) {
+      const digits = String(dateStr || '').replace(/[^0-9]/g, '');
+      if (digits.length === 7) return digits.slice(0, 3);
+      if (digits.length === 6) return digits.slice(0, 2);
+      return null;
+    }
+
+    // 115年(含)以後：依「入款日期」的民國年，從明細列自動加總「實際收入」
+    // 110~114年：沿用手動記錄的歷史數字 (lendingIncomeManualYearly)
+    function getLendingYearlyTotals() {
+      const autoMap = new Map();
+      lendingIncomeRows.forEach(r => {
+        const y = lendingYearKeyOf(r.paymentDate);
+        if (!y) return;
+        const actual = (Number(r.income) || 0) - (Number(r.serviceFee) || 0);
+        autoMap.set(y, (autoMap.get(y) || 0) + actual);
+      });
+
+      const years = new Set([...Object.keys(lendingIncomeManualYearly), ...autoMap.keys()]);
+      const list = Array.from(years).map(y => ({
+        year: y,
+        amount: autoMap.has(y) ? autoMap.get(y) : (Number(lendingIncomeManualYearly[y]) || 0),
+        isAuto: autoMap.has(y)
+      }));
+      list.sort((a, b) => (parseInt(a.year) || 0) - (parseInt(b.year) || 0));
+      return list;
+    }
+
+    function renderLendingYearlyTotalRows(colCount) {
+      const yearly = getLendingYearlyTotals();
+      if (yearly.length === 0) return '';
+
+      const labelSpan = colCount - 3;
+      let html = `<tr style="background:#f4ecd4;"><td colspan="${colCount}" style="font-weight:800; padding:10px 12px; color:#5c5445;">📅 年度借卷收入總計 (實際收入加總)</td></tr>`;
+      html += yearly.map(y => `
+        <tr>
+          <td colspan="${labelSpan}" style="text-align:right; font-weight:700; padding-right:12px; color:#766c5a;">
+            ${y.year}年 ${y.isAuto ? '<span style="font-size:0.75rem; color:#9c7c52;">🧮 依明細自動加總</span>' : ''}
+          </td>
+          <td colspan="2" class="font-mono font-bold" style="font-size:1rem;">
+            ${y.isAuto
+              ? `$${formatNum(y.amount, 0)}`
+              : `<input type="number" step="any" class="cell-input font-bold" value="${y.amount}" onfocus="this.select()" onchange="updateLendingManualYearly('${y.year}', this.value)" />`
+            }
+          </td>
+          <td></td>
+        </tr>
+      `).join('');
+      return html;
+    }
+
+    function renderLendingIncomeTable(thead, tbody) {
+      refreshStockNameDatalist();
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 130px;">出借股票</th>
+          <th style="width: 90px;">出借日期</th>
+          <th style="width: 80px;">出借張數</th>
+          <th style="width: 80px;">出借費率</th>
+          <th style="width: 90px;">還卷日期</th>
+          <th style="width: 90px;">收入 ($)</th>
+          <th style="width: 90px;">服務費 ($)</th>
+          <th style="width: 100px;">實際收入 ($)</th>
+          <th style="width: 90px;">入款日期</th>
+          <th style="width: 110px;">每月總收入</th>
+          <th style="width: 60px;">操作</th>
+        </tr>
+      `;
+
+      yfAutoSortByDate(lendingIncomeRows, 'paymentDate');
+
+      const searchBox = document.getElementById('searchBox');
+      const query = searchBox ? searchBox.value.trim().toLowerCase() : '';
+      let rows = lendingIncomeRows.map((r, idx) => ({ r, idx }));
+      if (query) {
+        rows = rows.filter(({ r }) => (r.name || '').toLowerCase().includes(query));
+      }
+
+      const COL_COUNT = 11;
+      let bodyHtml = '';
+
+      if (rows.length === 0) {
+        bodyHtml = `<tr><td colspan="${COL_COUNT}" style="text-align:center; padding:30px; color:#94a3b8;">尚無借卷收入紀錄，點擊上方「＋」新增一列</td></tr>`;
+      } else {
+        // 每月合計：依「入款日期」所在月份分組，合併儲存格顯示
+        const monthCount = {};
+        rows.forEach(({ r }) => {
+          const key = lendingMonthKeyOf(r.paymentDate);
+          if (key) monthCount[key] = (monthCount[key] || 0) + 1;
+        });
+        const renderedMonths = {};
+
+        bodyHtml = rows.map(({ r, idx }) => {
+          const income = Number(r.income) || 0;
+          const serviceFee = Number(r.serviceFee) || 0;
+          const actualIncome = income - serviceFee;
+          const mKey = lendingMonthKeyOf(r.paymentDate);
+
+          let monthTotalHtml = `<td class="font-mono" style="color:#c9bfa8;">—</td>`;
+          if (mKey) {
+            if (!renderedMonths[mKey]) {
+              renderedMonths[mKey] = true;
+              const span = monthCount[mKey];
+              const monthSum = rows
+                .filter(({ r: rr }) => lendingMonthKeyOf(rr.paymentDate) === mKey)
+                .reduce((s, { r: rr }) => s + ((Number(rr.income) || 0) - (Number(rr.serviceFee) || 0)), 0);
+              monthTotalHtml = `<td class="font-mono font-bold" style="background:#f8f6f0; vertical-align:middle;" ${span > 1 ? `rowspan="${span}"` : ''}>$${formatNum(monthSum, 0)}</td>`;
+            } else {
+              monthTotalHtml = '';
+            }
+          }
+
+          return `
+            <tr>
+              <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingIncomeRow(${idx}, 'name', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${r.lendDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingIncomeRow(${idx}, 'lendDate', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${Number(r.lentShares) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingIncomeRow(${idx}, 'lentShares', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="3" value="${Number(r.feeRate) || 0}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 3)" onchange="updateLendingIncomeRow(${idx}, 'feeRate', this.value)" /></td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="4" value="${r.returnDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 4)" onchange="updateLendingIncomeRow(${idx}, 'returnDate', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="5" value="${income}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 5)" onchange="updateLendingIncomeRow(${idx}, 'income', this.value)" /></td>
+              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="6" value="${serviceFee}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 6)" onchange="updateLendingIncomeRow(${idx}, 'serviceFee', this.value)" /></td>
+              <td class="font-mono font-bold" style="color:${actualIncome >= 0 ? 'var(--up-red)' : 'var(--down-green)'};">$${formatNum(actualIncome, 0)}</td>
+              <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="7" value="${r.paymentDate || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 7)" onchange="updateLendingIncomeRow(${idx}, 'paymentDate', this.value)" /></td>
+              ${monthTotalHtml}
+              <td><button class="btn-del" title="刪除" onclick="deleteLendingIncomeRow(${idx})">✕</button></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      tbody.innerHTML = bodyHtml + renderLendingYearlyTotalRows(COL_COUNT);
+      renderSummary();
+    }
+
+    function updateLendingIncomeRow(index, field, value) {
+      recordSnapshot();
+      const row = lendingIncomeRows[index];
+      if (!row) return;
+      if (['name', 'lendDate', 'returnDate', 'paymentDate'].includes(field)) {
+        row[field] = value;
+      } else {
+        row[field] = parseFloat(value) || 0;
+      }
+      saveToStorage();
+      renderTable();
+    }
+
+    function addLendingIncomeRow() {
+      recordSnapshot();
+      lendingIncomeRows.push({ id: Date.now(), name: '', lendDate: '', lentShares: 0, feeRate: 0, returnDate: '', income: 0, serviceFee: 0, paymentDate: '' });
+      saveToStorage();
+      renderTable();
+    }
+
+    function deleteLendingIncomeRow(index) {
+      if (confirm('確定要刪除這筆借卷收入紀錄嗎？')) {
+        recordSnapshot();
+        lendingIncomeRows.splice(index, 1);
+        saveToStorage();
+        renderTable();
+      }
+    }
+
+    function updateLendingManualYearly(year, value) {
+      recordSnapshot();
+      lendingIncomeManualYearly[year] = parseFloat(value) || 0;
+      saveToStorage();
+      renderTable();
+    }
+
+    /* ====== 定期定額分頁 (DCA_TAB) ====== */
+    function renderDcaTable(thead, tbody) {
+      refreshStockNameDatalist();
+
+      thead.innerHTML = `
+        <tr>
+          <th style="width: 180px;">股票名稱</th>
+          <th style="width: 110px;">日期 (扣款日)</th>
+          <th style="width: 120px;">扣款金額 ($)</th>
+          <th style="width: 140px;">扣款總金額 ($)</th>
+          <th style="width: 60px;">操作</th>
+        </tr>
+      `;
+
+      // 依股票名稱分組排序，讓同一檔股票的多筆扣款日相鄰，方便合併「扣款總金額」欄位
+      sortDcaRowsByName();
+
+      const searchBox = document.getElementById('searchBox');
+      const query = searchBox ? searchBox.value.trim().toLowerCase() : '';
+      let rows = dcaRows.map((r, idx) => ({ r, idx }));
+      if (query) {
+        rows = rows.filter(({ r }) => (r.name || '').toLowerCase().includes(query));
+      }
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">尚無定期定額紀錄，點擊上方「＋」新增一列</td></tr>`;
+        renderSummary();
+        return;
+      }
+
+      const nameCount = {};
+      rows.forEach(({ r }) => {
+        const key = (r.name || '').trim();
+        if (key) nameCount[key] = (nameCount[key] || 0) + 1;
+      });
+      const renderedNames = {};
+
+      let grandTotal = 0;
+
+      const bodyHtml = rows.map(({ r, idx }) => {
+        const amount = Number(r.amount) || 0;
+        grandTotal += amount;
+        const nameKey = (r.name || '').trim();
+
+        let totalHtml = `<td class="font-mono" style="color:#c9bfa8;">—</td>`;
+        if (nameKey) {
+          if (!renderedNames[nameKey]) {
+            renderedNames[nameKey] = true;
+            const span = nameCount[nameKey];
+            const stockTotal = rows
+              .filter(({ r: rr }) => (rr.name || '').trim() === nameKey)
+              .reduce((s, { r: rr }) => s + (Number(rr.amount) || 0), 0);
+            totalHtml = `<td class="font-mono font-bold" style="background:#f0f7f8; vertical-align:middle;" ${span > 1 ? `rowspan="${span}"` : ''}>$${formatNum(stockTotal, 0)}</td>`;
+          } else {
+            totalHtml = '';
+          }
+        }
+
+        return `
+          <tr>
+            <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${r.name || ''}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateDcaRow(${idx}, 'name', this.value)" /></td>
+            <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${r.date || ''}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateDcaRow(${idx}, 'date', this.value)" /></td>
+            <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${amount}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateDcaRow(${idx}, 'amount', this.value)" /></td>
+            ${totalHtml}
+            <td><button class="btn-del" title="刪除" onclick="deleteDcaRow(${idx})">✕</button></td>
+          </tr>
+        `;
+      }).join('');
+
+      const footerHtml = `
+        <tr style="background:#f1f5f9; font-weight:800; border-top:2px solid #cbd5e1;">
+          <td colspan="3" style="text-align:right; padding-right:12px;">小計</td>
+          <td class="font-mono" style="font-size:1rem;">$${formatNum(grandTotal, 0)}</td>
+          <td>-</td>
+        </tr>
+      `;
+
+      tbody.innerHTML = bodyHtml + footerHtml;
+      renderSummary();
+    }
+
+    function sortDcaRowsByName() {
+      const withName = [];
+      const withoutName = [];
+      dcaRows.forEach(r => {
+        if ((r.name || '').trim() !== '') withName.push(r);
+        else withoutName.push(r);
+      });
+      withName.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      const newArr = withName.concat(withoutName);
+      dcaRows.length = 0;
+      newArr.forEach(r => dcaRows.push(r));
+    }
+
+    function updateDcaRow(index, field, value) {
+      recordSnapshot();
+      const row = dcaRows[index];
+      if (!row) return;
+      if (field === 'name' || field === 'date') {
+        row[field] = value;
+      } else {
+        row[field] = parseFloat(value) || 0;
+      }
+      saveToStorage();
+      renderTable();
+    }
+
+    function addDcaRow() {
+      recordSnapshot();
+      dcaRows.push({ id: Date.now(), name: '', date: '', amount: 0 });
+      saveToStorage();
+      renderTable();
+    }
+
+    function deleteDcaRow(index) {
+      if (confirm('確定要刪除這筆定期定額紀錄嗎？')) {
+        recordSnapshot();
+        dcaRows.splice(index, 1);
         saveToStorage();
         renderTable();
       }
@@ -2799,6 +3193,46 @@
         if (elDivs) elDivs.textContent = '$' + formatNum(totalSalesFees, 0);
         if (elLent) elLent.textContent = `買手續費+賣手續費+交易稅`;
         return;
+      } else if (currentFilter === 'STOCK_LENDING_TAB') {
+        if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        if (subCardValContainer) subCardValContainer.style.display = 'none';
+
+        let totalLendMarketVal = 0, totalLendCost = 0, totalLendProfit = 0;
+        stockLending.forEach(r => {
+          const matched = findStockByName(r.name);
+          const price = matched ? Number(matched.currentPrice) || 0 : 0;
+          const mv = price * (Number(r.lentShares) || 0);
+          const cost = Number(r.cost) || 0;
+          totalLendMarketVal += mv;
+          totalLendCost += cost;
+          totalLendProfit += (mv - cost);
+        });
+        const totalIncomeAllYears = getLendingYearlyTotals().reduce((s, y) => s + y.amount, 0);
+
+        const elTitle = document.getElementById('filterTabCostTitle');
+        const elCost = document.getElementById('filterCost');
+        const elCostDesc = document.getElementById('filterCostDesc');
+        const elProf = document.getElementById('filterProfit');
+        const elProfRate = document.getElementById('filterProfitRate');
+        const elDivs = document.getElementById('filterDividends');
+        const elLent = document.getElementById('filterLent');
+
+        const elTitleProf = document.getElementById('filterTabProfitTitle');
+        const elTitleDiv = document.getElementById('filterTabDivTitle');
+
+        if (elTitle) elTitle.textContent = `📌 [股票借出] 出借市值`;
+        if (elCost) elCost.textContent = '$' + formatNum(totalLendMarketVal, 0);
+        if (elCostDesc) elCostDesc.textContent = `共 ${stockLending.length} 筆出借紀錄`;
+        if (elTitleProf) elTitleProf.textContent = `未實現損益`;
+        if (elProf) {
+          elProf.textContent = (totalLendProfit >= 0 ? '+' : '') + '$' + formatNum(totalLendProfit, 0);
+          elProf.style.color = totalLendProfit >= 0 ? 'var(--up-red)' : 'var(--down-green)';
+        }
+        if (elProfRate) elProfRate.textContent = `出借部位損益統計`;
+        if (elTitleDiv) elTitleDiv.textContent = `歷年借卷收入總計`;
+        if (elDivs) elDivs.textContent = '$' + formatNum(totalIncomeAllYears, 0);
+        if (elLent) elLent.textContent = `110年至今，已入款實際收入加總`;
+        return;
       } else if (currentFilter === 'YONG_FENG_TAB') {
         if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
         if (subCardValContainer) subCardValContainer.style.display = 'none';
@@ -2830,6 +3264,43 @@
         if (elTitleDiv) elTitleDiv.textContent = `累計領取股利`;
         if (elDivs) elDivs.textContent = '$' + formatNum(totalYfDiv, 0);
         if (elLent) elLent.textContent = `專屬領息總額`;
+        return;
+      } else if (currentFilter === 'DCA_TAB') {
+        if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
+        if (subCardValContainer) subCardValContainer.style.display = 'block';
+
+        const uniqueDcaStocks = new Set(dcaRows.map(r => (r.name || '').trim()).filter(Boolean));
+        const totalDcaMonthly = dcaRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+        const elTitle = document.getElementById('filterTabCostTitle');
+        const elCost = document.getElementById('filterCost');
+        const elCostDesc = document.getElementById('filterCostDesc');
+        const elTitleVal = document.getElementById('filterTabValTitle');
+        const elVal = document.getElementById('filterValue');
+        const elValDesc = document.getElementById('filterValDesc');
+        const elProf = document.getElementById('filterProfit');
+        const elProfRate = document.getElementById('filterProfitRate');
+        const elDivs = document.getElementById('filterDividends');
+        const elLent = document.getElementById('filterLent');
+
+        const elTitleProf = document.getElementById('filterTabProfitTitle');
+        const elTitleDiv = document.getElementById('filterTabDivTitle');
+
+        if (elTitle) elTitle.textContent = `📌 定期定額數量`;
+        if (elCost) elCost.textContent = `${uniqueDcaStocks.size} 檔`;
+        if (elCostDesc) elCostDesc.textContent = `目前設定中的定期定額股票`;
+
+        if (elTitleVal) elTitleVal.textContent = `💰 定期定額總金額`;
+        if (elVal) elVal.textContent = '$' + formatNum(totalDcaMonthly, 0);
+        if (elValDesc) elValDesc.textContent = `每月定期定額扣款總金額`;
+
+        // 第三、第四張卡片位置保留，暫不顯示內容
+        if (elTitleProf) elTitleProf.textContent = '';
+        if (elProf) { elProf.textContent = ''; elProf.style.color = ''; }
+        if (elProfRate) elProfRate.textContent = '';
+        if (elTitleDiv) elTitleDiv.textContent = '';
+        if (elDivs) elDivs.textContent = '';
+        if (elLent) elLent.textContent = '';
         return;
       } else if (currentFilter === 'DIVIDENDS_TAB') {
         if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
@@ -2972,6 +3443,9 @@
 
       document.getElementById('filterValue').textContent = fUnit + formatNum(fVal / fFx, isCurrentUS ? 2 : 0);
       document.getElementById('filterValDesc').textContent = `該分類現價總值`;
+      // 修正：切換分頁時把上一個分頁殘留的卡片標題重設回「股票現值」(例如定期定額分頁會借用這張卡片)
+      const elFValTitle = document.getElementById('filterTabValTitle');
+      if (elFValTitle) elFValTitle.textContent = '股票現值';
 
       // 修正：切換分頁時把上一個分頁殘留的卡片標題重設回「未實現損益」
       const elFProfTitle = document.getElementById('filterTabProfitTitle');
@@ -3301,11 +3775,21 @@
       if (currentFilter === 'STOCK_SALES') {
         if (salesSubTab === 'history') {
           addSaleHistoryRow();
-        } else if (salesSubTab === 'lending') {
-          addLendingRow();
         } else {
           addStockSaleRow();
         }
+        return;
+      }
+      if (currentFilter === 'STOCK_LENDING_TAB') {
+        if (lendingSubTab === 'income') {
+          addLendingIncomeRow();
+        } else {
+          addLendingRow();
+        }
+        return;
+      }
+      if (currentFilter === 'DCA_TAB') {
+        addDcaRow();
         return;
       }
       document.getElementById('addModalTitle').textContent = '➕ 新增股票標的';
@@ -3429,6 +3913,42 @@
     function closeYearlyDivDetailModal() {
       const modal = document.getElementById('yearlyDivDetailModal');
       if (modal) modal.classList.remove('open');
+    }
+
+    /* ====== 通用備註彈窗：目前用於「股票賣出明細」的備考欄位 ====== */
+    let noteModalContext = null; // { type: 'sale', index }
+
+    function openNoteModal(type, index) {
+      noteModalContext = { type, index };
+      let currentNote = '';
+      if (type === 'sale' && stockSales[index]) {
+        currentNote = stockSales[index].note || '';
+      }
+      const titleEl = document.getElementById('noteModalTitle');
+      if (titleEl) titleEl.textContent = '📝 備註';
+      const textarea = document.getElementById('noteModalTextarea');
+      if (textarea) textarea.value = currentNote;
+      const modal = document.getElementById('noteModal');
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeNoteModal() {
+      const modal = document.getElementById('noteModal');
+      if (modal) modal.classList.remove('open');
+      noteModalContext = null;
+    }
+
+    function saveNoteModal() {
+      if (!noteModalContext) return;
+      const textarea = document.getElementById('noteModalTextarea');
+      const value = textarea ? textarea.value : '';
+      recordSnapshot();
+      if (noteModalContext.type === 'sale' && stockSales[noteModalContext.index]) {
+        stockSales[noteModalContext.index].note = value;
+      }
+      saveToStorage();
+      closeNoteModal();
+      renderTable();
     }
 
     function openDividendModal(stockId, type = 'cash') {
@@ -3635,6 +4155,9 @@
         stockSales: stockSales,
         salesHistory: salesHistory,
         stockLending: stockLending,
+        lendingIncomeRows: lendingIncomeRows,
+        lendingIncomeManualYearly: lendingIncomeManualYearly,
+        dcaRows: dcaRows,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         yfDetail: yfDetail,
         yfAccount: yfAccount,
@@ -3666,6 +4189,9 @@
             if (imported.stockSales) stockSales = imported.stockSales;
             if (imported.salesHistory) salesHistory = imported.salesHistory;
             if (imported.stockLending) stockLending = imported.stockLending;
+            if (imported.lendingIncomeRows) lendingIncomeRows = imported.lendingIncomeRows;
+            if (imported.lendingIncomeManualYearly) lendingIncomeManualYearly = imported.lendingIncomeManualYearly;
+            if (imported.dcaRows) dcaRows = imported.dcaRows;
             if (imported.yfDetail) yfDetail = imported.yfDetail;
             if (imported.yfAccount) yfAccount = imported.yfAccount;
             if (imported.yfDividendRows) yfDividendRows = imported.yfDividendRows;

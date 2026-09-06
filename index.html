@@ -290,13 +290,20 @@
         <button class="sales-sub-btn active" id="subBtnList" onclick="setSalesSubTab('list')">📋 股票賣出明細表</button>
         <button class="sales-sub-btn" id="subBtnSummary" onclick="setSalesSubTab('summary')">📅 每日買賣紀錄小計</button>
         <button class="sales-sub-btn" id="subBtnHistory" onclick="setSalesSubTab('history')">📊 歷年紀錄</button>
-        <button class="sales-sub-btn" id="subBtnLending" onclick="setSalesSubTab('lending')">📦 股票借出</button>
       </div>
-      <datalist id="stockNameDatalist"></datalist>
       <div id="summaryYearSelectorContainer" style="display:flex; align-items:center; gap:6px;">
         <span style="font-size:0.85rem; font-weight:700; color:#3f6b4c;">📅 選擇小計年份：</span>
         <select id="summaryYearSelect" class="form-control" style="width:110px; padding:4px 8px;" onchange="changeSummaryYear(this.value)"></select>
       </div>
+    </div>
+
+    <!-- 股票借出分頁專屬：次頁籤切換列 -->
+    <div class="sales-sub-bar" id="lendingSubBar" style="display:none;">
+      <div class="sales-sub-toggle">
+        <button class="sales-sub-btn active" id="subBtnLendHoldings" onclick="setLendingSubTab('holdings')">📦 出借持股列表</button>
+        <button class="sales-sub-btn" id="subBtnLendIncome" onclick="setLendingSubTab('income')">💰 借卷收入</button>
+      </div>
+      <datalist id="stockNameDatalist"></datalist>
     </div>
 
     <!-- 各股紀錄分頁專屬：快照日期選取列 (含刪除按鈕) -->
@@ -496,6 +503,23 @@
           <span>該年度總計：</span><span id="yearlyDivDetailTotal" class="font-mono font-bold" style="font-size:1.05rem; color:#9c7c52;">$0</span>
         </div>
         <button class="btn" onclick="closeYearlyDivDetailModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 股票賣出明細：備考欄位彈窗 -->
+  <div class="modal-overlay" id="noteModal">
+    <div class="modal-card" style="width: 420px;">
+      <div class="modal-header">
+        <h3 id="noteModalTitle" style="font-size:1.05rem; font-weight:700;">📝 備註</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeNoteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="noteModalTextarea" rows="6" style="width:100%; box-sizing:border-box; padding:8px; border:1px solid #ddd5c4; border-radius:6px; font-family:inherit; font-size:0.9rem; resize:vertical; outline:none;" placeholder="輸入這筆紀錄的備註內容..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeNoteModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveNoteModal()">儲存</button>
       </div>
     </div>
   </div>
