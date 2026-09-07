@@ -1038,7 +1038,15 @@
         // 跟原本邏輯一樣）；賣出價格相同的相鄰列合併「賣出價格／賣出手續費／交易稅／狀態」
         // 這四欄。兩組各自獨立判斷（同一天不代表賣出價格也相同）。
         const dateSpans = computeAdjacentSpans(sales, r => r.date || '');
-        const priceSpans = computeAdjacentSpans(sales, r => (r.sellPrice === undefined || r.sellPrice === '' ? '' : String(Number(r.sellPrice) || 0)));
+        // 賣出價格分組：要「同一天、同一檔股票、賣出價格也相同」才會合併，
+        // 三個條件缺一不可——不會出現跨日期，只因為賣出價格剛好一樣就被合併的狀況。
+        const priceSpans = computeAdjacentSpans(sales, r => {
+          const dateKey = r.date || '';
+          const nameKey = (r.name || '').trim();
+          const priceKey = (r.sellPrice === undefined || r.sellPrice === '') ? '' : String(Number(r.sellPrice) || 0);
+          if (!dateKey || !nameKey || priceKey === '') return ''; // 任一條件缺值就不合併，一律各自一列
+          return dateKey + '|' + nameKey + '|' + priceKey;
+        });
 
         let rowsHtml = sales.map((r, rIdx) => {
           const retRateStr = r.returnRate !== undefined && !isNaN(r.returnRate) ? (r.returnRate * 100).toFixed(2) + '%' : '0.00%';
