@@ -19,6 +19,13 @@
         .replace(/'/g, '&#39;');
     }
 
+    /* ====== 共用小工具：判斷一筆持股是否為美股複委託帳戶（原本在 stock.js 多處重複判斷，
+       抽成共用函式方便統一維護；接受股票物件，或只有 account/category 兩個欄位的資料） ====== */
+    function isUsStock(stock) {
+      if (!stock) return false;
+      return stock.account === '美股複委託' || stock.category === '美股';
+    }
+
     /* ====== 共用小工具：輕量 Toast 提示（用來取代部分 alert，尤其是「儲存失敗」這種
        不該被使用者忽略、但也不用整個擋住畫面的通知） ====== */
     function showToast(msg, type) {

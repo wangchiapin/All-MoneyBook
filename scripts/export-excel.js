@@ -226,7 +226,7 @@ function buildHoldingsSheet(wb) {
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
   stocks.forEach(s => {
-    const isUS = s.account === '美股複委託' || s.category === '美股';
+    const isUS = isUsStock(s);
     const fxRate = isUS ? 29 : 1;
     const totalCost = (Number(s.totalCost) || 0) * fxRate;
     const shares = Number(s.shares) || 0;
