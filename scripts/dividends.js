@@ -218,7 +218,7 @@
     }
 
     /* ====== 渲染「非持有/已實現股利」子分頁 (股利分頁) ====== */
-    function renderPastDividendsTable(thead, tbody) {
+    function renderPastDividendsTable(thead, tbody, isFreshTabEntry) {
       const query = document.getElementById('searchBox') ? document.getElementById('searchBox').value.trim().toLowerCase() : '';
       const maxRows = Math.max(...pastColumns.map(c => c.items.length), 1);
 
@@ -291,7 +291,7 @@
 
       setTimeout(() => {
         syncScrollWidth();
-        scrollToLatestYear();
+        if (isFreshTabEntry) scrollToLatestYear();
       }, 50);
     }
 

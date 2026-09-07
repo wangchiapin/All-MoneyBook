@@ -45,6 +45,10 @@
     let lendingSubTab = 'holdings'; // 'holdings', 'income'
     let dividendsSubTab = 'summary'; // 'summary', 'past', 'estimate'
     let selectedSummaryYear = '115';
+    // 記錄「上一次已經捲動過一次最新資料」的分頁/子分頁組合，用來判斷這次 renderTable()
+    // 是「剛切換進這個分頁」還是「只是在同一個分頁裡編輯資料觸發的重繪」——
+    // 只有前者才要自動捲到最新一筆，後者不應該把使用者正在編輯的位置強制捲走。
+    let lastEnteredTabContext = null;
     let selectedSnapshotDate = null;
     let currentEditingStockId = null;
     let currentModalType = 'cash';
@@ -810,6 +814,14 @@
 
     function renderTable() {
       renderYfOverview();
+
+      // 判斷這次 render 是不是「剛切換進這個分頁/子分頁」——只有這種情況才要自動捲到
+      // 最新一筆資料；如果分頁/子分頁組合跟上次一樣，代表這次只是編輯資料觸發的重繪，
+      // 不該把使用者正在編輯的捲動位置強制捲走。
+      const tabContextKey = currentFilter + '|' + salesSubTab + '|' + dividendsSubTab + '|' + lendingSubTab;
+      const isFreshTabEntry = tabContextKey !== lastEnteredTabContext;
+      lastEnteredTabContext = tabContextKey;
+
       const thead = document.getElementById('stockGridHead');
       const tbody = document.getElementById('stockTableBody');
       const searchBox = document.getElementById('searchBox');
@@ -965,7 +977,7 @@
           return;
         }
         if (dividendsSubTab === 'past') {
-          renderPastDividendsTable(thead, tbody);
+          renderPastDividendsTable(thead, tbody, isFreshTabEntry);
           return;
         }
         if (dividendsSubTab === 'estimate') {
@@ -1150,9 +1162,11 @@
 
         tbody.innerHTML = rowsHtml;
         renderSummary();
-        setTimeout(() => {
-          if (mainTableContainer) mainTableContainer.scrollTop = mainTableContainer.scrollHeight;
-        }, 50);
+        if (isFreshTabEntry) {
+          setTimeout(() => {
+            if (mainTableContainer) mainTableContainer.scrollTop = mainTableContainer.scrollHeight;
+          }, 50);
+        }
         return;
       }
 

@@ -608,3 +608,22 @@ function importSnapshotsSheet(ws) {
   }
   return { added, skipped };
 }
+
+/* ------------------------------------------------------------------------
+   分頁 key → 實際處理函式的對照表。
+   confirmExcelImport() 會用 XLSX_IMPORT_SHEETS 裡每個分頁的 key 來查這個表，
+   找到對應的 importXxxSheet 函式來執行——key 要跟 XLSX_IMPORT_SHEETS 裡的
+   key 完全對應，否則該分頁匯入時會找不到函式而失敗。
+   ------------------------------------------------------------------------ */
+const XLSX_IMPORT_HANDLERS = {
+  holdings: importHoldingsSheet,
+  salesList: importSalesListSheet,
+  salesHistory: importSalesHistorySheet,
+  dividendPast: importDividendPastSheet,
+  dividendEstimate: importDividendEstimateSheet,
+  lendingHoldings: importLendingHoldingsSheet,
+  lendingIncome: importLendingIncomeSheet,
+  dca: importDcaSheet,
+  yf: importYfSheet,
+  snapshots: importSnapshotsSheet
+};
