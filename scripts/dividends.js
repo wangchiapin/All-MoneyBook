@@ -379,6 +379,7 @@
 
     /* ====== 非持有/已實現股利：刪除最後一列空白列 (若最後一列全部欄位皆為空才刪) ====== */
     function handleDeleteLastPastRow() {
+      if (isPageLocked('dividends')) { showToast('此分頁已鎖定，請先解鎖', 'error'); return; }
       if (pastColumns.length === 0) return;
       const maxRows = Math.max(...pastColumns.map(c => c.items.length), 0);
       if (maxRows === 0) return;
@@ -402,6 +403,7 @@
 
     /* ====== 非持有/已實現股利：新增新年度欄位 ====== */
     function handleAddYear() {
+      if (isPageLocked('dividends')) { showToast('此分頁已鎖定，請先解鎖', 'error'); return; }
       const lastYear = pastColumns.length > 0 ? parseInt(pastColumns[pastColumns.length - 1].year) || (new Date().getFullYear() - 1911) : (new Date().getFullYear() - 1911);
       const newYear = prompt('請輸入新年度 (民國年，例如 116)：', String(lastYear + 1));
       if (!newYear) return;

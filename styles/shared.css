@@ -158,3 +158,59 @@
   }
   #stockView .search-input { width: 100px !important; }
 }
+
+/* ====== 密碼鎖定功能 ====== */
+.lock-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+.lock-placeholder-text {
+  white-space: nowrap;
+}
+.lock-construction-icon {
+  cursor: pointer;
+  font-style: normal;
+  user-select: none;
+  opacity: 0.85;
+}
+.lock-construction-icon:hover {
+  opacity: 1;
+}
+.lock-settings-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ece4d4;
+}
+.lock-settings-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.lock-settings-heading {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+.lock-settings-hint {
+  font-size: 0.78rem;
+  color: #8a8069;
+  margin: 0 0 10px 0;
+}
+.lock-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.lock-settings-item:hover {
+  background: #f4ecd4;
+}
+.lock-settings-item input[type="checkbox"] {
+  cursor: pointer;
+}

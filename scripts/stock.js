@@ -779,6 +779,14 @@
       return sorted;
     }
 
+    // 分頁被鎖定時，把整個表格換成「功能尚待開發」提示（thead/tbody 版本，
+    // 給股票賣出/借出/股利/定期定額/各股紀錄這幾個用 thead+tbody 渲染的分頁共用）
+    function renderPageLockPlaceholder(thead, tbody, pageKey, colspan) {
+      if (thead) thead.innerHTML = `<tr><th>提示</th></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding:60px 16px;">${lockPlaceholderHtml(pageKey, 'page')}</td></tr>`;
+      if (typeof renderSummary === 'function') { try { renderSummary(); } catch (e) {} }
+    }
+
     function renderTable() {
       renderYfOverview();
       const thead = document.getElementById('stockGridHead');
@@ -917,12 +925,20 @@
 
       // 0-1. 媽的永豐分頁 (YONG_FENG_TAB) - 三表並排，無分頁切換
       if (currentFilter === 'YONG_FENG_TAB') {
+        if (isPageLocked('yf')) {
+          if (yfTablesContainer) yfTablesContainer.innerHTML = `<div style="padding:60px 16px; text-align:center;">${lockPlaceholderHtml('yf', 'page')}</div>`;
+          return;
+        }
         renderYfTablesAll();
         return;
       }
 
       // 0-2. 股利分頁 (DIVIDENDS_TAB)
       if (currentFilter === 'DIVIDENDS_TAB') {
+        if (isPageLocked('dividends')) {
+          renderPageLockPlaceholder(thead, tbody, 'dividends', 6);
+          return;
+        }
         if (dividendsSubTab === 'summary') {
           renderYearlySummaryTable(thead, tbody);
           return;
@@ -939,6 +955,10 @@
 
       // 1. 股票賣出紀錄分頁 (STOCK_SALES)
       if (currentFilter === 'STOCK_SALES') {
+        if (isPageLocked('sales')) {
+          renderPageLockPlaceholder(thead, tbody, 'sales', 16);
+          return;
+        }
         if (salesSubTab === 'summary') {
           renderSalesSummaryTable(thead, tbody);
           return;
@@ -1098,6 +1118,10 @@
 
       // 1.5 股票借出分頁 (STOCK_LENDING_TAB)
       if (currentFilter === 'STOCK_LENDING_TAB') {
+        if (isPageLocked('lending')) {
+          renderPageLockPlaceholder(thead, tbody, 'lending', 10);
+          return;
+        }
         if (lendingSubTab === 'income') {
           renderLendingIncomeTable(thead, tbody);
         } else {
@@ -1108,12 +1132,20 @@
 
       // 1.6 定期定額分頁 (DCA_TAB)
       if (currentFilter === 'DCA_TAB') {
+        if (isPageLocked('dca')) {
+          renderPageLockPlaceholder(thead, tbody, 'dca', 6);
+          return;
+        }
         renderDcaTable(thead, tbody);
         return;
       }
 
       // 2. 各股紀錄分頁 (Snapshot Logs)
       if (currentFilter === 'SNAPSHOT_LOGS') {
+        if (isPageLocked('snapshot')) {
+          renderPageLockPlaceholder(thead, tbody, 'snapshot', 9);
+          return;
+        }
         let allSnaps = [];
         const storedSnap = localStorage.getItem('ASSET_SNAPSHOTS_V1');
         if (storedSnap) {
@@ -1193,6 +1225,10 @@
       }
 
       // 3. 標準持股表頭 (所有證券帳戶分頁皆支援 ☰ 拖曳排序)
+      if (isPageLocked('holdings')) {
+        renderPageLockPlaceholder(thead, tbody, 'holdings', 13);
+        return;
+      }
       const allAccs = getAllAccounts();
       const isAccountTab = allAccs.includes(currentFilter);
 
@@ -1261,6 +1297,72 @@
         const enableDrag = isAccountTab && !query && !isMergedRow;
         const unitSymbol = isUS ? 'US$' : '$';
 
+        // 密碼鎖定功能：欄位級鎖定 —— 被鎖定的欄位改顯示「功能尚待開發」佔位內容，
+        // 其餘欄位不受影響；欄位本身的 <td> 結構/寬度維持不變。
+        const cellCurrentPrice = isFieldLocked('holdings.currentPrice')
+          ? lockPlaceholderHtml('holdings.currentPrice', 'field')
+          : `${unitSymbol}${formatNum(currentPrice / fxRate, isUS ? 2 : 2)}`;
+
+        const cellMarketVal = isFieldLocked('holdings.marketVal')
+          ? lockPlaceholderHtml('holdings.marketVal', 'field')
+          : (isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(marketVal / fxRate, isUS ? 2 : 0)}</span>` : `
+                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="marketVal" value="${esc(Number(s.marketVal) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'marketVal', this.value)" />
+              `);
+
+        const cellTotalCost = isFieldLocked('holdings.totalCost')
+          ? lockPlaceholderHtml('holdings.totalCost', 'field')
+          : (isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(Number(s.totalCost) || 0, isUS ? 2 : 0)}</span>` : `
+                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="1" data-field="totalCost" value="${esc(Number(s.totalCost) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 1)" onchange="updateValue(${s.id}, 'totalCost', this.value)" />
+              `);
+
+        const cellShares = isFieldLocked('holdings.shares')
+          ? lockPlaceholderHtml('holdings.shares', 'field')
+          : (isMergedRow ? `<span class="font-mono font-bold">${formatNum(shares, 0)}</span>` : `
+                <input type="number" step="any" class="cell-input" data-row="${rowIndex}" data-col="2" data-field="shares" value="${esc(shares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 2)" onchange="updateValue(${s.id}, 'shares', this.value)" />
+              `);
+
+        const cellProfit = isFieldLocked('holdings.profit')
+          ? lockPlaceholderHtml('holdings.profit', 'field')
+          : `
+              <div style="font-weight:700; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
+                ${isProfit ? '+' : ''}${unitSymbol}${formatNum(profit / fxRate, isUS ? 2 : 0)}
+              </div>
+              <div style="font-size:0.72rem; font-weight:600; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
+                ${isProfit ? '+' : ''}${profitRate.toFixed(2)}%
+              </div>
+            `;
+
+        const cellAvgCost = isFieldLocked('holdings.avgCost')
+          ? lockPlaceholderHtml('holdings.avgCost', 'field')
+          : `${unitSymbol}${formatNum(avgCostPerShare / fxRate, 2)}`;
+
+        const cellCashDiv = isFieldLocked('holdings.cashDividends')
+          ? lockPlaceholderHtml('holdings.cashDividends', 'field')
+          : `
+              <button class="btn-cash-pill" onclick="openDividendModal('${s.id}', 'cash')">
+                ${unitSymbol}${formatNum((Number(cashDiv) || 0) / fxRate, isUS ? 2 : 0)} 💰
+              </button>
+            `;
+
+        const cellStockDiv = isFieldLocked('holdings.stockDividends')
+          ? lockPlaceholderHtml('holdings.stockDividends', 'field')
+          : `
+              <button class="btn-stock-pill" onclick="openDividendModal('${s.id}', 'stock')">
+                <span>${unitSymbol}${formatNum(stockDivVal / fxRate, isUS ? 2 : 0)} 📈</span>
+                <span style="font-size:0.7rem; font-weight:normal; opacity:0.85;">(${formatNum(stockShares, 0)} 股)</span>
+              </button>
+            `;
+
+        const cellNetCost = isFieldLocked('holdings.netCost')
+          ? lockPlaceholderHtml('holdings.netCost', 'field')
+          : `${unitSymbol}${formatNum(netCostPerShare / fxRate, 2)}`;
+
+        const cellLentShares = isFieldLocked('holdings.lentShares')
+          ? lockPlaceholderHtml('holdings.lentShares', 'field')
+          : (isMergedRow ? `<span class="font-mono">${formatNum(lentShares, 0)}</span>` : `
+                <input type="number" step="any" class="cell-input" style="color:#64748b;" data-row="${rowIndex}" data-col="3" data-field="lentShares" value="${esc(lentShares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 3)" onchange="updateValue(${s.id}, 'lentShares', this.value)" />
+              `);
+
         return `
           <tr data-id="${s.id}" ${enableDrag ? 'draggable="true" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, ' + s.id + ')" ondragend="onDragEnd(event)"' : ''}>
             ${isAccountTab ? `
@@ -1276,59 +1378,25 @@
               </div>
             </td>
 
-            <td class="font-mono font-bold">${unitSymbol}${formatNum(currentPrice / fxRate, isUS ? 2 : 2)}</td>
+            <td class="font-mono font-bold">${cellCurrentPrice}</td>
 
-            <td class="editable-col">
-              ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(marketVal / fxRate, isUS ? 2 : 0)}</span>` : `
-                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="0" data-field="marketVal" value="${esc(Number(s.marketVal) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 0)" onchange="updateValue(${s.id}, 'marketVal', this.value)" />
-              `}
-            </td>
+            <td class="editable-col">${cellMarketVal}</td>
 
-            <td class="editable-col">
-              ${isMergedRow ? `<span class="font-mono font-bold">${unitSymbol}${formatNum(Number(s.totalCost) || 0, isUS ? 2 : 0)}</span>` : `
-                <input type="number" step="any" class="cell-input font-bold" data-row="${rowIndex}" data-col="1" data-field="totalCost" value="${esc(Number(s.totalCost) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 1)" onchange="updateValue(${s.id}, 'totalCost', this.value)" />
-              `}
-            </td>
+            <td class="editable-col">${cellTotalCost}</td>
 
-            <td class="editable-col">
-              ${isMergedRow ? `<span class="font-mono font-bold">${formatNum(shares, 0)}</span>` : `
-                <input type="number" step="any" class="cell-input" data-row="${rowIndex}" data-col="2" data-field="shares" value="${esc(shares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 2)" onchange="updateValue(${s.id}, 'shares', this.value)" />
-              `}
-            </td>
+            <td class="editable-col">${cellShares}</td>
 
-            <td class="font-mono">
-              <div style="font-weight:700; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
-                ${isProfit ? '+' : ''}${unitSymbol}${formatNum(profit / fxRate, isUS ? 2 : 0)}
-              </div>
-              <div style="font-size:0.72rem; font-weight:600; color:${isProfit ? 'var(--up-red)' : 'var(--down-green)'};">
-                ${isProfit ? '+' : ''}${profitRate.toFixed(2)}%
-              </div>
-            </td>
+            <td class="font-mono">${cellProfit}</td>
 
-            <td class="font-mono text-slate-500">${unitSymbol}${formatNum(avgCostPerShare / fxRate, 2)}</td>
+            <td class="font-mono text-slate-500">${cellAvgCost}</td>
 
-            <td>
-              <button class="btn-cash-pill" onclick="openDividendModal('${s.id}', 'cash')">
-                ${unitSymbol}${formatNum((Number(cashDiv) || 0) / fxRate, isUS ? 2 : 0)} 💰
-              </button>
-            </td>
+            <td>${cellCashDiv}</td>
 
-            <td>
-              <button class="btn-stock-pill" onclick="openDividendModal('${s.id}', 'stock')">
-                <span>${unitSymbol}${formatNum(stockDivVal / fxRate, isUS ? 2 : 0)} 📈</span>
-                <span style="font-size:0.7rem; font-weight:normal; opacity:0.85;">(${formatNum(stockShares, 0)} 股)</span>
-              </button>
-            </td>
+            <td>${cellStockDiv}</td>
 
-            <td class="font-mono font-bold highlight-cell" style="color:${netCostPerShare < 0 ? '#4a7c59' : 'inherit'};">
-              ${unitSymbol}${formatNum(netCostPerShare / fxRate, 2)}
-            </td>
+            <td class="font-mono font-bold highlight-cell" style="color:${netCostPerShare < 0 ? '#4a7c59' : 'inherit'};">${cellNetCost}</td>
 
-            <td class="editable-col">
-              ${isMergedRow ? `<span class="font-mono">${formatNum(lentShares, 0)}</span>` : `
-                <input type="number" step="any" class="cell-input" style="color:#64748b;" data-row="${rowIndex}" data-col="3" data-field="lentShares" value="${esc(lentShares)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${rowIndex}, 3)" onchange="updateValue(${s.id}, 'lentShares', this.value)" />
-              `}
-            </td>
+            <td class="editable-col">${cellLentShares}</td>
 
             <td>
               ${isMergedRow ? `<span style="font-size:0.75rem; color:#94a3b8;">唯讀</span>` : `
@@ -1873,6 +1941,7 @@
 
     /* ====== 一鍵紀錄資產快照 ====== */
     function takeAssetSnapshot() {
+      if (isPageLocked('snapshot')) { showToast('此分頁已鎖定，請先解鎖', 'error'); return; }
       const today = new Date().toISOString().slice(0, 10);
       const targetAccounts = getAllAccounts();
       const snapshotItems = stocks.filter(s => targetAccounts.includes(s.account));
@@ -2012,7 +2081,24 @@
       }
     }
 
+    // 依目前 currentFilter（含各子分頁）對應到密碼鎖定功能的分頁 key
+    function getCurrentPageLockKey() {
+      if (currentFilter === 'YONG_FENG_TAB') return 'yf';
+      if (currentFilter === 'DIVIDENDS_TAB') return 'dividends';
+      if (currentFilter === 'STOCK_SALES') return 'sales';
+      if (currentFilter === 'STOCK_LENDING_TAB') return 'lending';
+      if (currentFilter === 'DCA_TAB') return 'dca';
+      if (currentFilter === 'SNAPSHOT_LOGS') return 'snapshot';
+      return 'holdings'; // ALL / 各券商帳戶 / ETF / 台股個股，都是同一份「全部持股」資料
+    }
+
     function openAddStockModal() {
+      // 分頁被鎖定時，不管子分頁的「新增」按鈕實際會呼叫哪個 add 函式，
+      // 一律先擋下來 —— 所有分頁的新增動作最終都會經過這個函式。
+      if (isPageLocked(getCurrentPageLockKey())) {
+        showToast('此分頁已鎖定，請先解鎖', 'error');
+        return;
+      }
       if (currentFilter === 'DIVIDENDS_TAB' && dividendsSubTab === 'past') {
         handleAddNew();
         return;

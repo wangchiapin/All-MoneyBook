@@ -49,6 +49,7 @@
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item" onclick="openArchiveManager();">🗄️ 封存管理</button>
         <div class="settings-menu-divider"></div>
+        <button class="settings-menu-item" onclick="openLockSettingsModal(); closeSettingsMenu();">🔒 密碼鎖定功能</button>
         <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON - 全部資料)</button>
         <button class="settings-menu-item" onclick="document.getElementById('fileInput').click(); closeSettingsMenu();">📂 匯入備份 (JSON)</button>
         <button class="settings-menu-item" id="btnExportExcelAll" onclick="exportAllDataToExcel(); closeSettingsMenu();">📊 匯出全部資料 (Excel)</button>
@@ -167,6 +168,7 @@
           </label>
           <button onclick="triggerExcelImport()">🗂️ 匯入備份 (Excel)</button>
           <input type="file" id="excelImportFileInput" onchange="handleExcelImportFile(event)" accept=".xlsx" style="display:none;" />
+          <button onclick="openLockSettingsModal()">🔒 密碼鎖定功能</button>
         </div>
       </div>
     </div>
@@ -375,6 +377,38 @@
       <div class="modal-footer">
         <button class="btn" onclick="closeAddAccountModal()">取消</button>
         <button class="btn btn-primary" onclick="submitAddAccount()">確認新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 密碼鎖定功能設定 -->
+  <div class="modal-overlay" id="lockSettingsModal">
+    <div class="modal-card" style="width: 560px; max-height: 82vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🔒 密碼鎖定功能</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeLockSettingsModal()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+        <div class="lock-settings-section">
+          <label class="form-label">解鎖密碼（預設 0000）</label>
+          <div style="display:flex; gap:8px; margin-top:6px;">
+            <input type="text" id="lockPasswordInput" class="form-control" placeholder="輸入新密碼" style="flex:1;" />
+            <button class="btn btn-primary" onclick="saveLockPassword()">更新密碼</button>
+          </div>
+        </div>
+        <div class="lock-settings-section">
+          <h4 class="lock-settings-heading">整頁鎖定</h4>
+          <p class="lock-settings-hint">勾選後，該分頁一律顯示「功能尚待開發」，直到輸入密碼解鎖為止。</p>
+          <div id="lockPagesList"></div>
+        </div>
+        <div class="lock-settings-section">
+          <h4 class="lock-settings-heading">單一欄位鎖定（全部持股表格）</h4>
+          <p class="lock-settings-hint">只鎖住表格裡的某一欄，其他欄位照常顯示。</p>
+          <div id="lockFieldsList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeLockSettingsModal()">關閉</button>
       </div>
     </div>
   </div>

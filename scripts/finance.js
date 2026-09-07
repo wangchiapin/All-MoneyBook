@@ -429,6 +429,12 @@
     }
 
     function addItem(type) {
+      // 該分類被鎖定時，不開放新增項目
+      const lockKeyByType = { bank: 'finance_bank', insurance: 'finance_insurance', stock: 'finance_stock', baddebt: 'finance_baddebt' };
+      if (isPageLocked(lockKeyByType[type])) {
+        showToast('此分類已鎖定，請先解鎖', 'error');
+        return;
+      }
       const name = prompt("請輸入項目名稱：");
       if (!name) return;
       const id = type[0] + '_' + Date.now();
@@ -702,6 +708,9 @@
 
       // 1. 銀行
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">一、銀行與現金帳戶</td></tr>';
+      if (isPageLocked('finance_bank')) {
+        tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" style="text-align:center; padding:24px;">' + lockPlaceholderHtml('finance_bank', 'page') + '</td></tr>';
+      } else {
       activeBankItems.forEach((b) => {
         const dropAttrs = 'ondragover="handleDragOver(event, \'bank\', \'' + b.id + '\')" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, \'bank\', \'' + b.id + '\')"';
         if (b.isUSD) {
@@ -724,9 +733,14 @@
           tbodyHtml += createDataRow(label, "bank-row", { type: 'editable', key: b.id }, dropAttrs);
         }
       });
+      }
+
 
       // 呆帳區（不列入資產計算，僅供追蹤）
-      if (activeBadDebtItems.length > 0) {
+      if (isPageLocked('finance_baddebt')) {
+        tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">🚫 呆帳區（不列入資產計算）</td></tr>';
+        tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" style="text-align:center; padding:24px;">' + lockPlaceholderHtml('finance_baddebt', 'page') + '</td></tr>';
+      } else if (activeBadDebtItems.length > 0) {
         tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">🚫 呆帳區（不列入資產計算）</td></tr>';
         activeBadDebtItems.forEach((d) => {
           const label = '<div class="row-label-content">' +
@@ -743,6 +757,9 @@
 
       // 2. 保險
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">二、保險資產 (台幣)</td></tr>';
+      if (isPageLocked('finance_insurance')) {
+        tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" style="text-align:center; padding:24px;">' + lockPlaceholderHtml('finance_insurance', 'page') + '</td></tr>';
+      } else {
       activeInsuranceItems.forEach((ins) => {
         if (ins.isUSD) {
           const label = '<div class="row-label-content">' +
@@ -766,9 +783,13 @@
           tbodyHtml += createDataRow(label, "ins-row", { type: 'editable', key: ins.id }, dropAttrs);
         }
       });
+      }
 
       // 3. 股票
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">三、股票資產 (台幣現值 / 成本)</td></tr>';
+      if (isPageLocked('finance_stock')) {
+        tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" style="text-align:center; padding:24px;">' + lockPlaceholderHtml('finance_stock', 'page') + '</td></tr>';
+      } else {
       activeStockItems.forEach((s) => {
         if (s.isUSD) {
           const labelVal = '<div class="row-label-content">' +
@@ -794,6 +815,7 @@
           tbodyHtml += createDataRow('<div class="row-label-content"><span class="row-label-text">' + esc(s.name) + ' [成本]</span></div>', "stock-row", { type: 'editable', key: s.id + '_cost' });
         }
       });
+      }
 
       // 4. 總資產 (成本)
       tbodyHtml += '<tr><td colspan="' + (numCols + 1) + '" class="sec-header">四、總資產 (成本) 統計</td></tr>';
