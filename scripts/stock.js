@@ -787,6 +787,27 @@
       if (typeof renderSummary === 'function') { try { renderSummary(); } catch (e) {} }
     }
 
+    // 計算「相鄰列的某個欄位值相同」該怎麼合併成 rowspan。
+    // 只有「值相同且彼此相鄰」才會合併，不相鄰的同值列不會被誤判成同一組
+    // （例如：分兩批用同一個價格賣出，中間夾著別的交易，就不會被錯誤地合併在一起）。
+    // 回傳陣列，每個 index 對應 list 同一個 index：{ isFirst, span }
+    // 空值（''/null/undefined）一律不合併，維持一列一格，避免大片空白格被誤合併。
+    function computeAdjacentSpans(list, keyFn) {
+      const result = new Array(list.length);
+      let i = 0;
+      while (i < list.length) {
+        const key = keyFn(list[i]);
+        let j = i + 1;
+        if (key !== '' && key !== null && key !== undefined) {
+          while (j < list.length && keyFn(list[j]) === key) j++;
+        }
+        const span = j - i;
+        for (let k = i; k < j; k++) result[k] = { isFirst: k === i, span };
+        i = j;
+      }
+      return result;
+    }
+
     function renderTable() {
       renderYfOverview();
       const thead = document.getElementById('stockGridHead');
@@ -996,12 +1017,6 @@
           sales = sales.filter(r => (r.name && r.name.toLowerCase().includes(query)) || (r.date && r.date.toLowerCase().includes(query)) || (r.status && r.status.toLowerCase().includes(query)));
         }
 
-        let dateCount = {};
-        sales.forEach(r => {
-          let d = r.date || '';
-          dateCount[d] = (dateCount[d] || 0) + 1;
-        });
-
         const monthPalette = ['#f5eee0', '#eef0e6', '#e9e4da', '#ece2c4', '#eaeef0', '#f4ecd4'];
         let monthGroupIdx = -1;
         let lastMonthKey = null;
@@ -1019,38 +1034,63 @@
           return monthPalette[monthGroupIdx % monthPalette.length];
         }
 
-        let renderedDates = {};
+        // 合併儲存格：日期相同的相鄰列合併「日期」欄（也沿用同一組來合併「當日共計」欄，
+        // 跟原本邏輯一樣）；賣出價格相同的相鄰列合併「賣出價格／賣出手續費／交易稅／狀態」
+        // 這四欄。兩組各自獨立判斷（同一天不代表賣出價格也相同）。
+        const dateSpans = computeAdjacentSpans(sales, r => r.date || '');
+        const priceSpans = computeAdjacentSpans(sales, r => (r.sellPrice === undefined || r.sellPrice === '' ? '' : String(Number(r.sellPrice) || 0)));
 
         let rowsHtml = sales.map((r, rIdx) => {
           const retRateStr = r.returnRate !== undefined && !isNaN(r.returnRate) ? (r.returnRate * 100).toFixed(2) + '%' : '0.00%';
           const isPos = (Number(r.spread) || 0) >= 0;
-          const dKey = r.date || '';
-          let showDayTotalCell = false;
-          let spanCount = 1;
+          const dSpan = dateSpans[rIdx];
+          const pSpan = priceSpans[rIdx];
 
-          if (dKey && !renderedDates[dKey]) {
-            renderedDates[dKey] = true;
-            showDayTotalCell = true;
-            spanCount = dateCount[dKey];
-          }
+          // 日期欄：合併群組的第一列才輸出 <td rowspan>，其餘列完全不輸出這個 <td>
+          // （rowspan 會自動佔掉底下幾列的這個欄位位置，不能重複輸出）
+          const dateCellHtml = dSpan.isFirst
+            ? `<td class="editable-col" ${dSpan.span > 1 ? `rowspan="${dSpan.span}"` : ''} style="vertical-align:middle;"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>`
+            : '';
 
+          // 當日共計：沿用同一組日期分組
           let dayTotalHtml = '';
-          if (showDayTotalCell) {
-            dayTotalHtml = `<td class="font-mono" style="background:#f8fafc; font-weight:700; vertical-align:middle;" ${spanCount > 1 ? `rowspan="${spanCount}"` : ''}>${r.dayTotal !== null && r.dayTotal !== undefined ? '$' + formatNum(r.dayTotal, 0) : '-'}</td>`;
-          } else if (!dKey) {
-            dayTotalHtml = `<td class="font-mono" style="background:#f8fafc; font-weight:700;">-</td>`;
+          if (dSpan.isFirst) {
+            dayTotalHtml = (r.date || '')
+              ? `<td class="font-mono" style="background:#f8fafc; font-weight:700; vertical-align:middle;" ${dSpan.span > 1 ? `rowspan="${dSpan.span}"` : ''}>${r.dayTotal !== null && r.dayTotal !== undefined ? '$' + formatNum(r.dayTotal, 0) : '-'}</td>`
+              : `<td class="font-mono" style="background:#f8fafc; font-weight:700;">-</td>`;
           }
+
+          // 賣出價格／賣出手續費／交易稅／狀態：合併群組的第一列才輸出，其餘列不輸出
+          const sellPriceCellHtml = pSpan.isFirst
+            ? `<td class="editable-col" ${pSpan.span > 1 ? `rowspan="${pSpan.span}"` : ''} style="vertical-align:middle;"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${esc(r.sellPrice !== undefined && r.sellPrice !== '' ? r.sellPrice : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>`
+            : '';
+          const sellFeeCellHtml = pSpan.isFirst
+            ? `<td class="editable-col" ${pSpan.span > 1 ? `rowspan="${pSpan.span}"` : ''} style="vertical-align:middle;"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${esc(r.sellFee !== undefined && r.sellFee !== '' ? r.sellFee : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>`
+            : '';
+          const taxCellHtml = pSpan.isFirst
+            ? `<td class="editable-col" ${pSpan.span > 1 ? `rowspan="${pSpan.span}"` : ''} style="vertical-align:middle;"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${esc(r.tax !== undefined && r.tax !== '' ? r.tax : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>`
+            : '';
+          const statusCellHtml = pSpan.isFirst
+            ? `<td class="editable-col" ${pSpan.span > 1 ? `rowspan="${pSpan.span}"` : ''} style="vertical-align:middle;">
+                <select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-sale-idx="${rIdx}" data-col="12" onchange="updateSaleRow(${rIdx}, 'status', this.value)" onkeydown="handleSaleKey(event, ${rIdx}, 12)">
+                  <option value="" ${!r.status ? 'selected' : ''}>-</option>
+                  <option value="獲益" ${r.status === '獲益' ? 'selected' : ''}>獲益</option>
+                  <option value="認賠" ${r.status === '認賠' ? 'selected' : ''}>認賠</option>
+                  <option value="當沖" ${r.status === '當沖' ? 'selected' : ''}>當沖</option>
+                </select>
+              </td>`
+            : '';
 
           const rowBg = salesMonthColor(r.date);
 
           return `
             <tr${rowBg ? ` style="background:${rowBg};"` : ''}>
-              <td class="editable-col"><input type="text" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 0)" onchange="updateSaleRow(${rIdx}, 'date', this.value)" /></td>
+              ${dateCellHtml}
               <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${esc(r.name || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${esc(r.shares !== undefined && r.shares !== '' ? r.shares : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="3" value="${esc(r.buyPrice !== undefined && r.buyPrice !== '' ? r.buyPrice : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 3)" onchange="updateSaleRow(${rIdx}, 'buyPrice', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="4" value="${esc(r.sellPrice !== undefined && r.sellPrice !== '' ? r.sellPrice : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 4)" onchange="updateSaleRow(${rIdx}, 'sellPrice', this.value)" /></td>
-              
+              ${sellPriceCellHtml}
+
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="5" value="${esc(r.cost !== undefined && r.cost !== '' ? r.cost : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 5)" onchange="updateSaleRow(${rIdx}, 'cost', this.value)" /></td>
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="6" value="${esc(r.sellAmt !== undefined && r.sellAmt !== '' ? r.sellAmt : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 6)" onchange="updateSaleRow(${rIdx}, 'sellAmt', this.value)" /></td>
 
@@ -1058,17 +1098,9 @@
               <td class="font-mono" style="color:${isPos ? 'var(--up-red)' : 'var(--down-green)'};">${esc(retRateStr)}</td>
 
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="9" value="${esc(r.buyFee !== undefined && r.buyFee !== '' ? r.buyFee : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 9)" onchange="updateSaleRow(${rIdx}, 'buyFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="10" value="${esc(r.sellFee !== undefined && r.sellFee !== '' ? r.sellFee : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 10)" onchange="updateSaleRow(${rIdx}, 'sellFee', this.value)" /></td>
-              <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="11" value="${esc(r.tax !== undefined && r.tax !== '' ? r.tax : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 11)" onchange="updateSaleRow(${rIdx}, 'tax', this.value)" /></td>
-              
-              <td class="editable-col">
-                <select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-sale-idx="${rIdx}" data-col="12" onchange="updateSaleRow(${rIdx}, 'status', this.value)" onkeydown="handleSaleKey(event, ${rIdx}, 12)">
-                  <option value="" ${!r.status ? 'selected' : ''}>-</option>
-                  <option value="獲益" ${r.status === '獲益' ? 'selected' : ''}>獲益</option>
-                  <option value="認賠" ${r.status === '認賠' ? 'selected' : ''}>認賠</option>
-                  <option value="當沖" ${r.status === '當沖' ? 'selected' : ''}>當沖</option>
-                </select>
-              </td>
+              ${sellFeeCellHtml}
+              ${taxCellHtml}
+              ${statusCellHtml}
 
               ${dayTotalHtml}
               <td style="text-align:center;">

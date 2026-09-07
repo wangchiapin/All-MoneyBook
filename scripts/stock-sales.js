@@ -436,12 +436,29 @@
         }
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        focusCellSafely(`[data-sale-idx="${rowIndex + 1}"][data-col="${cols[currentIdxInCols]}"]`);
+        focusNextExistingSaleCell(rowIndex, cols[currentIdxInCols], 1);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         if (rowIndex > 0) {
-          focusCellSafely(`[data-sale-idx="${rowIndex - 1}"][data-col="${cols[currentIdxInCols]}"]`);
+          focusNextExistingSaleCell(rowIndex, cols[currentIdxInCols], -1);
         }
+      }
+    }
+
+    // 日期／賣出價格／賣出手續費／交易稅／狀態這幾欄在合併儲存格時，被合併吃掉的列
+    // 不會有對應的 input，往上/下移動時直接找下一個「真的存在」的格子，跳過中間被合併的列，
+    // 而不是卡住不動。
+    function focusNextExistingSaleCell(rowIndex, colIndex, direction) {
+      const cells = document.querySelectorAll(`[data-col="${colIndex}"][data-sale-idx]`);
+      const indices = Array.from(cells)
+        .map(el => Number(el.getAttribute('data-sale-idx')))
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+      const target = direction > 0
+        ? indices.find(i => i > rowIndex)
+        : indices.slice().reverse().find(i => i < rowIndex);
+      if (target !== undefined) {
+        focusCellSafely(`[data-sale-idx="${target}"][data-col="${colIndex}"]`);
       }
     }
 
