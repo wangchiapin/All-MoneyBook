@@ -1850,14 +1850,98 @@
       }
     }
 
+    let pendingDeleteStock = null; // { id, name, transferItems } — 等待「刪除股票→轉存現金股利」確認視窗回應的暫存資料
+
     function deleteStock(id) {
-      if (confirm('確定要刪除這筆股票持股嗎？')) {
-        recordSnapshot();
-        stocks = stocks.filter(s => s.id !== id);
-        saveToStorage();
-        renderTabs();
-        renderTable();
+      const stock = stocks.find(s => s.id === id);
+      if (!stock) return;
+
+      // 只挑出「有金額」的現金股利紀錄；股票股利(stockShares)不在轉存範圍內，刪除後就一併移除
+      const isUS = isUsStock(stock);
+      const fxRate = isUS ? 29 : 1;
+      const transferItems = (stock.dividendHistory || [])
+        .filter(h => Number(h.cash) > 0)
+        .map(h => ({
+          rocYear: String((Number(h.year) || 0) - 1911), // 持有股票那邊記的是西元年，非持股歷史記的是民國年，轉存時換算
+          amountTWD: Math.round((Number(h.cash) || 0) * fxRate), // 美股原始金額是美金，統一換算成台幣再存進非持股歷史（那邊沒有幣別欄位）
+          cashDate: h.cashDate || ''
+        }));
+
+      // 這檔股票沒有任何現金股利紀錄可轉存，維持原本單純的刪除確認
+      if (transferItems.length === 0) {
+        if (confirm('確定要刪除這筆股票持股嗎？')) {
+          recordSnapshot();
+          stocks = stocks.filter(s => s.id !== id);
+          saveToStorage();
+          renderTabs();
+          renderTable();
+        }
+        return;
       }
+
+      pendingDeleteStock = { id, name: stock.name, transferItems };
+
+      const byYear = {};
+      transferItems.forEach(it => {
+        if (!byYear[it.rocYear]) byYear[it.rocYear] = { amount: 0, count: 0 };
+        byYear[it.rocYear].amount += it.amountTWD;
+        byYear[it.rocYear].count += 1;
+      });
+      const years = Object.keys(byYear).sort((a, b) => Number(a) - Number(b));
+      const totalAmount = transferItems.reduce((s, it) => s + it.amountTWD, 0);
+
+      const rowsHtml = years.map(y => `
+        <tr>
+          <td>${esc(y)} 年</td>
+          <td class="font-mono">$${formatNum(byYear[y].amount, 0)}</td>
+          <td class="font-mono">${byYear[y].count} 筆</td>
+        </tr>
+      `).join('');
+
+      const body = document.getElementById('deleteStockDividendBody');
+      if (body) {
+        body.innerHTML = `
+          <p style="margin-top:0;">「${esc(stock.name)}」持有期間領過現金股利，要不要把這些紀錄轉存到「股利 → 非持股歷史」？${isUS ? '<br/><span style="font-size:0.8rem; color:#766c5a;">（美股金額已依匯率 29 換算成台幣）</span>' : ''}</p>
+          <table class="dividend-table">
+            <thead><tr><th>年度</th><th>金額</th><th>筆數</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <p style="text-align:right; font-weight:700; margin:8px 0 0 0;">共 ${transferItems.length} 筆，合計 $${formatNum(totalAmount, 0)}</p>
+        `;
+      }
+      const modal = document.getElementById('deleteStockDividendModal');
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeDeleteStockDividendModal() {
+      pendingDeleteStock = null;
+      const modal = document.getElementById('deleteStockDividendModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function confirmDeleteStockWithTransfer(shouldTransfer) {
+      if (!pendingDeleteStock) return;
+      const { id, name, transferItems } = pendingDeleteStock;
+
+      recordSnapshot(); // 刪除+轉存算同一個操作，只記一次快照，Ctrl+Z 才會一次全部復原
+
+      if (shouldTransfer) {
+        transferItems.forEach(it => {
+          // 同一年度同一檔股票如果非持股歷史裡已經有資料了，不合併、直接新增一列（依使用者要求）
+          let col = pastColumns.find(c => String(c.year) === it.rocYear);
+          if (!col) {
+            col = { year: it.rocYear, items: [] };
+            pastColumns.push(col); // 沿用「新增新年度」既有的慣例：新年度加在最後面，不重新排序
+          }
+          col.items.push({ stock: name, amount: it.amountTWD, cashDate: it.cashDate });
+        });
+      }
+
+      stocks = stocks.filter(s => s.id !== id);
+      saveToStorage();
+      renderTabs();
+      renderTable();
+      closeDeleteStockDividendModal();
     }
 
     /* ====== 全部股票表格：方向鍵/Enter 在格子間移動 ====== */

@@ -530,6 +530,24 @@
     </div>
   </div>
 
+  <!-- 刪除持有股票時：現金股利轉存「非持股歷史」確認彈窗 -->
+  <div class="modal-overlay" id="deleteStockDividendModal">
+    <div class="modal-card" style="width: 460px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🗑️ 刪除股票 — 現金股利轉存確認</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeDeleteStockDividendModal()">✕</button>
+      </div>
+      <div class="modal-body" id="deleteStockDividendBody"></div>
+      <div class="modal-footer" style="flex-wrap:wrap; gap:8px;">
+        <button class="btn" onclick="closeDeleteStockDividendModal()">取消，不刪除</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-danger" onclick="confirmDeleteStockWithTransfer(false)">只刪除，不轉存</button>
+          <button class="btn btn-primary" onclick="confirmDeleteStockWithTransfer(true)">刪除並轉存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 非持有/已實現股利：記錄單筆入帳日期彈窗 -->
   <div class="modal-overlay" id="pastDivDateModal">
     <div class="modal-card" style="width: 340px;">
