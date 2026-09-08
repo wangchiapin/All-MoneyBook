@@ -80,10 +80,21 @@
       { key: 'finance_stock', label: '📋 財務總覽 → 三、股票資產' },
       { key: 'finance_baddebt', label: '📋 財務總覽 → 呆帳區' },
       { key: 'holdings', label: '📈 股票管理 → 全部持股（含各券商帳戶 / ETF / 台股個股）' },
-      { key: 'sales', label: '📈 股票管理 → 股票賣出' },
-      { key: 'lending', label: '📈 股票管理 → 股票借出' },
-      { key: 'dividends', label: '📈 股票管理 → 股利' },
-      { key: 'yf', label: '📈 股票管理 → 媽的永豐' },
+      { key: 'sales', label: '📈 股票管理 → 股票賣出（整頁，含以下三個子分頁）' },
+      { key: 'sales_detail', label: '　└ 股票管理 → 股票賣出 → 賣出明細' },
+      { key: 'sales_summary', label: '　└ 股票管理 → 股票賣出 → 每日買賣紀錄小計' },
+      { key: 'sales_history', label: '　└ 股票管理 → 股票賣出 → 歷年紀錄' },
+      { key: 'lending', label: '📈 股票管理 → 股票借出（整頁，含以下兩個子分頁）' },
+      { key: 'lending_holdings', label: '　└ 股票管理 → 股票借出 → 出借持股列表' },
+      { key: 'lending_income', label: '　└ 股票管理 → 股票借出 → 借卷收入' },
+      { key: 'dividends', label: '📈 股票管理 → 股利（整頁，含以下三個子分頁）' },
+      { key: 'dividends_summary', label: '　└ 股票管理 → 股利 → 歷年股利總合' },
+      { key: 'dividends_past', label: '　└ 股票管理 → 股利 → 非持股股利' },
+      { key: 'dividends_estimate', label: '　└ 股票管理 → 股利 → 年度預估股利' },
+      { key: 'yf', label: '📈 股票管理 → 媽的永豐（整頁，含以下三張表）' },
+      { key: 'yf_detail', label: '　└ 股票管理 → 媽的永豐 → 買賣明細' },
+      { key: 'yf_account', label: '　└ 股票管理 → 媽的永豐 → 永豐帳戶明細' },
+      { key: 'yf_dividend', label: '　└ 股票管理 → 媽的永豐 → 除息資訊' },
       { key: 'dca', label: '📈 股票管理 → 定期定額' },
       { key: 'snapshot', label: '📈 股票管理 → 各股紀錄' }
     ];
@@ -260,6 +271,9 @@
         stockView.style.display = 'block';
         tabFinance.classList.remove('active');
         tabStock.classList.add('active');
+        // 每次「進入」股票管理（含從財務總覽切回來），都視為重新進入分頁，
+        // 讓對應的分頁/子分頁重新捲動到最新一筆資料
+        if (typeof lastEnteredTabContext !== 'undefined') lastEnteredTabContext = null;
         if (typeof renderTable === 'function') renderTable();
       } else {
         stockView.style.display = 'none';

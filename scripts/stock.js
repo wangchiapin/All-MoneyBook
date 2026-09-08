@@ -962,7 +962,7 @@
           if (yfTablesContainer) yfTablesContainer.innerHTML = `<div style="padding:60px 16px; text-align:center;">${lockPlaceholderHtml('yf', 'page')}</div>`;
           return;
         }
-        renderYfTablesAll();
+        renderYfTablesAll(isFreshTabEntry);
         return;
       }
 
@@ -973,14 +973,26 @@
           return;
         }
         if (dividendsSubTab === 'summary') {
+          if (isPageLocked('dividends_summary')) {
+            renderPageLockPlaceholder(thead, tbody, 'dividends_summary', 6);
+            return;
+          }
           renderYearlySummaryTable(thead, tbody);
           return;
         }
         if (dividendsSubTab === 'past') {
+          if (isPageLocked('dividends_past')) {
+            renderPageLockPlaceholder(thead, tbody, 'dividends_past', 6);
+            return;
+          }
           renderPastDividendsTable(thead, tbody, isFreshTabEntry);
           return;
         }
         if (dividendsSubTab === 'estimate') {
+          if (isPageLocked('dividends_estimate')) {
+            renderPageLockPlaceholder(thead, tbody, 'dividends_estimate', 6);
+            return;
+          }
           renderEstimatedDividendsTable(thead, tbody);
           return;
         }
@@ -993,11 +1005,23 @@
           return;
         }
         if (salesSubTab === 'summary') {
+          if (isPageLocked('sales_summary')) {
+            renderPageLockPlaceholder(thead, tbody, 'sales_summary', 24);
+            return;
+          }
           renderSalesSummaryTable(thead, tbody);
           return;
         }
         if (salesSubTab === 'history') {
+          if (isPageLocked('sales_history')) {
+            renderPageLockPlaceholder(thead, tbody, 'sales_history', 6);
+            return;
+          }
           renderSalesHistoryTable(thead, tbody);
+          return;
+        }
+        if (isPageLocked('sales_detail')) {
+          renderPageLockPlaceholder(thead, tbody, 'sales_detail', 16);
           return;
         }
 
@@ -1177,8 +1201,21 @@
           return;
         }
         if (lendingSubTab === 'income') {
+          if (isPageLocked('lending_income')) {
+            renderPageLockPlaceholder(thead, tbody, 'lending_income', 11);
+            return;
+          }
           renderLendingIncomeTable(thead, tbody);
+          if (isFreshTabEntry) {
+            setTimeout(() => {
+              if (mainTableContainer) mainTableContainer.scrollTop = mainTableContainer.scrollHeight;
+            }, 50);
+          }
         } else {
+          if (isPageLocked('lending_holdings')) {
+            renderPageLockPlaceholder(thead, tbody, 'lending_holdings', 10);
+            return;
+          }
           renderStockLendingTable(thead, tbody);
         }
         return;
@@ -2086,6 +2123,10 @@
 
       if (snapshotItems.length === 0) {
         alert('沒有找到任何持股可供記錄！');
+        return;
+      }
+
+      if (!confirm(`確定要記錄 ${today} 的資產快照嗎？（共 ${snapshotItems.length} 筆持股）`)) {
         return;
       }
 

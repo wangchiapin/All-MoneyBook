@@ -122,7 +122,15 @@
     function renderYfDetailTable() {
       const thead = document.getElementById('yfDetailHead');
       const tbody = document.getElementById('yfDetailBody');
+      const foot = document.getElementById('yfDetailFoot');
       if (!thead || !tbody) return;
+
+      if (isPageLocked('yf_detail')) {
+        thead.innerHTML = `<tr><th>提示</th></tr>`;
+        tbody.innerHTML = `<tr><td style="text-align:center; padding:40px 16px;">${lockPlaceholderHtml('yf_detail', 'page')}</td></tr>`;
+        if (foot) foot.innerHTML = '';
+        return;
+      }
 
       thead.innerHTML = `
         <tr>
@@ -200,6 +208,12 @@
       const tbody = document.getElementById('yfAccountBody');
       if (!thead || !tbody) return;
 
+      if (isPageLocked('yf_account')) {
+        thead.innerHTML = `<tr><th>提示</th></tr>`;
+        tbody.innerHTML = `<tr><td style="text-align:center; padding:40px 16px;">${lockPlaceholderHtml('yf_account', 'page')}</td></tr>`;
+        return;
+      }
+
       thead.innerHTML = `
         <tr>
           <th style="width:15%;">日期</th>
@@ -268,6 +282,12 @@
       const thead = document.getElementById('yfDividendHead');
       const tbody = document.getElementById('yfDividendBody');
       if (!thead || !tbody) return;
+
+      if (isPageLocked('yf_dividend')) {
+        thead.innerHTML = `<tr><th>提示</th></tr>`;
+        tbody.innerHTML = `<tr><td style="text-align:center; padding:40px 16px;">${lockPlaceholderHtml('yf_dividend', 'page')}</td></tr>`;
+        return;
+      }
 
       thead.innerHTML = `
         <tr>
@@ -440,11 +460,24 @@
     }
 
 
-    function renderYfTablesAll() {
+    function renderYfTablesAll(isFreshTabEntry) {
       computeYfAccountBalance();
       computeYfDividendDistribution();
       renderYfOverview();
       renderYfDetailTable();
       renderYfAccountTable();
       renderYfDividendTable();
+
+      // 剛切換進「媽的永豐」分頁時，三張表（買賣明細 / 永豐帳戶明細 / 除息資訊）
+      // 各自都是獨立捲動區塊，資料由舊到新排序，所以要各自捲到底部才看得到最新一筆；
+      // 之後同分頁內編輯資料觸發的重繪，則不強制捲動，避免打斷使用者正在操作的位置。
+      if (isFreshTabEntry) {
+        setTimeout(() => {
+          ['yfDetailCard', 'yfAccountCard', 'yfDividendCard'].forEach(cardId => {
+            const card = document.getElementById(cardId);
+            const scrollEl = card ? card.querySelector('.yf-table-scroll') : null;
+            if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+          });
+        }, 50);
+      }
     }
