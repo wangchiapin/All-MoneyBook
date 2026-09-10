@@ -52,7 +52,10 @@
       const visible = typeof force === 'boolean' ? force : panel.style.display === 'none';
       panel.style.display = visible ? 'block' : 'none';
       chartPanelVisible = visible;
-      if (visible) updateAssetChart();
+      if (visible) {
+        updateAssetChart();
+        if (typeof closeOtherFloatingWidgetsOnMobile === 'function') closeOtherFloatingWidgetsOnMobile('chart');
+      }
     }
 
     function updateAssetChart() {

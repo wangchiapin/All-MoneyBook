@@ -409,7 +409,10 @@
       if (calc) {
         const isVisible = calc.style.display === 'block';
         calc.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible) calc.focus();
+        if (!isVisible) {
+          calc.focus();
+          if (typeof closeOtherFloatingWidgetsOnMobile === 'function') closeOtherFloatingWidgetsOnMobile('calc');
+        }
       }
     }
 

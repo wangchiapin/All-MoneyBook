@@ -113,6 +113,7 @@
   .toolbar .btn, #stockView .btn, #stockView .tab-pill-btn, #stockView .tab-btn {
     padding: 9px 12px !important;
     font-size: 0.82rem !important;
+    min-height: 40px !important;
   }
   #stockView .header h1 { font-size: 1.15rem !important; }
 
@@ -127,15 +128,15 @@
   }
   .stat-value, #stockView .stat-value { font-size: 1.1rem !important; }
 
-  /* 表格：字級與內距縮小，讓手機上一次能看到更多欄位，仍可左右滑動捲動 */
-  #stockView table { font-size: 0.76rem !important; }
-  #stockView th, #stockView td { padding: 5px 4px !important; }
-  .table-container table th, .table-container table td { font-size: 0.76rem !important; padding: 5px 4px !important; }
+  /* 表格：字級與內距加大一點，方便手指點按每一格去編輯，仍可左右滑動捲動 */
+  #stockView table { font-size: 0.82rem !important; }
+  #stockView th, #stockView td { padding: 8px 6px !important; }
+  .table-container table th, .table-container table td { font-size: 0.82rem !important; padding: 8px 6px !important; }
 
-  /* 彈窗：留白縮小、寬度貼齊螢幕 */
-  #stockView .modal-card { width: 94vw !important; max-width: 94vw !important; }
-  #stockView .modal-body { padding: 12px !important; max-height: 70vh !important; }
-  #stockView .modal-header, #stockView .modal-footer { padding: 10px 12px !important; }
+  /* 彈窗：貼齊螢幕、盡量利用手機高度，內容多時才不會變成「視窗裡面還要再滑一次」 */
+  #stockView .modal-card { width: 96vw !important; max-width: 96vw !important; height: 88vh !important; display: flex !important; flex-direction: column !important; }
+  #stockView .modal-body { padding: 12px !important; max-height: none !important; flex: 1 !important; overflow-y: auto !important; }
+  #stockView .modal-header, #stockView .modal-footer { padding: 10px 12px !important; flex-shrink: 0 !important; }
 
   /* 浮動趨勢圖／計算機：限制最大寬度避免超出螢幕，位置仍可正常拖曳 */
   #floatingChartPanel {
@@ -147,9 +148,29 @@
     max-width: calc(100vw - 24px) !important;
   }
 
+  /* 頁首／分頁列：改成單排橫向滑動，取代自動換行，避免功能列佔掉太多垂直空間 */
+  .toolbar, #stockView .filter-bar, #stockView .tab-group,
+  .sales-sub-bar, .sales-sub-toggle {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .toolbar > *, #stockView .filter-bar > *, #stockView .tab-group > *,
+  .sales-sub-toggle > * {
+    flex-shrink: 0 !important;
+  }
+
   /* 定期定額日曆選擇器：格子縮小一點，7 欄仍能完整顯示 */
   #stockView .dca-day-grid { gap: 4px !important; }
   #stockView .dca-day-cell { padding: 6px 0 !important; font-size: 0.78rem !important; }
+
+  /* 財務總覽：凍結的項目名稱欄在手機上太寬會把數字欄擠到只剩一條，縮窄並允許換行 */
+  .row-label {
+    min-width: 100px !important;
+    font-size: 0.74rem !important;
+    white-space: normal !important;
+    padding: 4px 6px !important;
+  }
 }
 
 @media (max-width: 420px) {

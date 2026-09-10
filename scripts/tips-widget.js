@@ -304,6 +304,7 @@ function tipsWidgetToggleMinimize() {
     el.style.display = 'flex';
     bubble.style.display = 'none';
     tipsWidgetResume();
+    if (typeof closeOtherFloatingWidgetsOnMobile === 'function') closeOtherFloatingWidgetsOnMobile('tips');
   } else {
     el.style.display = 'none';
     bubble.style.display = 'flex';
@@ -382,6 +383,7 @@ function tipsWidgetInit() {
   tipsWidgetInitDrag();
   tipsWidgetInitHoverPause();
   tipsWidgetResetTimer();
+  if (typeof closeOtherFloatingWidgetsOnMobile === 'function') closeOtherFloatingWidgetsOnMobile('tips');
 }
 
 window.addEventListener('load', () => {

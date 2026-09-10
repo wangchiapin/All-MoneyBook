@@ -26,10 +26,55 @@
       return stock.account === '美股複委託' || stock.category === '美股';
     }
 
+    /* ====== 共用小工具：手機數字鍵盤 (inputmode="decimal")
+       整個 App 有很多地方各自用模板字串產生 <input type="number">（股票管理、財務總覽、
+       股利、定期定額、借券...等好幾個檔案），逐一手動加屬性容易漏掉。
+       改用 MutationObserver 監看整個頁面，任何新出現的數字輸入框都自動補上
+       inputmode="decimal"，手機上會穩定跳出含小數點的數字鍵盤，且未來新增的
+       輸入框也會自動套用，不用每個 render() 函式各自記得呼叫。 ====== */
+    function applyDecimalInputMode(root) {
+      (root || document).querySelectorAll('input[type="number"]:not([inputmode])').forEach(el => {
+        el.setAttribute('inputmode', 'decimal');
+      });
+    }
+    (function initDecimalInputModeObserver() {
+      applyDecimalInputMode(document);
+      const observer = new MutationObserver(() => applyDecimalInputMode(document));
+      const start = () => observer.observe(document.body, { childList: true, subtree: true });
+      if (document.body) start();
+      else document.addEventListener('DOMContentLoaded', start);
+    })();
+
+    /* ====== 共用小工具：手機版三個懸浮元件（計算機／資產趨勢圖／小提醒卡片）互斥收合
+       手機螢幕小，這三個 position:fixed 的面板同時開很容易互相重疊。
+       規則只在手機寬度 (<=640px) 生效：桌機完全不受影響，維持原本各自獨立的行為。
+       開啟任何一個時呼叫這個函式，把其他兩個收起來即可；各自原本的開啟入口
+       （工具列上的 🧮／📈 按鈕、小提醒卡片右上角的展開）不需要改動。 ====== */
+    function closeOtherFloatingWidgetsOnMobile(exceptName) {
+      if (window.innerWidth > 640) return;
+      if (exceptName !== 'calc') {
+        const calc = document.getElementById('floatingCalculator');
+        if (calc) calc.style.display = 'none';
+      }
+      if (exceptName !== 'chart') {
+        const chart = document.getElementById('floatingChartPanel');
+        if (chart) chart.style.display = 'none';
+        if (typeof chartPanelVisible !== 'undefined') chartPanelVisible = false;
+      }
+      if (exceptName !== 'tips') {
+        const tips = document.getElementById('tipsWidget');
+        const bubble = document.getElementById('tipsWidgetBubble');
+        if (tips && tips.style.display !== 'none') {
+          tips.style.display = 'none';
+          if (bubble) bubble.style.display = 'flex';
+          if (typeof tipsWidgetPause === 'function') tipsWidgetPause();
+        }
+      }
+    }
+
     /* ====== 共用小工具：輕量 Toast 提示（用來取代部分 alert，尤其是「儲存失敗」這種
        不該被使用者忽略、但也不用整個擋住畫面的通知） ====== */
-    function showToast(msg, type) {
-      let box = document.getElementById('globalToastBox');
+    function showToast(msg, type) {      let box = document.getElementById('globalToastBox');
       if (!box) {
         box = document.createElement('div');
         box.id = 'globalToastBox';
