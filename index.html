@@ -286,6 +286,10 @@
         <button class="sales-sub-btn" id="subBtnDivPast" onclick="setDividendsSubTab('past')">✏️ 非持股股利</button>
         <button class="sales-sub-btn" id="subBtnDivEst" onclick="setDividendsSubTab('estimate')">📈 年度預估股利</button>
       </div>
+      <div id="divEstToolbar" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button class="btn" id="btnUpdateExRights" onclick="fetchExRightsInfo()">🔄 更新除權息資訊</button>
+        <span id="divEstLastUpdated" style="font-size:0.78rem; color:#93897a;"></span>
+      </div>
     </div>
 
     <!-- 股票賣出分頁專屬：次頁籤切換列與年份選擇 -->

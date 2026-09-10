@@ -39,6 +39,9 @@
     let lendingIncomeManualYearly = {};
     let dcaRows = []; // 定期定額分頁：{ id, name, dates: number[] (每月扣款日 1~31), amount (每次扣款金額) }
     let dividendEstimates = {};
+    // 除權除息「自動帶入」資訊快取：key 同 dividendEstimates (股票代號優先，沒代號用名稱)
+    // { exDate, exType('權'/'息'/'權息'), cashDividend, stockDividend, payDateRef, source('TWSE'/'TPEx'), fetchedAt }
+    let exRightsInfo = {};
     let historyStack = [];
     let currentFilter = 'ALL';
     let salesSubTab = 'list';
@@ -96,6 +99,9 @@
 
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
+
+        const savedExRights = localStorage.getItem('STOCK_INVESTMENT_EXRIGHTS_INFO_V1');
+        exRightsInfo = savedExRights ? JSON.parse(savedExRights) : {};
       } catch (e) {
         stocks = INITIAL_DATA;
         customAccounts = [];
@@ -107,6 +113,7 @@
         lendingIncomeManualYearly = {};
         dcaRows = [];
         dividendEstimates = {};
+        exRightsInfo = {};
       }
 
       syncLentSharesToHoldings();
@@ -121,7 +128,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -140,6 +147,7 @@
           if (prev.lendingIncomeManualYearly) lendingIncomeManualYearly = prev.lendingIncomeManualYearly;
           if (prev.dcaRows) dcaRows = prev.dcaRows;
           if (prev.dividendEstimates) dividendEstimates = prev.dividendEstimates;
+          if (prev.exRightsInfo) exRightsInfo = prev.exRightsInfo;
           if (prev.yfDetail) yfDetail = prev.yfDetail;
           if (prev.yfAccount) yfAccount = prev.yfAccount;
           if (prev.yfDividendRows) yfDividendRows = prev.yfDividendRows;
@@ -172,6 +180,7 @@
         localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
         localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
+        localStorage.setItem('STOCK_INVESTMENT_EXRIGHTS_INFO_V1', JSON.stringify(exRightsInfo));
         localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
         localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
         localStorage.setItem('YONG_FENG_DIVIDEND_V1', JSON.stringify(yfDividendRows));
@@ -194,7 +203,7 @@
       return {
         stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending,
         lendingIncomeRows, lendingIncomeManualYearly, dcaRows,
-        dividendEstimates, yfDetail, yfAccount, yfDividendRows, yfOverview,
+        dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
         updatedAt: new Date().toISOString()
       };
@@ -212,6 +221,7 @@
       if (data.lendingIncomeManualYearly) lendingIncomeManualYearly = data.lendingIncomeManualYearly;
       if (data.dcaRows) dcaRows = data.dcaRows;
       if (data.dividendEstimates) dividendEstimates = data.dividendEstimates;
+      if (data.exRightsInfo) exRightsInfo = data.exRightsInfo;
       if (data.yfDetail) yfDetail = data.yfDetail;
       if (data.yfAccount) yfAccount = data.yfAccount;
       if (data.yfDividendRows) yfDividendRows = data.yfDividendRows;
@@ -228,6 +238,7 @@
       localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
       localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
       localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
+      localStorage.setItem('STOCK_INVESTMENT_EXRIGHTS_INFO_V1', JSON.stringify(exRightsInfo));
       localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
       localStorage.setItem('YONG_FENG_ACCOUNT_V1', JSON.stringify(yfAccount));
       localStorage.setItem('YONG_FENG_DIVIDEND_V1', JSON.stringify(yfDividendRows));
@@ -287,6 +298,12 @@
       if (data.dividendEstimates) {
         Object.keys(data.dividendEstimates).forEach(k => {
           if (dividendEstimates[k] === undefined) { dividendEstimates[k] = data.dividendEstimates[k]; added++; }
+          else skipped++;
+        });
+      }
+      if (data.exRightsInfo) {
+        Object.keys(data.exRightsInfo).forEach(k => {
+          if (exRightsInfo[k] === undefined) { exRightsInfo[k] = data.exRightsInfo[k]; added++; }
           else skipped++;
         });
       }
@@ -835,6 +852,7 @@
       const salesSubBar = document.getElementById('salesSubBar');
       const lendingSubBar = document.getElementById('lendingSubBar');
       const dividendsSubBar = document.getElementById('dividendsSubBar');
+      const divEstToolbar = document.getElementById('divEstToolbar');
       const topScrollWrapper = document.getElementById('topScrollWrapper');
       const mainTableContainer = document.getElementById('mainTableContainer');
       const yfTablesContainer = document.getElementById('yfTablesContainer');
@@ -852,6 +870,7 @@
         if (dividendsSubBar) dividendsSubBar.style.display = 'flex';
       } else {
         if (dividendsSubBar) dividendsSubBar.style.display = 'none';
+        if (divEstToolbar) divEstToolbar.style.display = 'none';
       }
 
       if (currentFilter === 'YONG_FENG_TAB') {
@@ -934,6 +953,7 @@
           if (dividendsSubTab === 'past') mainTableContainer.classList.add('with-top-scroll');
           else mainTableContainer.classList.remove('with-top-scroll');
         }
+        if (divEstToolbar) divEstToolbar.style.display = dividendsSubTab === 'estimate' ? 'flex' : 'none';
       } else if (currentFilter === 'SNAPSHOT_LOGS') {
         if (btnAddStock) btnAddStock.textContent = '➕ 新增股票';
         if (btnDel) btnDel.style.display = 'none';

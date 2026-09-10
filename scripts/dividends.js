@@ -111,8 +111,8 @@
       });
     }
 
-    /* ====== 渲染「年度預估股利」子分頁 (股利分頁) ====== */
-    function renderEstimatedDividendsTable(thead, tbody) {
+    /* ====== 「年度預估股利」子分頁共用：去重後的持股清單 (render 與 除權息自動抓取都會用到) ====== */
+    function getUniqueEstimateStocks() {
       const uniqueStocksMap = new Map();
       stocks.forEach(s => {
         const key = s.code ? s.code.trim() : s.name.trim();
@@ -131,8 +131,12 @@
           if (Number(s.currentPrice) > 0) ex.currentPrice = Number(s.currentPrice);
         }
       });
+      return Array.from(uniqueStocksMap.values());
+    }
 
-      const uniqueStocks = Array.from(uniqueStocksMap.values());
+    /* ====== 渲染「年度預估股利」子分頁 (股利分頁) ====== */
+    function renderEstimatedDividendsTable(thead, tbody) {
+      const uniqueStocks = getUniqueEstimateStocks();
 
       thead.innerHTML = `
         <tr>
@@ -142,6 +146,9 @@
       `;
 
       let estRows = [
+        { label: '除息時間', type: 'ex_cash_date' },
+        { label: '除權時間', type: 'ex_stock_date' },
+        { label: '發放時間 (參考)', type: 'pay_date_ref' },
         { label: '預估除息', field: 'expCash', type: 'input' },
         { label: '預估除權', field: 'expStock', type: 'input' },
         { label: '現金殖利率', field: 'yieldRate', type: 'calc_yield' },
@@ -169,6 +176,30 @@
                 <input type="number" step="any" class="cell-input font-mono font-bold" value="${esc(val)}" onchange="updateEstDividend('${key}', '${row.field}', this.value)" />
               </td>
             `;
+          } else if (row.type === 'ex_cash_date' || row.type === 'ex_stock_date' || row.type === 'pay_date_ref') {
+            const info = exRightsInfo[key];
+            let text = '';
+            let title = '';
+            if (row.type === 'ex_cash_date') {
+              if (info && info.exDate && info.exType && info.exType.indexOf('息') !== -1) {
+                text = info.exDate;
+                title = '資料來源：' + (info.source || '') + '（僅供參考，實際依公司公告為準）';
+              }
+            } else if (row.type === 'ex_stock_date') {
+              if (info && info.exDate && info.exType && info.exType.indexOf('權') !== -1) {
+                text = info.exDate;
+                title = '資料來源：' + (info.source || '') + '（僅供參考，實際依公司公告為準）';
+              }
+            } else if (row.type === 'pay_date_ref') {
+              if (info && info.payDateRef) {
+                text = info.payDateRef;
+                title = '參考自「董事會（擬議）股利分派日／股東會日期」，非保證實際入帳日期';
+              }
+            }
+            if (text) {
+              return `<td class="font-mono" style="font-size:0.85rem;" title="${esc(title)}">${esc(text)}</td>`;
+            }
+            return `<td class="font-mono" style="font-size:0.85rem; color:#b8ac96;">尚無資料</td>`;
           } else if (row.type === 'display_shares') {
             return `<td class="font-mono">${formatNum(shares, 0)}</td>`;
           } else if (row.type === 'calc_yield') {
@@ -215,6 +246,162 @@
       dividendEstimates[key][field] = parseFloat(value) || 0;
       saveToStorage();
       renderTable();
+    }
+
+    /* ====== 「年度預估股利」：抓取除權除息公開資料 (免費、無金鑰) ======
+       - 上市 (TWSE)：除權除息預告表 TWT48U (除息/除權日期、現金股利) +
+                      股利分派情形 t187ap45_L (董事會/股東會日期 → 發放時間參考)
+       - 上櫃 (TPEx)：除權除息預告表 (best-effort，欄位若異動需再調整)
+       所有請求都直接從瀏覽器發出，不經過任何伺服器/第三方 API，完全免費。
+       規則：只補目前是 0 的「預估除息/預估除權」欄位，使用者已手動改過的不覆蓋。 */
+    async function fetchExRightsInfo() {
+      if (isPageLocked('dividends') || isPageLocked('dividends_estimate')) {
+        showToast('此分頁已鎖定，請先解鎖', 'error');
+        return;
+      }
+      const btn = document.getElementById('btnUpdateExRights');
+      const statusEl = document.getElementById('divEstLastUpdated');
+      if (btn) { btn.disabled = true; btn.textContent = '🔄 更新中...'; }
+
+      const uniqueStocks = getUniqueEstimateStocks();
+      if (uniqueStocks.length === 0) {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 更新除權息資訊'; }
+        return;
+      }
+
+      let twseForecast = null;   // { fields, data }
+      let twseFilings = null;    // Array<Object> (t187ap45_L)
+      let tpexForecast = null;   // { aaData }
+      let anyOk = false;
+
+      try {
+        const res = await fetch('https://www.twse.com.tw/exchangeReport/TWT48U?response=json');
+        const json = await res.json();
+        if (json && Array.isArray(json.data) && Array.isArray(json.fields)) {
+          twseForecast = json;
+          anyOk = true;
+        }
+      } catch (e) {
+        console.warn('TWSE 除權除息預告表抓取失敗', e);
+      }
+
+      try {
+        const res2 = await fetch('https://openapi.twse.com.tw/v1/opendata/t187ap45_L');
+        const json2 = await res2.json();
+        if (Array.isArray(json2)) {
+          twseFilings = json2;
+          anyOk = true;
+        }
+      } catch (e) {
+        console.warn('TWSE 股利分派情形抓取失敗', e);
+      }
+
+      try {
+        const res3 = await fetch('https://www.tpex.org.tw/web/stock/exright/preAnnounce/prepost.php?l=zh-tw&o=json');
+        const json3 = await res3.json();
+        if (json3 && Array.isArray(json3.aaData)) {
+          tpexForecast = json3;
+          anyOk = true;
+        }
+      } catch (e) {
+        // 上櫃來源網址/格式較不穩定，抓不到就跳過，不影響上市資料
+        console.warn('TPEx 除權除息預告表抓取失敗（可能是網址或格式已變動）', e);
+      }
+
+      if (!anyOk) {
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 更新除權息資訊'; }
+        showToast('⚠️ 抓取失敗，連不上網站', 'error');
+        return;
+      }
+
+      recordSnapshot();
+      const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+
+      // TWSE 除權除息預告表欄位索引
+      let idxDate = -1, idxCode = -1, idxType = -1, idxCash = -1, idxStockRate = -1;
+      if (twseForecast) {
+        idxDate = twseForecast.fields.indexOf('除權除息日期');
+        idxCode = twseForecast.fields.indexOf('股票代號');
+        idxType = twseForecast.fields.indexOf('除權息');
+        idxCash = twseForecast.fields.indexOf('現金股利');
+        idxStockRate = twseForecast.fields.indexOf('無償配股率');
+      }
+
+      let matchedCount = 0;
+
+      uniqueStocks.forEach(us => {
+        const code = (us.code || '').trim();
+        const key = code || us.name;
+        if (!exRightsInfo[key]) exRightsInfo[key] = {};
+        const info = exRightsInfo[key];
+        let matchedThis = false;
+
+        // 1) 上市：除權除息預告表
+        if (twseForecast && code && idxCode !== -1) {
+          const row = twseForecast.data.find(r => String(r[idxCode]).trim() === code);
+          if (row) {
+            info.source = 'TWSE';
+            info.exDate = row[idxDate] || '';
+            info.exType = row[idxType] || '';
+            const cashRaw = String(row[idxCash] || '');
+            info.cashDividend = cashRaw.indexOf('待公告') === -1 ? (parseFloat(cashRaw.replace(/,/g, '')) || 0) : null;
+            const stockRateRaw = String(row[idxStockRate] || '0');
+            const stockRate = parseFloat(stockRateRaw.replace(/,/g, '')) || 0;
+            // 無償配股率 → 每股股票股利(元)：配股率 × 面額(10元)
+            info.stockDividend = stockRate > 0 ? Math.round(stockRate * 10 * 10000) / 10000 : 0;
+            matchedThis = true;
+          }
+        }
+
+        // 2) 上櫃：除權除息預告表 (best-effort，欄位順序需視實際回應調整；找不到不影響上市資料)
+        if (!matchedThis && tpexForecast && code) {
+          const row = (tpexForecast.aaData || []).find(r => Array.isArray(r) && String(r[1]).trim() === code);
+          if (row) {
+            info.source = 'TPEx';
+            info.exDate = row[0] || '';
+            info.exType = row[3] || '';
+            const cashRaw = String(row[7] || '');
+            info.cashDividend = cashRaw.indexOf('待公告') === -1 ? (parseFloat(cashRaw.replace(/,/g, '')) || 0) : null;
+            const stockRateRaw = String(row[4] || '0');
+            const stockRate = parseFloat(stockRateRaw.replace(/,/g, '')) || 0;
+            info.stockDividend = stockRate > 0 ? Math.round(stockRate * 10 * 10000) / 10000 : 0;
+            matchedThis = true;
+          }
+        }
+
+        // 3) 上市：股利分派情形 → 發放時間參考（只有上市有這份資料）
+        if (twseFilings && code) {
+          const rows = twseFilings.filter(r => String(r['公司代號'] || '').trim() === code);
+          if (rows.length > 0) {
+            rows.sort((a, b) => String(b['股利年度'] || '').localeCompare(String(a['股利年度'] || '')));
+            const best = rows[0];
+            info.payDateRef = best['董事會(擬議)股利分派日'] || best['股東會日期'] || '';
+          }
+        }
+
+        if (matchedThis) matchedCount++;
+        info.fetchedAt = nowStr;
+
+        // 只在使用者還沒手動填過（目前是 0）的欄位補上自動抓到的數字，已改過的不覆蓋
+        if (!dividendEstimates[key]) dividendEstimates[key] = { expCash: 0, expStock: 0 };
+        const est = dividendEstimates[key];
+        if ((!est.expCash || est.expCash === 0) && info.cashDividend !== null && info.cashDividend !== undefined) {
+          est.expCash = info.cashDividend;
+        }
+        if ((!est.expStock || est.expStock === 0) && info.stockDividend) {
+          est.expStock = info.stockDividend;
+        }
+      });
+
+      saveToStorage();
+      renderTable();
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 更新除權息資訊'; }
+      if (statusEl) statusEl.textContent = `最後更新：${nowStr}（比對到 ${matchedCount}/${uniqueStocks.length} 檔）`;
+      if (matchedCount > 0) {
+        showToast('✅ 除權除息資訊已更新', 'success');
+      } else {
+        showToast('已連上資料來源，但目前沒有比對到你持股的除權息資料', 'info');
+      }
     }
 
     /* ====== 渲染「非持有/已實現股利」子分頁 (股利分頁) ====== */
