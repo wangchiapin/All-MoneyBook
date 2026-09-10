@@ -1,0 +1,117 @@
+/* ====== 懸浮小提醒卡片 (tips widget) ======
+   顏色沿用既有色票：--card-bg / --border-color / --text-main / --text-muted / --down-green
+   （--down-green 定義於 styles/stock.css，與本檔案一起載入，全站共用同一份 CSS 變數作用域） */
+
+.tips-widget {
+  position: fixed;
+  left: 20px;
+  bottom: 90px;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  background: var(--card-bg, #fdfbf7);
+  border: 1px solid var(--border-color, #ddd5c4);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(60, 54, 46, 0.22);
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+  user-select: none;
+}
+
+.tips-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: var(--down-green, #4a7c59);
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+}
+.tips-widget-header:active { cursor: grabbing; }
+
+.tips-widget-icon { font-size: 1.05rem; }
+
+.tips-widget-title {
+  flex: 1;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tips-widget-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tips-widget-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tips-widget-btn:hover { background: rgba(255, 255, 255, 0.32); }
+
+.tips-widget-body {
+  padding: 14px 14px 8px;
+  min-height: 44px;
+}
+
+.tips-widget-line {
+  font-size: 0.86rem;
+  color: var(--text-main, #3c362e);
+  line-height: 1.55;
+}
+.tips-widget-line:first-child { font-weight: 700; }
+
+.tips-widget-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px 12px;
+}
+
+.tips-widget-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-color, #ddd5c4);
+  cursor: pointer;
+}
+.tips-widget-dot.active { background: var(--down-green, #4a7c59); }
+
+.tips-widget-bubble {
+  position: fixed;
+  left: 20px;
+  bottom: 90px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--down-green, #4a7c59);
+  color: #fff;
+  font-size: 1.2rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(60, 54, 46, 0.28);
+  cursor: pointer;
+  z-index: 9999;
+}
+
+@media (max-width: 640px) {
+  .tips-widget { width: 260px; left: 12px; bottom: 76px; }
+  .tips-widget-bubble { left: 12px; bottom: 76px; }
+}

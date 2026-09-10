@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles/finance.css">
   <link rel="stylesheet" href="styles/shared.css">
   <link rel="stylesheet" href="styles/stock.css">
+  <link rel="stylesheet" href="styles/tips-widget.css">
 
   <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -640,6 +641,21 @@
     </div>
   </div>
 
+  <!-- 懸浮小提醒卡片：資料全部來自本頁已載入的狀態，見 scripts/tips-widget.js -->
+  <div id="tipsWidget" class="tips-widget">
+    <div class="tips-widget-header" id="tipsWidgetHeader">
+      <span class="tips-widget-icon" id="tipsWidgetIcon">💡</span>
+      <span class="tips-widget-title" id="tipsWidgetTitle">小提醒</span>
+      <span class="tips-widget-controls">
+        <button type="button" class="tips-widget-btn" id="tipsWidgetMinBtn" title="縮小" onclick="tipsWidgetToggleMinimize()">－</button>
+        <button type="button" class="tips-widget-btn" id="tipsWidgetCloseBtn" title="關閉" onclick="tipsWidgetClose()">✕</button>
+      </span>
+    </div>
+    <div class="tips-widget-body" id="tipsWidgetBody"></div>
+    <div class="tips-widget-dots" id="tipsWidgetDots"></div>
+  </div>
+  <div id="tipsWidgetBubble" class="tips-widget-bubble" onclick="tipsWidgetToggleMinimize()" title="展開小提醒">💡</div>
+
   <script src="scripts/shared.js"></script>
   <script src="scripts/finance.js"></script>
   <script src="scripts/dca.js"></script>
@@ -650,5 +666,6 @@
   <script src="scripts/stock.js"></script>
   <script src="scripts/export-excel.js"></script>
   <script src="scripts/import-excel.js"></script>
+  <script src="scripts/tips-widget.js"></script>
 </body>
 </html>
