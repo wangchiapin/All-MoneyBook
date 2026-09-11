@@ -13,6 +13,7 @@
    ======================================================================== */
 
 const XLSX_IMPORT_SHEETS = [
+  { key: 'finance', sheetNames: ['財務總覽'], label: '📋 財務總覽', warning: '⚠️ 只會比對「項目名稱」把資料合併回去：本地已有的項目/日期欄位不會被覆蓋，找不到的項目/日期會新增。已封存(archived)的項目原本就不包含在匯出檔裡，這裡也無法救回。' },
   { key: 'holdings', sheetNames: ['全部持股'], label: '📈 全部持股', warning: '⚠️ 比對到同一檔股票時，會用 Excel 裡的數字覆蓋現有的「現金股利」「股票股利」等欄位，請確認選的是最新備份檔。' },
   { key: 'salesList', sheetNames: ['股票賣出明細表'], label: '💰 股票賣出明細表' },
   { key: 'salesHistory', sheetNames: ['股票賣出歷年紀錄'], label: '📅 股票賣出歷年紀錄' },
@@ -104,7 +105,7 @@ function openExcelImportModal(wb) {
   }).join('');
 
   const knownNames = XLSX_IMPORT_SHEETS.flatMap(def => def.sheetNames);
-  const unknown = foundSheetNames.filter(n => n !== '財務總覽' && !knownNames.includes(n));
+  const unknown = foundSheetNames.filter(n => !knownNames.includes(n));
   const unknownHtml = unknown.length
     ? `<div class="excel-import-note">⚠️ 無法辨識、將略過的分頁：${esc(unknown.join('、'))}</div>`
     : '';
@@ -208,6 +209,165 @@ function xlIsBlankRow(row) {
 /* ------------------------------------------------------------------------
    各分頁匯入邏輯
    ------------------------------------------------------------------------ */
+
+/* 財務總覽 → state (finance.js)。這張表是「橫向」的：每一列是一個項目(銀行/保險/
+   股票/呆帳)，每一欄是一個日期快照；四、五、六、八、九這幾個區塊都是由其他資料算出來的
+   統計列(總資產、成長率、佔比...)，本來就不是原始輸入，這裡直接略過不匯入。
+   比對邏輯：用「項目名稱」去找 state 裡現有的同名項目 —— 找到就沿用它的 id（讓下面
+   mergeFinanceState 的日期合併邏輯把新日期的數字補進同一個項目，不會變成兩個重複項目）；
+   找不到就當作新項目新增。日期欄位比對交給既有的 mergeFinanceState 處理（本地已有的日期
+   不覆蓋，只新增本地沒有的日期）。 */
+function importFinanceSheet(ws) {
+  if (typeof state === 'undefined' || typeof mergeFinanceState !== 'function') {
+    return { added: 0, skipped: 0 };
+  }
+  const rows = xlRowsOf(ws);
+  if (rows.length < 2) return { added: 0, skipped: 0 };
+
+  const header = rows[0];
+  const dates = [];
+  for (let c = 1; c < header.length; c++) {
+    const d = xlStr(header[c]);
+    if (d === '') break;
+    dates.push(d);
+  }
+  const numCols = dates.length;
+  if (numCols === 0) return { added: 0, skipped: 0 };
+
+  let section = null;
+  const bankRaw = [], insRaw = [], stockRaw = [], usdRaw = [], badDebtRaw = [];
+  let ratesRow = null;
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const label = xlStr(row[0]);
+    if (!label) continue;
+
+    if (label.indexOf('一、') === 0) { section = 'bank'; continue; }
+    if (label.indexOf('呆帳') !== -1) { section = 'baddebt'; continue; }
+    if (label.indexOf('二、') === 0) { section = 'ins'; continue; }
+    if (label.indexOf('三、') === 0) { section = 'stock'; continue; }
+    if (label.indexOf('七、') === 0) { section = 'usd'; continue; }
+    if (/^[四五六八九]、/.test(label)) { section = 'skip'; continue; }
+
+    const values = [];
+    for (let c = 1; c <= numCols; c++) values.push(row[c]);
+
+    if (section === 'bank') bankRaw.push({ label, values });
+    else if (section === 'ins') insRaw.push({ label, values });
+    else if (section === 'stock') stockRaw.push({ label, values });
+    else if (section === 'baddebt') badDebtRaw.push({ label, values });
+    else if (section === 'usd') {
+      if (label === '美金匯率') ratesRow = values;
+      else usdRaw.push({ label, values });
+    }
+  }
+
+  function stripSuffix(s, suf) { return s.slice(-suf.length) === suf ? s.slice(0, -suf.length) : null; }
+  function rawFromRateFallback(vals) {
+    return vals.map((v, ci) => {
+      const rate = ratesRow ? xlNum(ratesRow[ci]) : 0;
+      return rate > 0 ? xlNum(v) / rate : 0;
+    });
+  }
+  function resolveExistingId(category, name) {
+    const found = (state[category] || []).find(it => it.name === name);
+    return found ? found.id : null;
+  }
+
+  // ---- 一、銀行／二、保險：可能有 " (USD自動)" 字尾 ----
+  const bankParsed = bankRaw.map(r => {
+    const stripped = stripSuffix(r.label, ' (USD自動)');
+    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values };
+  });
+  const insParsed = insRaw.map(r => {
+    const stripped = stripSuffix(r.label, ' (USD自動)');
+    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values };
+  });
+
+  // ---- 三、股票：" [現值]" / " [成本]"，可能還加上 " (USD自動)" ----
+  const stockValMap = new Map(), stockCostMap = new Map();
+  stockRaw.forEach(r => {
+    let label = r.label;
+    const usdStripped = stripSuffix(label, ' (USD自動)');
+    const isUSD = usdStripped !== null;
+    if (isUSD) label = usdStripped;
+    const valBase = stripSuffix(label, ' [現值]');
+    const costBase = stripSuffix(label, ' [成本]');
+    if (valBase !== null) stockValMap.set(valBase, { isUSD, values: r.values });
+    else if (costBase !== null) stockCostMap.set(costBase, { isUSD, values: r.values });
+  });
+  const stockNames = Array.from(new Set([...stockValMap.keys(), ...stockCostMap.keys()]));
+
+  // ---- 七、美金原始金額輸入區："↳ 名稱 (USD)" / "↳ 名稱 現值 (USD)" / "↳ 名稱 成本 (USD)" ----
+  const usdSimpleMap = new Map(), usdStockValMap = new Map(), usdStockCostMap = new Map();
+  usdRaw.forEach(r => {
+    let label = r.label;
+    if (label.slice(0, 2) !== '↳ ') return;
+    label = label.slice(2);
+    let m;
+    if ((m = stripSuffix(label, ' 現值 (USD)')) !== null) usdStockValMap.set(m, r.values);
+    else if ((m = stripSuffix(label, ' 成本 (USD)')) !== null) usdStockCostMap.set(m, r.values);
+    else if ((m = stripSuffix(label, ' (USD)')) !== null) usdSimpleMap.set(m, r.values);
+  });
+
+  const values = {};
+  const bankItems = [], insuranceItems = [], stockItems = [], badDebtItems = [];
+
+  bankParsed.forEach((b, i) => {
+    const id = resolveExistingId('bankItems', b.name) || ('b_' + Date.now() + '_' + i);
+    bankItems.push({ id, name: b.name, isUSD: b.isUSD, isForeign: b.isUSD });
+    if (b.isUSD) {
+      const raw = usdSimpleMap.get(b.name) || rawFromRateFallback(b.values);
+      values[id + '_usd'] = raw.map(v => xlNum(v));
+    } else {
+      values[id] = b.values.map(v => xlNum(v));
+    }
+  });
+
+  insParsed.forEach((ins, i) => {
+    const id = resolveExistingId('insuranceItems', ins.name) || ('i_' + Date.now() + '_' + i);
+    insuranceItems.push({ id, name: ins.name, isUSD: ins.isUSD });
+    if (ins.isUSD) {
+      const raw = usdSimpleMap.get(ins.name) || rawFromRateFallback(ins.values);
+      values[id + '_usd'] = raw.map(v => xlNum(v));
+    } else {
+      values[id] = ins.values.map(v => xlNum(v));
+    }
+  });
+
+  stockNames.forEach((name, i) => {
+    const valInfo = stockValMap.get(name);
+    const costInfo = stockCostMap.get(name);
+    const isUSD = (valInfo && valInfo.isUSD) || (costInfo && costInfo.isUSD) || false;
+    const id = resolveExistingId('stockItems', name) || ('s_' + Date.now() + '_' + i);
+    stockItems.push({ id, name, isUSD });
+    if (isUSD) {
+      values[id + '_usdval'] = (usdStockValMap.get(name) || (valInfo ? rawFromRateFallback(valInfo.values) : dates.map(() => 0))).map(v => xlNum(v));
+      values[id + '_usdcost'] = (usdStockCostMap.get(name) || (costInfo ? rawFromRateFallback(costInfo.values) : dates.map(() => 0))).map(v => xlNum(v));
+    } else {
+      values[id] = (valInfo ? valInfo.values : dates.map(() => 0)).map(v => xlNum(v));
+      values[id + '_cost'] = (costInfo ? costInfo.values : dates.map(() => 0)).map(v => xlNum(v));
+    }
+  });
+
+  badDebtRaw.forEach((r, i) => {
+    const id = resolveExistingId('badDebtItems', r.label) || ('d_' + Date.now() + '_' + i);
+    badDebtItems.push({ id, name: r.label });
+    values[id] = r.values.map(v => xlNum(v));
+  });
+
+  const importedObj = {
+    dates,
+    rates: ratesRow ? ratesRow.map(v => xlNum(v) || 31.0) : dates.map(() => 31.0),
+    bankItems, insuranceItems, stockItems, badDebtItems,
+    values
+  };
+
+  const result = mergeFinanceState(importedObj);
+  if (typeof render === 'function') render();
+  return { added: result.added, skipped: result.skipped };
+}
 
 /* 全部持股 → stocks[]（依代號或名稱+帳戶比對既有資料進行更新，找不到則新增，
    不會動到既有的「分類」與「歷年股利明細」） */
@@ -616,6 +776,7 @@ function importSnapshotsSheet(ws) {
    key 完全對應，否則該分頁匯入時會找不到函式而失敗。
    ------------------------------------------------------------------------ */
 const XLSX_IMPORT_HANDLERS = {
+  finance: importFinanceSheet,
   holdings: importHoldingsSheet,
   salesList: importSalesListSheet,
   salesHistory: importSalesHistorySheet,
