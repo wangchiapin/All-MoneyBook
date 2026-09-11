@@ -148,14 +148,19 @@
     max-width: calc(100vw - 24px) !important;
   }
 
-  /* 頁首／分頁列：改成單排橫向滑動，取代自動換行，避免功能列佔掉太多垂直空間 */
-  .toolbar, #stockView .filter-bar, #stockView .tab-group,
+  /* 頁首／分頁列：改成單排橫向滑動，取代自動換行，避免功能列佔掉太多垂直空間。
+     注意：.toolbar 裡面有「⚙️ 設定」下拉選單（密碼鎖定功能就在裡面），下拉選單用
+     position:absolute 往下展開；overflow-x:auto 會讓瀏覽器連帶把 overflow-y 也
+     視為 auto（CSS 規則：兩軸只要有一軸不是 visible，另一軸就不能維持 visible），
+     導致下拉選單被裁切、點了看起來「沒有反應」。所以 .toolbar 不套用橫向捲動，
+     維持原本自動換行；只有沒有下拉選單的列（分頁籤、篩選列）套用橫向捲動。 */
+  #stockView .filter-bar, #stockView .tab-group,
   .sales-sub-bar, .sales-sub-toggle {
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
   }
-  .toolbar > *, #stockView .filter-bar > *, #stockView .tab-group > *,
+  #stockView .filter-bar > *, #stockView .tab-group > *,
   .sales-sub-toggle > * {
     flex-shrink: 0 !important;
   }
@@ -170,6 +175,54 @@
     font-size: 0.74rem !important;
     white-space: normal !important;
     padding: 4px 6px !important;
+  }
+
+  /* 歷年股利總合：表格+趨勢圖桌機版是左右並排各佔 66%/34%，手機上會把表格擠成
+     table-layout:fixed 的極窄欄位、又設了 overflow-x:hidden 不能滑動，文字溢出
+     疊在一起變成看不清楚的亂碼。手機上改成上下堆疊，表格拿回原本的橫向捲動。 */
+  #stockView .table-with-chart-layout.split-mode {
+    flex-direction: column !important;
+  }
+  #stockView .table-with-chart-layout.split-mode #mainTableContainer {
+    max-width: 100% !important;
+    flex-basis: auto !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  #stockView .table-with-chart-layout.split-mode #mainTableContainer table {
+    table-layout: auto !important;
+  }
+  #stockView .dividend-chart-panel {
+    max-width: 100% !important;
+    flex-basis: auto !important;
+    width: 100% !important;
+  }
+
+  /* 媽的永豐：買賣明細／永豐帳戶明細／除息資訊 三表桌機版並排，手機上同樣的問題
+     （擠成 table-layout:fixed 的極窄欄位、overflow-x:hidden 不能滑動），
+     改成上下堆疊，每張表自己可以左右滑動。 */
+  #stockView .yf-tables-container {
+    flex-direction: column !important;
+    overflow-x: visible !important;
+  }
+  #stockView .yf-table-card {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  #stockView .yf-table-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  #stockView .yf-mini-table {
+    table-layout: auto !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    font-size: 0.8rem !important;
+  }
+  #stockView .yf-mini-table th, #stockView .yf-mini-table td {
+    white-space: nowrap !important;
+    padding: 6px 10px !important;
   }
 }
 

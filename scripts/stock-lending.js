@@ -187,10 +187,10 @@
       if (yearly.length === 0) return '';
 
       const labelSpan = colCount - 3;
-      let html = `<tr style="background:#f4ecd4;"><td colspan="${colCount}" style="font-weight:800; padding:10px 12px; color:#5c5445;">📅 年度借卷收入總計 (實際收入加總)</td></tr>`;
+      let html = `<tr style="background:#f4ecd4;"><td colspan="${colCount}" style="font-weight:800; padding:10px 12px; color:#5c5445;">📅 年度借卷收入總計 (實際收入加總，往右滑可看金額)</td></tr>`;
       html += yearly.map(y => `
         <tr>
-          <td colspan="${labelSpan}" style="text-align:right; font-weight:700; padding-right:12px; color:#766c5a;">
+          <td colspan="${labelSpan}" style="text-align:left; font-weight:700; padding-left:12px; color:#766c5a;">
             ${y.year}年 ${y.isAuto ? '<span style="font-size:0.75rem; color:#9c7c52;">🧮 依明細自動加總</span>' : ''}
           </td>
           <td colspan="2" class="font-mono font-bold" style="font-size:1rem;">
