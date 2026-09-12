@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles/finance.css">
   <link rel="stylesheet" href="styles/shared.css">
   <link rel="stylesheet" href="styles/stock.css">
+  <link rel="stylesheet" href="styles/insurance.css">
   <link rel="stylesheet" href="styles/tips-widget.css">
 
   <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
@@ -27,6 +28,7 @@
     <div class="app-tabs">
       <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')">📋 財務總覽</button>
       <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')">📈 股票管理</button>
+      <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')">🛡️ 保險總覽</button>
     </div>
     <div class="app-header-cloud">
       <span id="syncStatus">☁️ 未連線</span>
@@ -610,6 +612,110 @@
     </div>
   </div>
   </div>
+  <!-- /#stockView -->
+
+  <div id="insuranceView" style="display:none;">
+
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="addInsurancePolicy()">➕ 新增保單</button>
+      <button class="btn btn-outline" onclick="openInsuranceArchiveManager()">🗄️ 封存管理</button>
+      <input type="text" id="insuranceSearchBox" class="btn-outline" placeholder="🔍 搜尋保單名稱／被保險人／險種" style="padding:8px 12px; min-width:240px;" oninput="renderInsuranceTable()">
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>保險名稱</th>
+            <th>被保險人</th>
+            <th>險種</th>
+            <th>保費</th>
+            <th>繳費方式</th>
+            <th>扣款方式</th>
+            <th>扣款日期</th>
+            <th>目前現值</th>
+            <th>狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="insuranceTableBody"></tbody>
+      </table>
+    </div>
+
+    <datalist id="insTypeDatalist"></datalist>
+
+    <!-- 新增/編輯保單 -->
+    <div class="modal-overlay" id="insuranceEditModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span id="insEditModalTitle">➕ 新增保單</span>
+          <span data-close onclick="closeInsuranceEditModal()">✖</span>
+        </div>
+        <div class="modal-body">
+          <div class="ins-detail-section-title" style="margin-top:0;">基本資料</div>
+          <div class="ins-form-grid">
+            <div class="ins-form-field span-2"><label>保險名稱 *</label><input type="text" id="insEditName" placeholder="例如：國泰人壽終身醫療"></div>
+            <div class="ins-form-field"><label>保險公司</label><input type="text" id="insEditInsurer"></div>
+            <div class="ins-form-field"><label>險種</label><input type="text" id="insEditType" list="insTypeDatalist"></div>
+            <div class="ins-form-field"><label>保單號碼</label><input type="text" id="insEditPolicyNumber"></div>
+            <div class="ins-form-field"><label>生效日期</label><input type="text" id="insEditEffectiveDate" placeholder="2020/06/15"></div>
+            <div class="ins-form-field"><label>被保險人</label><input type="text" id="insEditInsuredPerson" placeholder="例如：自己／爸爸／媽媽"></div>
+            <div class="ins-form-field"><label>要保人</label><input type="text" id="insEditPolicyHolder"></div>
+          </div>
+
+          <div class="ins-detail-section-title">繳費資訊</div>
+          <div class="ins-form-grid">
+            <div class="ins-form-field"><label>繳費年期</label><input type="text" id="insEditPaymentPeriod" placeholder="例如：20年繳／躉繳"></div>
+            <div class="ins-form-field"><label>保費 (每期)</label><input type="number" step="any" id="insEditPremium"></div>
+            <div class="ins-form-field"><label>繳費方式</label><select id="insEditPaymentFrequency"></select></div>
+            <div class="ins-form-field"><label>扣款方式</label><input type="text" id="insEditPaymentMethod" placeholder="例如：中信信用卡末四碼1234"></div>
+            <div class="ins-form-field"><label>扣款日期</label><input type="text" id="insEditPaymentDate" placeholder="例如：每年6/15"></div>
+            <div class="ins-form-field"><label>狀態</label><select id="insEditStatus"></select></div>
+          </div>
+
+          <div class="ins-detail-section-title">保障內容</div>
+          <div class="ins-form-grid">
+            <div class="ins-form-field"><label>主約保額</label><input type="number" step="any" id="insEditMainCoverage"></div>
+            <div class="ins-form-field"><label>受益人</label><input type="text" id="insEditBeneficiary"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <label style="font-size:12px; color:var(--text-muted);">附約（可新增多筆）</label>
+            <div id="insRidersEditList" style="margin-top:6px;"></div>
+            <button class="btn btn-outline" style="margin-top:4px; padding:5px 10px; font-size:12px;" onclick="addInsuranceRiderRow()">➕ 新增附約</button>
+          </div>
+
+          <div class="ins-detail-section-title">財務追蹤</div>
+          <div class="ins-form-grid">
+            <div class="ins-form-field"><label>目前現值／解約金</label><input type="number" step="any" id="insEditCurrentValue"></div>
+          </div>
+
+          <div class="ins-detail-section-title">備註</div>
+          <textarea id="insEditNote" placeholder="其他想記錄的事，例如業務員聯絡方式、保單借款狀況…"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeInsuranceEditModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveInsuranceEditModal()">💾 儲存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保單詳情（唯讀） -->
+    <div class="modal-overlay" id="insuranceDetailModal">
+      <div class="modal-card" style="width:480px;">
+        <div class="modal-header">
+          <span id="insuranceDetailTitle">保單詳情</span>
+          <span data-close onclick="closeInsuranceDetailModal()">✖</span>
+        </div>
+        <div class="modal-body" id="insuranceDetailBody"></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="archiveInsurancePolicy(insDetailOpenId)">🗄️ 封存</button>
+          <button class="btn btn-primary" onclick="editInsuranceFromDetail()">✏️ 編輯</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /#insuranceView -->
 
   <!-- 懸浮小型計算機 (具備焦點偵測，不干擾表格輸入；放在 financeView / stockView 外層，兩個分頁都能使用) -->
   <div id="floatingCalculator" tabindex="0">
@@ -665,6 +771,7 @@
   <script src="scripts/dividends.js"></script>
   <script src="scripts/stock-sales.js"></script>
   <script src="scripts/stock.js"></script>
+  <script src="scripts/insurance.js"></script>
   <script src="scripts/export-excel.js"></script>
   <script src="scripts/import-excel.js"></script>
   <script src="scripts/tips-widget.js"></script>

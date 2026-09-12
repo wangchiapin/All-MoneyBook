@@ -1,0 +1,125 @@
+/* ====== 保險總覽 (#insuranceView) 專屬樣式，沿用 finance.css 的 :root 色票，
+   維持跟財務總覽/股票管理一致的 MUJI 風格 ====== */
+
+#insuranceView { padding: 0; }
+
+#insuranceView .table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+}
+
+#insuranceView th, #insuranceView td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#insuranceView thead th {
+  background: #ece6d9;
+  color: var(--text-main);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+#insuranceView tbody tr:hover td { background: #faf8f2; }
+
+#insuranceView .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+.ins-name-cell {
+  text-align: left !important;
+  font-weight: 600;
+  color: var(--primary-hover);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.15s;
+}
+.ins-name-cell:hover { text-decoration-color: var(--primary-hover); }
+
+.ins-ops-cell { white-space: nowrap; }
+
+.btn-icon-plain {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0.75;
+}
+.btn-icon-plain:hover { opacity: 1; background: var(--selection-bg); }
+
+.ins-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--sec-ins);
+  color: var(--text-main);
+}
+
+/* ---- 保單詳情 / 新增編輯共用的欄位樣式 ---- */
+.ins-detail-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 14px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+.ins-detail-section-title:first-child { margin-top: 0; }
+
+.ins-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 2px;
+  font-size: 13px;
+}
+.ins-detail-label { color: var(--text-muted); }
+.ins-detail-value { font-weight: 600; text-align: right; }
+.ins-detail-note { font-size: 13px; white-space: pre-wrap; padding: 4px 2px; }
+
+.ins-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.ins-form-field { display: flex; flex-direction: column; gap: 4px; }
+.ins-form-field label { font-size: 12px; color: var(--text-muted); }
+.ins-form-field.span-2 { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .ins-form-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- 保單編輯 / 詳情彈窗（比照 stock.css 的 .modal-overlay 系列樣式） ---- */
+#insuranceView .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; visibility: hidden; opacity: 0; transition: 0.2s; }
+#insuranceView .modal-overlay.open { visibility: visible; opacity: 1; }
+#insuranceView .modal-card { background: var(--card-bg); width: 650px; max-width: 94vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; }
+#insuranceView .modal-header { padding: 14px 18px; background: #4a4438; color: #f4f0e8; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+#insuranceView .modal-header span[data-close] { cursor: pointer; }
+#insuranceView .modal-body { padding: 18px; overflow-y: auto; flex: 1; }
+#insuranceView .modal-footer { padding: 12px 18px; background: #fdfbf7; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px; }
+
+#insuranceView input, #insuranceView select, #insuranceView textarea {
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-main);
+  background: #fff;
+  width: 100%;
+}
+#insuranceView input:focus, #insuranceView select:focus, #insuranceView textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(118,108,90,0.15);
+}
+#insuranceView textarea { min-height: 60px; resize: vertical; }

@@ -1164,6 +1164,7 @@
         backupType: 'combined_v1',
         financeState: state,
         stockData: (typeof gatherAllData === 'function') ? gatherAllData() : null,
+        insuranceData: (typeof insurancePolicies !== 'undefined') ? insurancePolicies : null,
         exportDate: new Date().toISOString()
       };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(combined, null, 2));
@@ -1244,7 +1245,12 @@
               const r = mergeApplyAllData(imported.stockData);
               msgParts.push(`股票管理：新增 ${r.added} 筆、略過(本地已有) ${r.skipped} 筆`);
             }
+            if (imported.insuranceData && typeof mergeInsuranceData === 'function') {
+              const r = mergeInsuranceData(imported.insuranceData);
+              msgParts.push(`保險總覽：新增 ${r.added} 筆、略過(本地已有) ${r.skipped} 筆`);
+            }
             render();
+            if (typeof renderInsuranceTable === 'function') renderInsuranceTable();
             alert(msgParts.length ? ('✅ 資料合併匯入完成（原有資料都還在）：\n' + msgParts.join('\n')) : '檔案格式不正確！');
           } else if (imported.dates && imported.values) {
             // 相容舊版格式：只有「財務總覽」資料的備份檔

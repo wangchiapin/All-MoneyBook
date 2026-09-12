@@ -61,10 +61,30 @@ function buildFinanceSheet(wb) {
   for (let i = 2; i <= numCols + 1; i++) ws.getColumn(i).width = 14;
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
 
+  // 備註列：緊接在標題列下方，把「每欄加註解」(state.colNotes) 原樣輸出成純文字列，
+  // 不套用金額格式；匯入時會被辨識、寫回 state.colNotes。
+  if (state.colNotes && state.colNotes.some(n => n)) {
+    const noteRow = ws.addRow(['備註', ...state.dates.map((_, c) => state.colNotes[c] || '')]);
+    noteRow.getCell(1).fill = xlFill(XLSX_COLORS.summaryLabel);
+    noteRow.getCell(1).font = xlFont({ bold: true, color: XLSX_COLORS.headerText });
+    noteRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left' };
+    for (let i = 2; i <= numCols + 1; i++) {
+      const cell = noteRow.getCell(i);
+      cell.fill = xlFill(XLSX_COLORS.summaryCell);
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.font = xlFont({ color: XLSX_COLORS.headerText });
+    }
+  }
+
+  // 加總計算只看未封存的項目，跟畫面上的邏輯保持一致；
+  // 已封存的項目仍會各自輸出成一列（名稱前加上 🗄️[已封存] 標記），
+  // 讓匯出檔保留完整歷史資料，之後可以整份匯入回來、在「設定 → 封存管理」還原。
   const activeBankItems = state.bankItems.filter(b => !b.archived);
   const activeInsuranceItems = state.insuranceItems.filter(ins => !ins.archived);
   const activeStockItems = state.stockItems.filter(s => !s.archived);
-  const activeBadDebtItems = state.badDebtItems.filter(d => !d.archived);
+
+  function archiveLabel(item, label) { return item.archived ? FIN_ARCHIVE_MARK + label : label; }
+  function archiveTextColor(item) { return item.archived ? XLSX_COLORS.badDebtText : undefined; }
 
   const colCalcs = [];
   for (let c = 0; c < numCols; c++) {
@@ -125,31 +145,30 @@ function buildFinanceSheet(wb) {
 
   // 一、銀行
   sectionRow('一、銀行與現金帳戶');
-  activeBankItems.forEach(b => {
-    const vals = colCalcs.map(cc => bankTWD(b, colCalcs.indexOf(cc), cc.rate));
-    dataRow(b.name + (b.isUSD ? ' (USD自動)' : ''), state.dates.map((_, c) => bankTWD(b, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.bankLabel, cellBg: XLSX_COLORS.bankCell });
+  state.bankItems.forEach(b => {
+    dataRow(archiveLabel(b, b.name + (b.isUSD ? ' (USD自動)' : '')), state.dates.map((_, c) => bankTWD(b, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.bankLabel, cellBg: XLSX_COLORS.bankCell, textColor: archiveTextColor(b) });
   });
 
   // 呆帳
-  if (activeBadDebtItems.length) {
+  if (state.badDebtItems.length) {
     sectionRow('🚫 呆帳區（不列入資產計算）');
-    activeBadDebtItems.forEach(d => {
-      dataRow(d.name, state.dates.map((_, c) => getVal(d.id, c)), { labelBg: XLSX_COLORS.badDebtLabel, cellBg: XLSX_COLORS.badDebtCell, textColor: XLSX_COLORS.badDebtText });
+    state.badDebtItems.forEach(d => {
+      dataRow(archiveLabel(d, d.name), state.dates.map((_, c) => getVal(d.id, c)), { labelBg: XLSX_COLORS.badDebtLabel, cellBg: XLSX_COLORS.badDebtCell, textColor: XLSX_COLORS.badDebtText });
     });
   }
 
   // 二、保險
   sectionRow('二、保險資產 (台幣)');
-  activeInsuranceItems.forEach(ins => {
+  state.insuranceItems.forEach(ins => {
     const vals = state.dates.map((_, c) => insTWD(ins, c, colCalcs[c].rate));
-    dataRow(ins.name + (ins.isUSD ? ' (USD自動)' : ''), vals, { labelBg: XLSX_COLORS.insLabel, cellBg: XLSX_COLORS.insCell });
+    dataRow(archiveLabel(ins, ins.name + (ins.isUSD ? ' (USD自動)' : '')), vals, { labelBg: XLSX_COLORS.insLabel, cellBg: XLSX_COLORS.insCell, textColor: archiveTextColor(ins) });
   });
 
   // 三、股票
   sectionRow('三、股票資產 (台幣現值 / 成本)');
-  activeStockItems.forEach(s => {
-    dataRow(s.name + ' [現值]' + (s.isUSD ? ' (USD自動)' : ''), state.dates.map((_, c) => stockValTWD(s, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.stockLabel, cellBg: XLSX_COLORS.stockCell });
-    dataRow(s.name + ' [成本]' + (s.isUSD ? ' (USD自動)' : ''), state.dates.map((_, c) => stockCostTWD(s, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.stockLabel, cellBg: XLSX_COLORS.stockCell });
+  state.stockItems.forEach(s => {
+    dataRow(archiveLabel(s, s.name + ' [現值]' + (s.isUSD ? ' (USD自動)' : '')), state.dates.map((_, c) => stockValTWD(s, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.stockLabel, cellBg: XLSX_COLORS.stockCell, textColor: archiveTextColor(s) });
+    dataRow(archiveLabel(s, s.name + ' [成本]' + (s.isUSD ? ' (USD自動)' : '')), state.dates.map((_, c) => stockCostTWD(s, c, colCalcs[c].rate)), { labelBg: XLSX_COLORS.stockLabel, cellBg: XLSX_COLORS.stockCell, textColor: archiveTextColor(s) });
   });
 
   // 四、總資產(成本)
@@ -176,12 +195,12 @@ function buildFinanceSheet(wb) {
 
   // 七、美金區
   sectionRow('七、美金原始金額輸入區 (USD)');
-  activeBankItems.forEach(b => { if (b.isUSD) dataRow('↳ ' + b.name + ' (USD)', state.dates.map((_, c) => getVal(b.id + '_usd', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00' }); });
-  activeInsuranceItems.forEach(ins => { if (ins.isUSD) dataRow('↳ ' + ins.name + ' (USD)', state.dates.map((_, c) => getVal(ins.id + '_usd', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00' }); });
-  activeStockItems.forEach(s => {
+  state.bankItems.forEach(b => { if (b.isUSD) dataRow(archiveLabel(b, '↳ ' + b.name + ' (USD)'), state.dates.map((_, c) => getVal(b.id + '_usd', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00', textColor: archiveTextColor(b) }); });
+  state.insuranceItems.forEach(ins => { if (ins.isUSD) dataRow(archiveLabel(ins, '↳ ' + ins.name + ' (USD)'), state.dates.map((_, c) => getVal(ins.id + '_usd', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00', textColor: archiveTextColor(ins) }); });
+  state.stockItems.forEach(s => {
     if (s.isUSD) {
-      dataRow('↳ ' + s.name + ' 現值 (USD)', state.dates.map((_, c) => getVal(s.id + '_usdval', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00' });
-      dataRow('↳ ' + s.name + ' 成本 (USD)', state.dates.map((_, c) => getVal(s.id + '_usdcost', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00' });
+      dataRow(archiveLabel(s, '↳ ' + s.name + ' 現值 (USD)'), state.dates.map((_, c) => getVal(s.id + '_usdval', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00', textColor: archiveTextColor(s) });
+      dataRow(archiveLabel(s, '↳ ' + s.name + ' 成本 (USD)'), state.dates.map((_, c) => getVal(s.id + '_usdcost', c)), { labelBg: XLSX_COLORS.usdLabel, cellBg: XLSX_COLORS.usdCell, numFmt: '#,##0.00', textColor: archiveTextColor(s) });
     }
   });
   dataRow('美金匯率', state.rates, { labelBg: XLSX_COLORS.rateLabel, cellBg: XLSX_COLORS.rateCell, bold: true, numFmt: '0.000' });
@@ -497,6 +516,30 @@ function buildDcaSheet(wb) {
   xlBorderThin(ws);
 }
 
+/* 7.5 保險總覽：一張保單一列，附約合併成一個欄位（格式：名稱:保額；名稱:保額）；
+   已封存的保單一樣輸出，名稱前加上 🗄️[已封存] 標記（跟財務總覽的做法一致），匯入時可還原 */
+function buildInsuranceSheet(wb) {
+  const ws = wb.addWorksheet('保險總覽');
+  const headRow = ws.addRow(['保險名稱', '被保險人', '要保人', '保險公司', '險種', '保單號碼', '生效日期', '繳費年期', '保費', '繳費方式', '扣款方式', '扣款日期', '主約保額', '附約(名稱:保額；...)', '受益人', '狀態', '目前現值', '備註']);
+  xlSetRow(headRow, { bg: XLSX_COLORS.headerBg, color: XLSX_COLORS.headerText, bold: true, align: 'left' });
+  ws.columns.forEach((c, i) => { c.width = [22, 10, 10, 14, 12, 16, 12, 12, 12, 10, 18, 14, 12, 26, 10, 8, 12, 24][i] || 14; });
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  (insurancePolicies || []).forEach(p => {
+    const name = (p.archived ? FIN_ARCHIVE_MARK : '') + (p.name || '');
+    const ridersText = (p.riders || []).map(r => `${r.name || ''}:${Number(r.coverage) || 0}`).join('；');
+    const r = ws.addRow([
+      name, p.insuredPerson || '', p.policyHolder || '', p.insurer || '', p.type || '', p.policyNumber || '',
+      p.effectiveDate || '', p.paymentPeriod || '', Number(p.premium) || 0, p.paymentFrequency || '', p.paymentMethod || '',
+      p.paymentDate || '', Number(p.mainCoverage) || 0, ridersText, p.beneficiary || '', p.status || '',
+      Number(p.currentValue) || 0, p.note || ''
+    ]);
+    [9, 13, 17].forEach(ci => { r.getCell(ci).numFmt = '#,##0'; });
+    r.eachCell({ includeEmpty: true }, cell => { cell.alignment = { vertical: 'middle', horizontal: 'left' }; });
+  });
+  xlBorderThin(ws);
+}
+
 /* 8. 媽的永豐：三張表並排 + 總覽統計，跟畫面版面一致 */
 function buildYfSheet(wb) {
   // 這兩個函式平常只有在使用者切到「媽的永豐」分頁時才會被呼叫，
@@ -600,6 +643,7 @@ async function exportAllDataToExcel() {
     wb.created = new Date();
 
     buildFinanceSheet(wb);
+    buildInsuranceSheet(wb);
     buildHoldingsSheet(wb);
     buildSalesListSheet(wb);
     buildSalesHistorySheet(wb);

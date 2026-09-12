@@ -635,7 +635,10 @@
     function saveNavState() {
       try {
         const stockViewEl = document.getElementById('stockView');
-        const appView = (stockViewEl && stockViewEl.style.display !== 'none') ? 'stock' : 'finance';
+        const insuranceViewEl = document.getElementById('insuranceView');
+        let appView = 'finance';
+        if (stockViewEl && stockViewEl.style.display !== 'none') appView = 'stock';
+        else if (insuranceViewEl && insuranceViewEl.style.display !== 'none') appView = 'insurance';
         localStorage.setItem(NAV_STATE_KEY, JSON.stringify({
           appView: appView,
           stockFilter: currentFilter,
@@ -651,7 +654,9 @@
         const saved = JSON.parse(localStorage.getItem(NAV_STATE_KEY) || 'null');
         if (!saved) return;
 
-        if (saved.appView === 'stock') {
+        if (saved.appView === 'insurance') {
+          if (typeof switchAppView === 'function') switchAppView('insurance');
+        } else if (saved.appView === 'stock') {
           if (typeof switchAppView === 'function') switchAppView('stock');
           if (saved.stockFilter) {
             setFilter(saved.stockFilter);

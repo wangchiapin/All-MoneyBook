@@ -13,7 +13,8 @@
    ======================================================================== */
 
 const XLSX_IMPORT_SHEETS = [
-  { key: 'finance', sheetNames: ['財務總覽'], label: '📋 財務總覽', warning: '⚠️ 只會比對「項目名稱」把資料合併回去：本地已有的項目/日期欄位不會被覆蓋，找不到的項目/日期會新增。已封存(archived)的項目原本就不包含在匯出檔裡，這裡也無法救回。' },
+  { key: 'finance', sheetNames: ['財務總覽'], label: '📋 財務總覽', warning: '⚠️ 只會比對「項目名稱」把資料合併回去：本地已有的項目/日期欄位不會被覆蓋，找不到的項目/日期會新增。已封存(archived)的項目與每欄備註現在也會一併匯出/匯入：本地沒有的封存項目會以「封存」狀態新增（需要到「設定 → 封存管理」還原），本地已有同名項目則維持原本的封存/使用中狀態不變。' },
+  { key: 'insurance', sheetNames: ['保險總覽'], label: '🛡️ 保險總覽', warning: '⚠️ 只會比對「保險名稱」把保單合併回去：本地已有同名保單會略過、不覆蓋，找不到的保單（含已封存的）會新增進來。' },
   { key: 'holdings', sheetNames: ['全部持股'], label: '📈 全部持股', warning: '⚠️ 比對到同一檔股票時，會用 Excel 裡的數字覆蓋現有的「現金股利」「股票股利」等欄位，請確認選的是最新備份檔。' },
   { key: 'salesList', sheetNames: ['股票賣出明細表'], label: '💰 股票賣出明細表' },
   { key: 'salesHistory', sheetNames: ['股票賣出歷年紀錄'], label: '📅 股票賣出歷年紀錄' },
@@ -150,6 +151,7 @@ function confirmExcelImport() {
   saveToStorage();
   if (typeof renderTabs === 'function') renderTabs();
   if (typeof renderTable === 'function') renderTable();
+  if (typeof renderInsuranceTable === 'function') renderInsuranceTable();
   closeExcelImportModal();
 
   let msg = '';
@@ -237,11 +239,19 @@ function importFinanceSheet(ws) {
   let section = null;
   const bankRaw = [], insRaw = [], stockRaw = [], usdRaw = [], badDebtRaw = [];
   let ratesRow = null;
+  let colNotes = null;
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const label = xlStr(row[0]);
+    let label = xlStr(row[0]);
     if (!label) continue;
+
+    // 備註列：緊接在標題列下方（section 尚未進入任何區塊時），純文字、依欄位對應日期
+    if (label === '備註' && section === null) {
+      colNotes = [];
+      for (let c = 1; c <= numCols; c++) colNotes.push(xlStr(row[c]));
+      continue;
+    }
 
     if (label.indexOf('一、') === 0) { section = 'bank'; continue; }
     if (label.indexOf('呆帳') !== -1) { section = 'baddebt'; continue; }
@@ -250,16 +260,20 @@ function importFinanceSheet(ws) {
     if (label.indexOf('七、') === 0) { section = 'usd'; continue; }
     if (/^[四五六八九]、/.test(label)) { section = 'skip'; continue; }
 
+    // 已封存標記：名稱前綴 🗄️[已封存]，還原時記錄成 archived:true，其餘照常解析欄位
+    let archived = false;
+    if (label.indexOf(FIN_ARCHIVE_MARK) === 0) { archived = true; label = label.slice(FIN_ARCHIVE_MARK.length); }
+
     const values = [];
     for (let c = 1; c <= numCols; c++) values.push(row[c]);
 
-    if (section === 'bank') bankRaw.push({ label, values });
-    else if (section === 'ins') insRaw.push({ label, values });
-    else if (section === 'stock') stockRaw.push({ label, values });
-    else if (section === 'baddebt') badDebtRaw.push({ label, values });
+    if (section === 'bank') bankRaw.push({ label, values, archived });
+    else if (section === 'ins') insRaw.push({ label, values, archived });
+    else if (section === 'stock') stockRaw.push({ label, values, archived });
+    else if (section === 'baddebt') badDebtRaw.push({ label, values, archived });
     else if (section === 'usd') {
       if (label === '美金匯率') ratesRow = values;
-      else usdRaw.push({ label, values });
+      else usdRaw.push({ label, values, archived });
     }
   }
 
@@ -278,11 +292,11 @@ function importFinanceSheet(ws) {
   // ---- 一、銀行／二、保險：可能有 " (USD自動)" 字尾 ----
   const bankParsed = bankRaw.map(r => {
     const stripped = stripSuffix(r.label, ' (USD自動)');
-    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values };
+    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values, archived: r.archived };
   });
   const insParsed = insRaw.map(r => {
     const stripped = stripSuffix(r.label, ' (USD自動)');
-    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values };
+    return { name: stripped !== null ? stripped : r.label, isUSD: stripped !== null, values: r.values, archived: r.archived };
   });
 
   // ---- 三、股票：" [現值]" / " [成本]"，可能還加上 " (USD自動)" ----
@@ -294,8 +308,8 @@ function importFinanceSheet(ws) {
     if (isUSD) label = usdStripped;
     const valBase = stripSuffix(label, ' [現值]');
     const costBase = stripSuffix(label, ' [成本]');
-    if (valBase !== null) stockValMap.set(valBase, { isUSD, values: r.values });
-    else if (costBase !== null) stockCostMap.set(costBase, { isUSD, values: r.values });
+    if (valBase !== null) stockValMap.set(valBase, { isUSD, values: r.values, archived: r.archived });
+    else if (costBase !== null) stockCostMap.set(costBase, { isUSD, values: r.values, archived: r.archived });
   });
   const stockNames = Array.from(new Set([...stockValMap.keys(), ...stockCostMap.keys()]));
 
@@ -316,7 +330,7 @@ function importFinanceSheet(ws) {
 
   bankParsed.forEach((b, i) => {
     const id = resolveExistingId('bankItems', b.name) || ('b_' + Date.now() + '_' + i);
-    bankItems.push({ id, name: b.name, isUSD: b.isUSD, isForeign: b.isUSD });
+    bankItems.push({ id, name: b.name, isUSD: b.isUSD, isForeign: b.isUSD, archived: !!b.archived });
     if (b.isUSD) {
       const raw = usdSimpleMap.get(b.name) || rawFromRateFallback(b.values);
       values[id + '_usd'] = raw.map(v => xlNum(v));
@@ -327,7 +341,7 @@ function importFinanceSheet(ws) {
 
   insParsed.forEach((ins, i) => {
     const id = resolveExistingId('insuranceItems', ins.name) || ('i_' + Date.now() + '_' + i);
-    insuranceItems.push({ id, name: ins.name, isUSD: ins.isUSD });
+    insuranceItems.push({ id, name: ins.name, isUSD: ins.isUSD, archived: !!ins.archived });
     if (ins.isUSD) {
       const raw = usdSimpleMap.get(ins.name) || rawFromRateFallback(ins.values);
       values[id + '_usd'] = raw.map(v => xlNum(v));
@@ -340,8 +354,9 @@ function importFinanceSheet(ws) {
     const valInfo = stockValMap.get(name);
     const costInfo = stockCostMap.get(name);
     const isUSD = (valInfo && valInfo.isUSD) || (costInfo && costInfo.isUSD) || false;
+    const archived = (valInfo && valInfo.archived) || (costInfo && costInfo.archived) || false;
     const id = resolveExistingId('stockItems', name) || ('s_' + Date.now() + '_' + i);
-    stockItems.push({ id, name, isUSD });
+    stockItems.push({ id, name, isUSD, archived: !!archived });
     if (isUSD) {
       values[id + '_usdval'] = (usdStockValMap.get(name) || (valInfo ? rawFromRateFallback(valInfo.values) : dates.map(() => 0))).map(v => xlNum(v));
       values[id + '_usdcost'] = (usdStockCostMap.get(name) || (costInfo ? rawFromRateFallback(costInfo.values) : dates.map(() => 0))).map(v => xlNum(v));
@@ -353,13 +368,14 @@ function importFinanceSheet(ws) {
 
   badDebtRaw.forEach((r, i) => {
     const id = resolveExistingId('badDebtItems', r.label) || ('d_' + Date.now() + '_' + i);
-    badDebtItems.push({ id, name: r.label });
+    badDebtItems.push({ id, name: r.label, archived: !!r.archived });
     values[id] = r.values.map(v => xlNum(v));
   });
 
   const importedObj = {
     dates,
     rates: ratesRow ? ratesRow.map(v => xlNum(v) || 31.0) : dates.map(() => 31.0),
+    colNotes: colNotes || dates.map(() => ''),
     bankItems, insuranceItems, stockItems, badDebtItems,
     values
   };
@@ -769,6 +785,76 @@ function importSnapshotsSheet(ws) {
   return { added, skipped };
 }
 
+/* 保險總覽 → insurancePolicies (insurance.js)。以「保險名稱」比對，本地已有同名保單
+   就略過不覆蓋，找不到的保單（含已封存、名稱前有 🗄️[已封存] 標記的）就新增進來，
+   新增的封存保單會保留 archived:true，需要到「保險總覽 → 封存管理」還原。 */
+function importInsuranceSheet(ws) {
+  const rows = xlRowsOf(ws);
+  if (rows.length < 2) return { added: 0, skipped: 0 };
+  const idx = xlHeaderIndex(rows[0], {
+    '保險名稱': 'name', '被保險人': 'insuredPerson', '要保人': 'policyHolder', '保險公司': 'insurer',
+    '險種': 'type', '保單號碼': 'policyNumber', '生效日期': 'effectiveDate', '繳費年期': 'paymentPeriod',
+    '保費': 'premium', '繳費方式': 'paymentFrequency', '扣款方式': 'paymentMethod', '扣款日期': 'paymentDate',
+    '主約保額': 'mainCoverage', '附約(名稱:保額；...)': 'riders', '受益人': 'beneficiary',
+    '狀態': 'status', '目前現值': 'currentValue', '備註': 'note'
+  });
+  if (idx.name === undefined) return { added: 0, skipped: 0 };
+
+  const existingNames = new Set((typeof insurancePolicies !== 'undefined' ? insurancePolicies : []).map(p => p.name));
+
+  let added = 0, skipped = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (xlIsBlankRow(row)) continue;
+    let name = xlStr(row[idx.name]);
+    if (!name) continue;
+
+    let archived = false;
+    if (typeof FIN_ARCHIVE_MARK !== 'undefined' && name.indexOf(FIN_ARCHIVE_MARK) === 0) {
+      archived = true;
+      name = name.slice(FIN_ARCHIVE_MARK.length);
+    }
+
+    if (existingNames.has(name)) { skipped++; continue; }
+
+    const riders = idx.riders !== undefined ? xlStr(row[idx.riders]) : '';
+    const riderList = riders
+      ? riders.split('；').map(s => s.trim()).filter(Boolean).map((s, i) => {
+          const parts = s.split(':');
+          return { id: 'r_' + Date.now() + '_' + i, name: (parts[0] || '').trim(), coverage: xlNum(parts[1]) };
+        })
+      : [];
+
+    insurancePolicies.push({
+      id: 'ins_' + Date.now() + '_' + r,
+      name,
+      insurer: idx.insurer !== undefined ? xlStr(row[idx.insurer]) : '',
+      type: idx.type !== undefined ? xlStr(row[idx.type]) : '',
+      policyNumber: idx.policyNumber !== undefined ? xlStr(row[idx.policyNumber]) : '',
+      insuredPerson: idx.insuredPerson !== undefined ? xlStr(row[idx.insuredPerson]) : '',
+      policyHolder: idx.policyHolder !== undefined ? xlStr(row[idx.policyHolder]) : '',
+      effectiveDate: idx.effectiveDate !== undefined ? xlStr(row[idx.effectiveDate]) : '',
+      paymentPeriod: idx.paymentPeriod !== undefined ? xlStr(row[idx.paymentPeriod]) : '',
+      premium: idx.premium !== undefined ? xlNum(row[idx.premium]) : 0,
+      paymentFrequency: idx.paymentFrequency !== undefined ? xlStr(row[idx.paymentFrequency]) : '',
+      paymentMethod: idx.paymentMethod !== undefined ? xlStr(row[idx.paymentMethod]) : '',
+      paymentDate: idx.paymentDate !== undefined ? xlStr(row[idx.paymentDate]) : '',
+      mainCoverage: idx.mainCoverage !== undefined ? xlNum(row[idx.mainCoverage]) : 0,
+      riders: riderList,
+      beneficiary: idx.beneficiary !== undefined ? xlStr(row[idx.beneficiary]) : '',
+      status: idx.status !== undefined ? xlStr(row[idx.status]) : '',
+      currentValue: idx.currentValue !== undefined ? xlNum(row[idx.currentValue]) : 0,
+      note: idx.note !== undefined ? xlStr(row[idx.note]) : '',
+      archived: archived
+    });
+    existingNames.add(name);
+    added++;
+  }
+
+  if (added && typeof saveInsuranceToStorage === 'function') saveInsuranceToStorage();
+  return { added, skipped };
+}
+
 /* ------------------------------------------------------------------------
    分頁 key → 實際處理函式的對照表。
    confirmExcelImport() 會用 XLSX_IMPORT_SHEETS 裡每個分頁的 key 來查這個表，
@@ -777,6 +863,7 @@ function importSnapshotsSheet(ws) {
    ------------------------------------------------------------------------ */
 const XLSX_IMPORT_HANDLERS = {
   finance: importFinanceSheet,
+  insurance: importInsuranceSheet,
   holdings: importHoldingsSheet,
   salesList: importSalesListSheet,
   salesHistory: importSalesHistorySheet,

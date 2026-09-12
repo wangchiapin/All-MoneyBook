@@ -8,6 +8,10 @@
   measurementId: "G-XTDYYS4HK6"
     };
 
+    /* ====== 共用小工具：財務總覽 Excel 匯出/匯入用的「已封存」標記字首，
+       讓封存項目也能完整匯出、之後合併匯入時自動以封存狀態還原 ====== */
+    const FIN_ARCHIVE_MARK = '🗄️[已封存] ';
+
     /* ====== 共用小工具：HTML 屬性/內容跳脫，避免名稱、備註打到雙引號等特殊字元時把畫面弄壞 ====== */
     function esc(v) {
       if (v === null || v === undefined) return '';
@@ -309,21 +313,31 @@
     function switchAppView(view) {
       const financeView = document.getElementById('financeView');
       const stockView = document.getElementById('stockView');
+      const insuranceView = document.getElementById('insuranceView');
       const tabFinance = document.getElementById('tabBtnFinance');
       const tabStock = document.getElementById('tabBtnStock');
+      const tabInsurance = document.getElementById('tabBtnInsurance');
+
+      financeView.style.display = 'none';
+      stockView.style.display = 'none';
+      if (insuranceView) insuranceView.style.display = 'none';
+      tabFinance.classList.remove('active');
+      tabStock.classList.remove('active');
+      if (tabInsurance) tabInsurance.classList.remove('active');
+
       if (view === 'stock') {
-        financeView.style.display = 'none';
         stockView.style.display = 'block';
-        tabFinance.classList.remove('active');
         tabStock.classList.add('active');
-        // 每次「進入」股票管理（含從財務總覽切回來），都視為重新進入分頁，
+        // 每次「進入」股票管理（含從其他分頁切回來），都視為重新進入分頁，
         // 讓對應的分頁/子分頁重新捲動到最新一筆資料
         if (typeof lastEnteredTabContext !== 'undefined') lastEnteredTabContext = null;
         if (typeof renderTable === 'function') renderTable();
+      } else if (view === 'insurance') {
+        if (insuranceView) insuranceView.style.display = 'block';
+        if (tabInsurance) tabInsurance.classList.add('active');
+        if (typeof renderInsuranceTable === 'function') renderInsuranceTable();
       } else {
-        stockView.style.display = 'none';
         financeView.style.display = 'block';
-        tabStock.classList.remove('active');
         tabFinance.classList.add('active');
         if (typeof render === 'function') render();
         // 每次「進入」財務總覽，都重新捲動到最新日期那一欄
