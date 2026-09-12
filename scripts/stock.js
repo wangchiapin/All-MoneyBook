@@ -1531,6 +1531,42 @@
 
 
     /* ====== 調整 renderSummary 以支援 4 個卡片與 YONG_FENG_TAB ====== */
+    // 「分頁專屬概況看板」每個分頁實際用到的卡片版位／欄數，鎖定時要照著同樣版面顯示佔位符，
+    // 不然畫面會忽大忽小、跳動。
+    const SUBDASH_COLS = { holdings: 4, sales: 3, lending: 3, yf: 3, dca: 4, dividends: 3, snapshot: 3 };
+    const SUBDASH_LOCK_SLOTS = {
+      holdings: ['filterCost', 'filterValue', 'filterProfit', 'filterDividends'],
+      sales: ['filterCost', 'filterProfit', 'filterDividends'],
+      lending: ['filterCost', 'filterProfit', 'filterDividends'],
+      yf: ['filterCost', 'filterProfit', 'filterDividends'],
+      dca: ['filterCost', 'filterValue'],
+      dividends: ['filterCost', 'filterProfit', 'filterDividends'],
+      snapshot: ['filterCost', 'filterProfit', 'filterDividends']
+    };
+    const SUBDASH_TITLE_IDS = { filterCost: 'filterTabCostTitle', filterValue: 'filterTabValTitle', filterProfit: 'filterTabProfitTitle', filterDividends: 'filterTabDivTitle' };
+    const SUBDASH_DESC_IDS = { filterCost: 'filterCostDesc', filterValue: 'filterValDesc', filterProfit: 'filterProfitRate', filterDividends: 'filterLent' };
+
+    // 鎖定「分頁專屬概況看板」時的佔位畫面：只改寫每張卡片既有元素的內容(textContent/innerHTML)，
+    // 絕對不整個 innerHTML 掉 subDashboardContainer 本身或個別卡片容器——
+    // 這些卡片的 DOM 節點是 index.html 裡固定的、不會重新渲染整組，如果連節點一起砍掉，
+    // 之後解鎖時 getElementById 會找不到對應元素，卡片就永遠救不回來了。
+    function renderSubDashboardLockPlaceholder(pageKey) {
+      const subDashContainer = document.getElementById('subDashboardContainer');
+      const subCardValContainer = document.getElementById('subCardValContainer');
+      const cols = SUBDASH_COLS[pageKey] || 4;
+      if (subDashContainer) subDashContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      if (subCardValContainer) subCardValContainer.style.display = (cols >= 4) ? 'block' : 'none';
+
+      (SUBDASH_LOCK_SLOTS[pageKey] || []).forEach(valueId => {
+        const valueEl = document.getElementById(valueId);
+        if (valueEl) { valueEl.innerHTML = lockPlaceholderHtml(pageKey + '_cards', 'page'); valueEl.style.color = ''; }
+        const titleEl = document.getElementById(SUBDASH_TITLE_IDS[valueId]);
+        if (titleEl) titleEl.textContent = '📌';
+        const descEl = document.getElementById(SUBDASH_DESC_IDS[valueId]);
+        if (descEl) descEl.textContent = '';
+      });
+    }
+
     function renderSummary() {
       let totalCost = 0, totalVal = 0, totalDiv = 0, totalLent = 0;
       stocks.forEach(s => {
@@ -1576,6 +1612,14 @@
       }
       if (elSummaryDivs) elSummaryDivs.textContent = '$' + formatNum(combinedAllDividends, 0);
       if (elSummaryLent) elSummaryLent.textContent = formatNum(totalLent, 0);
+
+      // 「分頁專屬概況看板」4張卡可以整組鎖定（跟下面的表格鎖定各自獨立），
+      // 用 getCurrentPageLockKey() 對應的分頁 key + '_cards' 當鎖定設定的 key
+      const subDashPageKey = (typeof getCurrentPageLockKey === 'function') ? getCurrentPageLockKey() : 'holdings';
+      if (typeof isPageLocked === 'function' && isPageLocked(subDashPageKey + '_cards')) {
+        renderSubDashboardLockPlaceholder(subDashPageKey);
+        return;
+      }
 
       const subDashContainer = document.getElementById('subDashboardContainer');
       const subCardValContainer = document.getElementById('subCardValContainer');

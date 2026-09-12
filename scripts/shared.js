@@ -129,24 +129,32 @@
       { key: 'finance_stock', label: '📋 財務總覽 → 三、股票資產' },
       { key: 'finance_baddebt', label: '📋 財務總覽 → 呆帳區' },
       { key: 'holdings', label: '📈 股票管理 → 全部持股（含各券商帳戶 / ETF / 台股個股）' },
+      { key: 'holdings_cards', label: '　└ 股票管理 → 全部持股 → 上方分頁概況卡片' },
       { key: 'sales', label: '📈 股票管理 → 股票賣出（整頁，含以下三個子分頁）' },
+      { key: 'sales_cards', label: '　└ 股票管理 → 股票賣出 → 上方分頁概況卡片' },
       { key: 'sales_detail', label: '　└ 股票管理 → 股票賣出 → 賣出明細' },
       { key: 'sales_summary', label: '　└ 股票管理 → 股票賣出 → 每日買賣紀錄小計' },
       { key: 'sales_history', label: '　└ 股票管理 → 股票賣出 → 歷年紀錄' },
       { key: 'lending', label: '📈 股票管理 → 股票借出（整頁，含以下兩個子分頁）' },
+      { key: 'lending_cards', label: '　└ 股票管理 → 股票借出 → 上方分頁概況卡片' },
       { key: 'lending_holdings', label: '　└ 股票管理 → 股票借出 → 出借持股列表' },
       { key: 'lending_income', label: '　└ 股票管理 → 股票借出 → 借卷收入' },
       { key: 'dividends', label: '📈 股票管理 → 股利（整頁，含以下三個子分頁）' },
+      { key: 'dividends_cards', label: '　└ 股票管理 → 股利 → 上方分頁概況卡片' },
       { key: 'dividends_summary', label: '　└ 股票管理 → 股利 → 歷年股利總合' },
       { key: 'dividends_past', label: '　└ 股票管理 → 股利 → 非持股股利' },
       { key: 'dividends_estimate', label: '　└ 股票管理 → 股利 → 年度預估股利' },
       { key: 'yf', label: '📈 股票管理 → 媽的永豐（整頁，含以下三張表）' },
+      { key: 'yf_cards', label: '　└ 股票管理 → 媽的永豐 → 上方分頁概況卡片' },
       { key: 'yf_detail', label: '　└ 股票管理 → 媽的永豐 → 買賣明細' },
       { key: 'yf_account', label: '　└ 股票管理 → 媽的永豐 → 永豐帳戶明細' },
       { key: 'yf_dividend', label: '　└ 股票管理 → 媽的永豐 → 除息資訊' },
       { key: 'dca', label: '📈 股票管理 → 定期定額' },
-      { key: 'snapshot', label: '📈 股票管理 → 各股紀錄' }
+      { key: 'dca_cards', label: '　└ 股票管理 → 定期定額 → 上方分頁概況卡片' },
+      { key: 'snapshot', label: '📈 股票管理 → 各股紀錄' },
+      { key: 'snapshot_cards', label: '　└ 股票管理 → 各股紀錄 → 上方分頁概況卡片' }
     ];
+
 
     // 可鎖定的「單一欄位」清單（目前支援「全部持股」表格內的欄位；
     // 財務總覽本身是逐日期的表格，欄位鎖定的意義不大，所以先只做整頁鎖定）
