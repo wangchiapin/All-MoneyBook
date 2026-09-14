@@ -454,7 +454,14 @@
     window.addEventListener('keydown', (e) => {
       const calc = document.getElementById('floatingCalculator');
       const activeEl = document.activeElement;
-      const isInTableInput = activeEl && activeEl.classList && activeEl.classList.contains('cell-input');
+      // 修正：原本只認 .cell-input 這個 class，但「財務總覽」的儲存格編輯器用的是
+      // .cell-editor（不同 class），導致計算機開著時財務總覽表格打字全被計算機吃掉。
+      // 改成只要目前 focus 在任何輸入框(input/textarea/select)或 contenteditable 上，
+      // 一律視為「在表格輸入」，不管是哪個分頁、哪個 class，鍵盤都優先給該輸入框。
+      const inputTags = ['INPUT', 'TEXTAREA', 'SELECT'];
+      const isInTableInput = !!activeEl && (
+        inputTags.includes(activeEl.tagName) || activeEl.isContentEditable
+      );
 
       if (calc && calc.style.display === 'block' && !isInTableInput) {
         if ((e.key >= '0' && e.key <= '9') || e.key === '.') {

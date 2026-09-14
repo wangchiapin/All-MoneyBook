@@ -88,7 +88,7 @@ function buildFinanceSheet(wb) {
 
   const colCalcs = [];
   for (let c = 0; c < numCols; c++) {
-    const rate = Number(state.rates[c]) || 31.0;
+    const rate = resolveCellNumber(state.rates[c]) || 31.0;
     let cashTotal = 0, cashDisplayTotal = 0;
     activeBankItems.forEach(b => { const t = bankTWD(b, c, rate); cashTotal += t; if (!b.isForeign) cashDisplayTotal += t; });
     let insTotal = 0;
@@ -104,7 +104,7 @@ function buildFinanceSheet(wb) {
     let stockProfit = 0;
     activeStockItems.forEach(s => {
       const rawProfit = state.values[s.id + '_profit']?.[c];
-      if (rawProfit !== undefined && rawProfit !== null && rawProfit !== '') stockProfit += Number(rawProfit);
+      if (rawProfit !== undefined && rawProfit !== null && rawProfit !== '') stockProfit += resolveCellNumber(rawProfit);
       else stockProfit += stockValTWD(s, c, rate) - stockCostTWD(s, c, rate);
     });
     const stockRoi = stockCostTotal > 0 ? stockProfit / stockCostTotal : 0;
@@ -217,7 +217,7 @@ function buildFinanceSheet(wb) {
   activeStockItems.forEach(s => {
     const vals = state.dates.map((_, c) => {
       const raw = state.values[s.id + '_profit']?.[c];
-      if (raw !== undefined && raw !== null && raw !== '') return Number(raw);
+      if (raw !== undefined && raw !== null && raw !== '') return resolveCellNumber(raw);
       return stockValTWD(s, c, colCalcs[c].rate) - stockCostTWD(s, c, colCalcs[c].rate);
     });
     profitRow('股票投資損益 (' + s.name + ')', vals);

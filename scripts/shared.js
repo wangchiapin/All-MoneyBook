@@ -23,6 +23,40 @@
         .replace(/'/g, '&#39;');
     }
 
+    /* ====== 共用小工具：儲存格公式計算（財務總覽用）======
+       儲存格可以直接輸入像 "=100+1" 這樣的算式，以下三個函式統一處理：
+       - isFormulaInput：判斷一個原始值是不是公式字串（"=" 開頭）
+       - evalCellFormula：計算公式（去掉開頭的 "="），只允許數字與 + - * / ( ) . 空白，
+         白名單檢查過才計算，不接受任何其他字元，避免注入風險；算不出來回傳 null
+       - resolveCellNumber：把「儲存格原始值」(可能是數字、數字字串、或公式字串)
+         統一轉成計算用的數字；全站只要是讀取金額做加總/顯示，都應該經過這裡，
+         公式儲存格才能正確被算進總計、圖表、匯出裡 ====== */
+    function isFormulaInput(raw) {
+      return typeof raw === 'string' && raw.trim().startsWith('=');
+    }
+
+    function evalCellFormula(expr) {
+      const trimmed = String(expr == null ? '' : expr).trim();
+      if (trimmed === '') return null;
+      if (!/^[0-9+\-*/().\s]+$/.test(trimmed)) return null;
+      try {
+        const result = Function('"use strict"; return (' + trimmed + ')')();
+        return (typeof result === 'number' && isFinite(result)) ? result : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function resolveCellNumber(raw) {
+      if (raw === undefined || raw === null || raw === '') return 0;
+      if (isFormulaInput(raw)) {
+        const result = evalCellFormula(raw.trim().slice(1));
+        return result === null ? 0 : result;
+      }
+      const n = Number(raw);
+      return isNaN(n) ? 0 : n;
+    }
+
     /* ====== 共用小工具：判斷一筆持股是否為美股複委託帳戶（原本在 stock.js 多處重複判斷，
        抽成共用函式方便統一維護；接受股票物件，或只有 account/category 兩個欄位的資料） ====== */
     function isUsStock(stock) {

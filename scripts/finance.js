@@ -292,8 +292,7 @@
 
     function getVal(key, colIndex) {
       if (!state.values[key]) return 0;
-      const v = state.values[key][colIndex];
-      return (v === undefined || v === null || v === "") ? 0 : Number(v);
+      return resolveCellNumber(state.values[key][colIndex]);
     }
 
     // 通用美元換算：任何銀行/保險/股票項目只要標記 isUSD:true，
@@ -307,7 +306,14 @@
       if (!state.values[key]) {
         state.values[key] = new Array(state.dates.length).fill(0);
       }
-      state.values[key][colIndex] = val === "" ? "" : Number(val);
+      if (val === "") {
+        state.values[key][colIndex] = "";
+        return;
+      }
+      const str = String(val).trim();
+      // 公式（"=" 開頭）整串原文保留，之後點開編輯還能看到公式本身；
+      // 一般數字則跟以前一樣直接存數字。
+      state.values[key][colIndex] = isFormulaInput(str) ? str : Number(str);
     }
 
     function openNoteEditor(e, colIdx) {
@@ -624,7 +630,7 @@
 
       const colCalcs = [];
       for (let c = 0; c < numCols; c++) {
-        const rate = Number(state.rates[c]) || 31.0;
+        const rate = resolveCellNumber(state.rates[c]) || 31.0;
 
         let cashTotal = 0;
         let cashDisplayTotal = 0;
@@ -660,7 +666,7 @@
         activeStockItems.forEach(s => {
           const rawProfit = state.values[s.id + '_profit']?.[c];
           if (rawProfit !== undefined && rawProfit !== null && rawProfit !== '') {
-            stockProfit += Number(rawProfit);
+            stockProfit += resolveCellNumber(rawProfit);
           } else {
             stockProfit += stockValTWD(s, c, rate) - stockCostTWD(s, c, rate);
           }
@@ -676,9 +682,16 @@
       let tbodyHtml = '';
       let curR = 0;
 
+      // 公式儲存格算不出結果時，顯示這個小提示，取代直接顯示 0 或 NaN 誤導人
+      function formulaErrorHtml(rawVal) {
+        return '<span style="color:var(--danger); font-weight:600;" title="公式算不出結果：' + esc(rawVal) + '">⚠ 公式錯誤</span>';
+      }
+
       function createDataRow(labelHtml, rowClass, rowMeta, dropAttrs = "") {
         let rowCols = [];
-        let html = '<tr class="' + rowClass + '" ' + dropAttrs + '><td class="row-label">' + labelHtml + '</td>';
+        const isEditingThisRow = selection.isEditing && curR === selection.activeR;
+        const rowLabelClass = 'row-label' + (isEditingThisRow ? ' row-label-editing' : '');
+        let html = '<tr class="' + rowClass + '" ' + dropAttrs + '><td class="' + rowLabelClass + '">' + labelHtml + '</td>';
         for (let c = 0; c < numCols; c++) {
           const meta = { ...rowMeta, colIdx: c, r: curR, c: c };
           rowCols.push(meta);
@@ -688,7 +701,12 @@
           if (meta.type === 'editable') {
             rawVal = state.values[meta.key]?.[c] ?? '';
             if (rawVal !== '') {
-              displayVal = meta.colorize ? formatProfit(Number(rawVal), meta.decimals || 0) : formatNumber(rawVal, meta.decimals || 0);
+              if (isFormulaInput(rawVal) && evalCellFormula(String(rawVal).trim().slice(1)) === null) {
+                displayVal = formulaErrorHtml(rawVal);
+              } else {
+                const numVal = resolveCellNumber(rawVal);
+                displayVal = meta.colorize ? formatProfit(numVal, meta.decimals || 0) : formatNumber(numVal, meta.decimals || 0);
+              }
             } else if (meta.autoFn) {
               displayVal = meta.autoFn(c);
             } else {
@@ -696,7 +714,11 @@
             }
           } else if (meta.type === 'rate') {
             rawVal = state.rates[c] ?? 31.0;
-            displayVal = Number(rawVal).toFixed(3);
+            if (isFormulaInput(rawVal) && evalCellFormula(String(rawVal).trim().slice(1)) === null) {
+              displayVal = formulaErrorHtml(rawVal);
+            } else {
+              displayVal = resolveCellNumber(rawVal).toFixed(3);
+            }
           } else if (meta.type === 'calc') {
             displayVal = meta.calcFn(c);
           }
@@ -948,11 +970,17 @@
       }
 
       const valToSet = initialChar !== null ? initialChar : currentVal;
-      cell.innerHTML = '<input type="number" step="any" class="cell-editor" id="activeEditor">';
+      // type="text" + inputmode="decimal"：手機仍優先跳出數字鍵盤，但允許打 "=" "+" 等
+      // 符號來輸入公式（原本的 type="number" 會直接擋掉 "=" 字元，打不出公式）
+      cell.innerHTML = '<input type="text" inputmode="decimal" class="cell-editor" id="activeEditor">';
       const input = document.getElementById('activeEditor');
       input.value = valToSet;
       input.focus();
       if (initialChar === null) input.select();
+
+      // 編輯中：讓這一列的「項目欄」反白，方便對照目前打到哪一格
+      const rowLabelCell = cell.closest('tr')?.querySelector('.row-label');
+      if (rowLabelCell) rowLabelCell.classList.add('row-label-editing');
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -982,7 +1010,8 @@
           if (meta.type === 'editable') {
             setRawVal(meta.key, meta.colIdx, val);
           } else if (meta.type === 'rate') {
-            state.rates[meta.colIdx] = val === '' ? 31.0 : Number(val);
+            // 跟 setRawVal 邏輯一致：公式（"=" 開頭）保留原文，一般數字才轉成 Number
+            state.rates[meta.colIdx] = val === '' ? 31.0 : (isFormulaInput(val) ? val : Number(val));
           }
           saveState();
         }
@@ -1089,7 +1118,8 @@
         }
         saveState();
         render();
-      } else if ((e.key >= '0' && e.key <= '9') || e.key === '-' || e.key === '.') {
+      } else if ((e.key >= '0' && e.key <= '9') || e.key === '-' || e.key === '.' || e.key === '=') {
+        // "=" 開頭可以直接打公式，例如 "=100+1"
         e.preventDefault();
         startEditing(selection.activeR, selection.activeC, e.key);
       }
