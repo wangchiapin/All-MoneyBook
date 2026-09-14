@@ -158,6 +158,13 @@
 
     th.row-label { z-index: 15; background-color: #ece6d9; }
 
+    /* 編輯儲存格時，該列的項目欄反白（只變背景，文字顏色不變），
+       用 !important 蓋過各區塊(銀行/保險/股票...)各自的 row-label 底色規則 */
+    td.row-label.row-label-editing {
+      background-color: #c9bb9a !important;
+      box-shadow: inset 0 0 0 2px var(--selection-border);
+    }
+
     .row-label-content {
       display: flex;
       align-items: center;
