@@ -556,7 +556,17 @@
       const tabContainer = document.getElementById('tabGroup');
       if (!tabContainer) return;
 
-      tabContainer.innerHTML = tabs.map(t => {
+      // 隱藏子分頁功能：被設成隱藏的分頁直接從按鈕列拿掉
+      const visibleTabs = tabs.filter(t => !(typeof isTabHidden === 'function' && isTabHidden(t.id)));
+
+      // 如果目前選到的分頁剛好是被隱藏的（例如「暫時顯示」到期了、或設定改變時人還停留在上面），
+      // 自動切去「全部持股」，不要讓畫面卡在一個已經消失的分頁上
+      if (typeof isTabHidden === 'function' && currentFilter !== 'ALL' && isTabHidden(currentFilter)) {
+        setFilter('ALL');
+        return;
+      }
+
+      tabContainer.innerHTML = visibleTabs.map(t => {
         let countText = '';
         if (t.id === 'DIVIDENDS_TAB' || t.id === 'STOCK_SALES' || t.id === 'STOCK_LENDING_TAB' || t.id === 'SNAPSHOT_LOGS' || t.id === 'YONG_FENG_TAB' || t.id === 'DCA_TAB') {
           countText = '';

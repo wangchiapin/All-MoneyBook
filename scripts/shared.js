@@ -267,6 +267,7 @@
       const pwInput = document.getElementById('lockPasswordInput');
       if (pwInput) pwInput.value = '';
       renderLockSettingsLists();
+      renderHideSettingsLists();
       const modal = document.getElementById('lockSettingsModal');
       if (modal) modal.classList.add('open');
     }
@@ -313,6 +314,116 @@
       if (input) input.value = '';
       showToast('密碼已更新', 'success');
     }
+
+    /* ====== 子分頁隱藏功能 ======
+       跟密碼鎖定共用同一套「存在 localStorage、各裝置各自獨立」的模式，但概念不同：
+       鎖定是「看得到分頁、要密碼才能看內容」；隱藏是「分頁按鈕直接消失」。
+       - hideConfig.tabs：主開關（永久性，設定選單裡手動勾選/取消）
+       - hideConfig.revealUntil：暫時顯示的到期時間戳（時效性，預設 30 分鐘），
+         到期後自動變回隱藏，但不會動到主開關 ====== */
+    const HIDE_CONFIG_KEY = 'HIDE_TABS_CONFIG_V1';
+    const TEMP_REVEAL_MS = 30 * 60 * 1000; // 暫時顯示 30 分鐘
+
+    // 目前只開放「股票管理」裡那幾個整頁式的子分頁（股票賣出／股票借出／股利／
+    // 媽的永豐／定期定額／各股紀錄），不含 ALL/ETF/台股/各證券帳戶這些核心篩選分頁
+    const HIDABLE_TABS = [
+      { key: 'STOCK_SALES', label: '📉 股票賣出' },
+      { key: 'STOCK_LENDING_TAB', label: '📦 股票借出' },
+      { key: 'DIVIDENDS_TAB', label: '📊 股利' },
+      { key: 'YONG_FENG_TAB', label: '🌸 媽的永豐' },
+      { key: 'DCA_TAB', label: '📆 定期定額' },
+      { key: 'SNAPSHOT_LOGS', label: '📋 各股紀錄' }
+    ];
+
+    let hideConfig = (function () {
+      try {
+        const saved = JSON.parse(localStorage.getItem(HIDE_CONFIG_KEY) || 'null');
+        if (saved && typeof saved === 'object') {
+          return { tabs: saved.tabs || {}, revealUntil: saved.revealUntil || {} };
+        }
+      } catch (e) {}
+      return { tabs: {}, revealUntil: {} };
+    })();
+
+    function saveHideConfig() {
+      try {
+        localStorage.setItem(HIDE_CONFIG_KEY, JSON.stringify(hideConfig));
+      } catch (e) {
+        console.warn('儲存隱藏分頁設定失敗：', e);
+      }
+    }
+
+    // 主開關沒開 → 不隱藏；主開關有開，但還在「暫時顯示」時效內 → 也不隱藏
+    function isTabHidden(key) {
+      if (!hideConfig.tabs[key]) return false;
+      const until = hideConfig.revealUntil[key];
+      if (until && Date.now() < until) return false;
+      return true;
+    }
+
+    function toggleHideTab(key, checked) {
+      hideConfig.tabs[key] = checked;
+      if (!checked) delete hideConfig.revealUntil[key]; // 主開關關掉時，順便清掉暫時顯示的殘留狀態
+      saveHideConfig();
+      if (typeof renderTabs === 'function') renderTabs();
+      renderHideSettingsLists();
+    }
+
+    function revealTabTemporarily(key) {
+      hideConfig.revealUntil[key] = Date.now() + TEMP_REVEAL_MS;
+      saveHideConfig();
+      showToast('已暫時顯示 30 分鐘', 'success');
+      if (typeof renderTabs === 'function') renderTabs();
+      renderHideSettingsLists();
+    }
+
+    function renderHideSettingsLists() {
+      const listEl = document.getElementById('hideTabsList');
+      if (listEl) {
+        listEl.innerHTML = HIDABLE_TABS.map(t => `
+          <label class="lock-settings-item">
+            <input type="checkbox" ${hideConfig.tabs[t.key] ? 'checked' : ''} onchange="toggleHideTab('${t.key}', this.checked)">
+            <span>${esc(t.label)}</span>
+          </label>
+        `).join('');
+      }
+      const revealEl = document.getElementById('hideTabsRevealList');
+      if (revealEl) {
+        const hiddenNow = HIDABLE_TABS.filter(t => isTabHidden(t.key));
+        if (hiddenNow.length === 0) {
+          revealEl.innerHTML = '<p class="lock-settings-hint">目前沒有被隱藏的子分頁。</p>';
+        } else {
+          revealEl.innerHTML = hiddenNow.map(t => `
+            <div class="lock-settings-item" style="display:flex; align-items:center; justify-content:space-between;">
+              <span>${esc(t.label)}</span>
+              <button class="btn btn-outline" style="padding:3px 10px; font-size:12px;" onclick="revealTabTemporarily('${t.key}')">暫時顯示 30 分鐘</button>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    // 每 30 秒檢查一次有沒有「暫時顯示」到期；不用重新整理網頁也會自動變回隱藏。
+    // 如果使用者正好停留在剛過期的那個分頁，順便切去「全部持股」，避免畫面卡在一個消失中的分頁。
+    function checkHideExpiry() {
+      const now = Date.now();
+      let changed = false;
+      Object.keys(hideConfig.revealUntil).forEach(key => {
+        if (hideConfig.revealUntil[key] && now >= hideConfig.revealUntil[key]) {
+          delete hideConfig.revealUntil[key];
+          changed = true;
+          if (typeof currentFilter !== 'undefined' && currentFilter === key && typeof setFilter === 'function') {
+            setFilter('ALL');
+          }
+        }
+      });
+      if (changed) {
+        saveHideConfig();
+        if (typeof renderTabs === 'function') renderTabs();
+        renderHideSettingsLists();
+      }
+    }
+    setInterval(checkHideExpiry, 30000);
 
     let fbAuth = null, fbDb = null, fbUser = null, cloudSaveTimer = null;
 
