@@ -854,6 +854,23 @@
       return result;
     }
 
+    function refreshSalesStockDatalist() {
+      const list = document.getElementById('salesStockDatalist');
+      if (!list) return;
+      // 賣出明細的查詢對象可能是已經出清、不在「目前持股」裡的股票，所以名稱清單直接
+      // 從 stockSales（賣出紀錄本身）取值，不能沿用只列出目前持股的 stockNameDatalist。
+      const uniqueNames = Array.from(new Set(stockSales.map(r => r.name).filter(Boolean)));
+      list.innerHTML = uniqueNames.map(n => `<option value="${esc(n)}"></option>`).join('');
+    }
+
+    function clearSalesQuery() {
+      ['salesQueryStock', 'salesQueryStart', 'salesQueryEnd'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      renderTable();
+    }
+
     function renderTable() {
       renderYfOverview();
 
@@ -884,6 +901,8 @@
       const tableWithChartLayout = document.getElementById('tableWithChartLayout');
       const dividendChartPanel = document.getElementById('dividendChartPanel');
       const stockGridFoot = document.getElementById('stockGridFoot');
+      const salesQueryPanel = document.getElementById('salesQueryPanel');
+      if (salesQueryPanel) salesQueryPanel.style.display = 'none'; // 預設隱藏，只有「賣出明細」子分頁會打開
 
       // 預設：一般表格版面（單欄、無小計列），只有「歷年股利總合」子分頁會切換成雙欄+小計
       const isYearlySummaryView = (currentFilter === 'DIVIDENDS_TAB' && dividendsSubTab === 'summary');
@@ -931,6 +950,7 @@
 
         const yrContainer = document.getElementById('summaryYearSelectorContainer');
         if (yrContainer) yrContainer.style.display = (salesSubTab === 'summary') ? 'flex' : 'none';
+        if (salesQueryPanel) salesQueryPanel.style.display = (salesSubTab !== 'summary' && salesSubTab !== 'history' && !isPageLocked('sales_detail') && !isPageLocked('sales')) ? 'flex' : 'none';
 
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
@@ -1092,10 +1112,45 @@
         `;
 
         yfAutoSortByDate(stockSales, 'date');
+        refreshSalesStockDatalist();
 
         let sales = stockSales;
         if (query) {
           sales = sales.filter(r => (r.name && r.name.toLowerCase().includes(query)) || (r.date && r.date.toLowerCase().includes(query)) || (r.status && r.status.toLowerCase().includes(query)));
+        }
+
+        // 賣出明細查詢列：依股票名稱（完全比對，允許自行輸入）＋ 日期區間（民國年格式字串直接比較）篩選
+        const qStockEl = document.getElementById('salesQueryStock');
+        const qStartEl = document.getElementById('salesQueryStart');
+        const qEndEl = document.getElementById('salesQueryEnd');
+        const qStock = qStockEl ? qStockEl.value.trim() : '';
+        const qStart = qStartEl ? qStartEl.value.trim() : '';
+        const qEnd = qEndEl ? qEndEl.value.trim() : '';
+        const salesQueryActive = !!(qStock || qStart || qEnd);
+        if (qStock) sales = sales.filter(r => (r.name || '').trim() === qStock);
+        if (qStart) sales = sales.filter(r => String(r.date || '') >= qStart);
+        if (qEnd) sales = sales.filter(r => String(r.date || '') <= qEnd);
+
+        // 查詢結果總計：只有查詢列實際有輸入條件時才顯示，平常瀏覽全部資料不會多跳出一排總計
+        const salesQuerySummaryEl = document.getElementById('salesQuerySummary');
+        if (salesQuerySummaryEl) {
+          if (salesQueryActive) {
+            const qTotalCost = sales.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+            const qTotalSell = sales.reduce((s, r) => s + (Number(r.sellAmt) || 0), 0);
+            const qTotalSpread = sales.reduce((s, r) => s + (Number(r.spread) || 0), 0);
+            const qAvgReturn = qTotalCost > 0 ? (qTotalSpread / qTotalCost) * 100 : 0;
+            const qIsPos = qTotalSpread >= 0;
+            salesQuerySummaryEl.style.display = 'flex';
+            salesQuerySummaryEl.innerHTML =
+              '<span>符合 <b>' + sales.length + '</b> 筆</span>' +
+              '<span>總成本：$' + formatNum(qTotalCost, 0) + '</span>' +
+              '<span>總賣出：$' + formatNum(qTotalSell, 0) + '</span>' +
+              '<span style="color:' + (qIsPos ? '#2f7d4f' : '#a8543d') + '; font-weight:700;">總損益：' + (qIsPos ? '+' : '') + '$' + formatNum(qTotalSpread, 0) + '</span>' +
+              '<span>平均報酬率：' + qAvgReturn.toFixed(2) + '%</span>';
+          } else {
+            salesQuerySummaryEl.style.display = 'none';
+            salesQuerySummaryEl.innerHTML = '';
+          }
         }
 
         const monthPalette = ['#f5eee0', '#eef0e6', '#e9e4da', '#ece2c4', '#eaeef0', '#f4ecd4'];

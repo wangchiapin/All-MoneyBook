@@ -140,12 +140,21 @@
         .sort((a, b) => b.value - a.value);
     }
 
+    // 長條圖類別（股票）數量可能有幾十檔，橫向排不下、Chart.js 會自動省略部分刻度標籤，
+    // 導致「某支股票明明有資料，但看不到自己的名字」。改成縱向逐列排列（一支股票一列，
+    // 由上往下），並依股票數量動態撐高容器，搭配外層 modal-body 捲動，就不會再有標籤被省略。
+    function resizeStockAnalysisBarWrap(count) {
+      const wrap = document.getElementById('stockAnalysisBarCanvasWrap');
+      if (wrap) wrap.style.height = Math.max(220, count * 32) + 'px';
+    }
+
     function renderHoldingsAnalysisCharts() {
       const data = getStockAnalysisHoldingsData();
       const labels = data.map(d => d.name);
       const costData = data.map(d => d.cost);
       const valueData = data.map(d => d.value);
 
+      resizeStockAnalysisBarWrap(labels.length);
       const barCanvas = document.getElementById('stockAnalysisBarCanvas');
       if (barCanvas && typeof Chart !== 'undefined') {
         if (stockAnalysisBarChart) { stockAnalysisBarChart.destroy(); stockAnalysisBarChart = null; }
@@ -159,15 +168,16 @@
             ]
           },
           options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: { labels: { font: { size: 11 }, color: '#3c362e' } },
-              tooltip: { callbacks: { label: ctx => ctx.dataset.label + '：$' + formatNum(ctx.parsed.y, 0) } }
+              tooltip: { callbacks: { label: ctx => ctx.dataset.label + '：$' + formatNum(ctx.parsed.x, 0) } }
             },
             scales: {
-              x: { ticks: { font: { size: 10 }, color: '#93897a' }, grid: { display: false } },
-              y: { ticks: { font: { size: 10 }, color: '#93897a', callback: v => formatNum(v, 0) }, grid: { color: '#eee6d8' } }
+              x: { ticks: { font: { size: 10 }, color: '#93897a', callback: v => formatNum(v, 0) }, grid: { color: '#eee6d8' } },
+              y: { ticks: { font: { size: 11 }, color: '#3c362e' }, grid: { display: false } }
             }
           }
         });
@@ -250,6 +260,7 @@
       const amounts = data.map(d => d.amount);
       const colors = data.map(d => d.held ? STOCK_ANALYSIS_HELD_COLOR : STOCK_ANALYSIS_PAST_COLOR);
 
+      resizeStockAnalysisBarWrap(labels.length);
       const barCanvas = document.getElementById('stockAnalysisBarCanvas');
       if (barCanvas && typeof Chart !== 'undefined') {
         if (stockAnalysisBarChart) { stockAnalysisBarChart.destroy(); stockAnalysisBarChart = null; }
@@ -257,15 +268,16 @@
           type: 'bar',
           data: { labels, datasets: [{ label: '現金股利', data: amounts, backgroundColor: colors }] },
           options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
               legend: { display: false },
-              tooltip: { callbacks: { label: ctx => '$' + formatNum(ctx.parsed.y, 0) } }
+              tooltip: { callbacks: { label: ctx => '$' + formatNum(ctx.parsed.x, 0) } }
             },
             scales: {
-              x: { ticks: { font: { size: 10 }, color: '#93897a' }, grid: { display: false } },
-              y: { ticks: { font: { size: 10 }, color: '#93897a', callback: v => formatNum(v, 0) }, grid: { color: '#eee6d8' } }
+              x: { ticks: { font: { size: 10 }, color: '#93897a', callback: v => formatNum(v, 0) }, grid: { color: '#eee6d8' } },
+              y: { ticks: { font: { size: 11 }, color: '#3c362e' }, grid: { display: false } }
             }
           }
         });

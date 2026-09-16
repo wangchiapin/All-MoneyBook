@@ -186,6 +186,26 @@
       <input type="text" class="search-input" id="searchBox" placeholder="搜尋代號、名稱..." oninput="renderTable()" />
     </div>
 
+    <!-- 股票賣出「賣出明細」查詢列：依股票名稱＋時間範圍篩選，並顯示區間內損益總計 -->
+    <div class="yf-overview-panel" id="salesQueryPanel" style="display:none; flex-direction:column; gap:10px;">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+        <div>
+          <label class="form-label" style="display:block; margin-bottom:4px;">股票名稱</label>
+          <input type="text" id="salesQueryStock" list="salesStockDatalist" placeholder="全部股票（可自行輸入）" class="form-control" style="width:170px;" oninput="renderTable()">
+        </div>
+        <div>
+          <label class="form-label" style="display:block; margin-bottom:4px;">起始日期（例如 1150101）</label>
+          <input type="text" id="salesQueryStart" placeholder="不限" class="form-control" style="width:140px;" oninput="renderTable()">
+        </div>
+        <div>
+          <label class="form-label" style="display:block; margin-bottom:4px;">結束日期（例如 1150630）</label>
+          <input type="text" id="salesQueryEnd" placeholder="不限" class="form-control" style="width:140px;" oninput="renderTable()">
+        </div>
+        <button class="btn btn-outline" onclick="clearSalesQuery()">清除查詢</button>
+      </div>
+      <div id="salesQuerySummary" style="display:none; padding:10px 14px; background:#f4f0e8; border-radius:6px; font-size:0.85rem; gap:20px; flex-wrap:wrap;"></div>
+    </div>
+
     <!-- 媽的永豐分頁專屬：股票投資概況總覽卡片 (單一 6 欄 x 2 排網格，與原始檔案版面一致) -->
     <div class="yf-overview-panel" id="yfOverviewPanel" style="display:none;">
       <div class="yf-overview-header">
@@ -319,6 +339,7 @@
         <button class="sales-sub-btn" id="subBtnLendIncome" onclick="setLendingSubTab('income')">💰 借卷收入</button>
       </div>
       <datalist id="stockNameDatalist"></datalist>
+      <datalist id="salesStockDatalist"></datalist>
     </div>
 
     <!-- 各股紀錄分頁專屬：快照日期選取列 (含刪除按鈕) -->
@@ -451,7 +472,7 @@
         <div id="stockAnalysisChartsWrap" style="display:none;">
           <div style="margin-bottom:24px;">
             <div class="lock-settings-heading" id="stockAnalysisBarTitle">成本 vs 現值</div>
-            <div style="position:relative; height:260px; margin-top:8px;">
+            <div id="stockAnalysisBarCanvasWrap" style="position:relative; height:260px; margin-top:8px;">
               <canvas id="stockAnalysisBarCanvas"></canvas>
             </div>
           </div>
