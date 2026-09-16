@@ -156,6 +156,9 @@
       <button class="btn btn-danger" id="btnDelLastRow" style="display:none;" onclick="handleDeleteLastPastRow()">➖ 刪除最後空白列</button>
       <button class="btn" id="btnAddYear" style="display:none; color:#5c5445; border-color:#ddd5c4; background:#fdfbf7;" onclick="handleAddYear()">📅 新增新年度</button>
 
+      <!-- 股票分析圖按鈕 (位於新增股票與計算機中間) -->
+      <button class="btn btn-outline" id="btnStockAnalysis" onclick="openStockAnalysisModal()">📊 股票分析圖</button>
+
       <!-- 計算機按鈕 (位於設定左邊) -->
       <button class="btn btn-calc" onclick="toggleCalculator()">🧮 計算機</button>
 
@@ -427,6 +430,45 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="closeLockSettingsModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 股票分析圖彈窗 -->
+  <div class="modal-overlay" id="stockAnalysisModal">
+    <div class="modal-card" style="width: 620px; max-height: 86vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">📊 股票分析圖</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeStockAnalysisModal()">✕</button>
+      </div>
+      <div class="modal-body" id="stockAnalysisModalBody" style="overflow-y:auto;">
+        <div id="stockAnalysisEmptyMsg" style="display:none; text-align:center; padding:44px 16px; color:#93897a; font-size:0.95rem;">此分頁無分析圖表</div>
+        <div id="stockAnalysisLockedMsg" style="display:none; text-align:center; padding:44px 16px;"></div>
+        <div id="stockAnalysisYearFilterWrap" style="display:none; margin-bottom:14px;">
+          <label class="form-label">股利統計範圍</label>
+          <select id="stockAnalysisYearSelect" class="form-control" style="margin-top:6px;" onchange="renderStockAnalysisCharts()"></select>
+        </div>
+        <div id="stockAnalysisChartsWrap" style="display:none;">
+          <div style="margin-bottom:24px;">
+            <div class="lock-settings-heading" id="stockAnalysisBarTitle">成本 vs 現值</div>
+            <div style="position:relative; height:260px; margin-top:8px;">
+              <canvas id="stockAnalysisBarCanvas"></canvas>
+            </div>
+          </div>
+          <div>
+            <div class="lock-settings-heading" id="stockAnalysisPieTitle">持股比例</div>
+            <div style="position:relative; height:280px; margin-top:8px;">
+              <canvas id="stockAnalysisPieCanvas"></canvas>
+            </div>
+            <div id="stockAnalysisColorLegend" style="display:none; gap:16px; justify-content:center; margin-top:10px; font-size:0.78rem; color:#5c5445;">
+              <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:rgba(118,108,90,0.85); margin-right:4px;"></span>持股中</span>
+              <span><span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:rgba(168,84,61,0.6); margin-right:4px;"></span>已售出</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeStockAnalysisModal()">關閉</button>
       </div>
     </div>
   </div>
@@ -781,6 +823,7 @@
   <script src="scripts/dividends.js"></script>
   <script src="scripts/stock-sales.js"></script>
   <script src="scripts/stock.js"></script>
+  <script src="scripts/stock-analysis.js"></script>
   <script src="scripts/insurance.js"></script>
   <script src="scripts/export-excel.js"></script>
   <script src="scripts/import-excel.js"></script>
