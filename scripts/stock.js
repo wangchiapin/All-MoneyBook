@@ -854,13 +854,49 @@
       return result;
     }
 
-    function refreshSalesStockDatalist() {
-      const list = document.getElementById('salesStockDatalist');
-      if (!list) return;
+    function getSalesQueryStockOptions() {
       // 賣出明細的查詢對象可能是已經出清、不在「目前持股」裡的股票，所以名稱清單直接
-      // 從 stockSales（賣出紀錄本身）取值，不能沿用只列出目前持股的 stockNameDatalist。
-      const uniqueNames = Array.from(new Set(stockSales.map(r => r.name).filter(Boolean)));
-      list.innerHTML = uniqueNames.map(n => `<option value="${esc(n)}"></option>`).join('');
+      // 從 stockSales（賣出紀錄本身）取值，不能只列出目前持股。
+      return Array.from(new Set(stockSales.map(r => r.name).filter(Boolean)));
+    }
+
+    // 自訂下拉搜尋（取代原生 <input list>，原生 datalist 一旦輸入框裡的文字剛好完全比對到
+    // 某個選項，瀏覽器只會顯示那一個選項，沒辦法再往下瀏覽/搜尋其他選項）。
+    // 不管輸入框目前有沒有文字、文字是否已經完全比對到某個選項，一律列出「包含這段文字」
+    // 的全部選項，文字清空時列出全部選項。
+    function onSalesQueryStockInput() {
+      const input = document.getElementById('salesQueryStock');
+      const dropdown = document.getElementById('salesQueryStockDropdown');
+      if (!input || !dropdown) return;
+      const kw = input.value.trim().toLowerCase();
+      const options = getSalesQueryStockOptions().filter(n => !kw || n.toLowerCase().includes(kw));
+      if (options.length === 0) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+      } else {
+        dropdown.innerHTML = options.map(n =>
+          `<div class="sales-query-stock-option" data-name="${esc(n)}" style="padding:7px 12px; font-size:13px; cursor:pointer;" onmousedown="selectSalesQueryStock(this.dataset.name)" onmouseover="this.style.background='#f4f0e8'" onmouseout="this.style.background='transparent'">${esc(n)}</div>`
+        ).join('');
+        dropdown.style.display = 'block';
+      }
+      renderTable();
+    }
+
+    function selectSalesQueryStock(name) {
+      const input = document.getElementById('salesQueryStock');
+      const dropdown = document.getElementById('salesQueryStockDropdown');
+      if (input) input.value = name;
+      if (dropdown) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+      renderTable();
+    }
+
+    function closeSalesQueryStockDropdownDelayed() {
+      // 延遲關閉：讓「點擊下拉選項」的 mousedown 事件能先觸發 selectSalesQueryStock，
+      // 不然 blur 會比 click 早發生，選項還沒被點到下拉選單就先關掉了
+      setTimeout(() => {
+        const dropdown = document.getElementById('salesQueryStockDropdown');
+        if (dropdown) dropdown.style.display = 'none';
+      }, 150);
     }
 
     function clearSalesQuery() {
@@ -1112,7 +1148,6 @@
         `;
 
         yfAutoSortByDate(stockSales, 'date');
-        refreshSalesStockDatalist();
 
         let sales = stockSales;
         if (query) {

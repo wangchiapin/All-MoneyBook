@@ -189,9 +189,11 @@
     <!-- 股票賣出「賣出明細」查詢列：依股票名稱＋時間範圍篩選，並顯示區間內損益總計 -->
     <div class="yf-overview-panel" id="salesQueryPanel" style="display:none; flex-direction:column; gap:10px;">
       <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
-        <div>
+        <div style="position:relative;">
           <label class="form-label" style="display:block; margin-bottom:4px;">股票名稱</label>
-          <input type="text" id="salesQueryStock" list="salesStockDatalist" placeholder="全部股票（可自行輸入）" class="form-control" style="width:170px;" oninput="renderTable()">
+          <input type="text" id="salesQueryStock" autocomplete="off" placeholder="全部股票（可自行輸入）" class="form-control" style="width:170px;"
+            oninput="onSalesQueryStockInput()" onfocus="onSalesQueryStockInput()" onblur="closeSalesQueryStockDropdownDelayed()">
+          <div id="salesQueryStockDropdown" style="display:none; position:absolute; top:100%; left:0; margin-top:2px; width:220px; max-height:220px; overflow-y:auto; background:#fff; border:1px solid var(--border-color, #ddd5c4); border-radius:4px; box-shadow:0 4px 14px rgba(60,54,46,0.18); z-index:50;"></div>
         </div>
         <div>
           <label class="form-label" style="display:block; margin-bottom:4px;">起始日期（例如 1150101）</label>
@@ -339,7 +341,6 @@
         <button class="sales-sub-btn" id="subBtnLendIncome" onclick="setLendingSubTab('income')">💰 借卷收入</button>
       </div>
       <datalist id="stockNameDatalist"></datalist>
-      <datalist id="salesStockDatalist"></datalist>
     </div>
 
     <!-- 各股紀錄分頁專屬：快照日期選取列 (含刪除按鈕) -->
