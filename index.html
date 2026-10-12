@@ -153,6 +153,8 @@
     <div class="toolbar-bar">
       <button class="btn btn-snapshot" onclick="takeAssetSnapshot()">📸 一鍵紀錄</button>
       <button class="btn btn-primary" id="btnAddNewStock" onclick="openAddStockModal()">➕ 新增股票</button>
+      <!-- 股票賣出明細：彈窗式新增（與「新增賣出紀錄列」並存，只在賣出明細子分頁顯示） -->
+      <button class="btn btn-primary" id="btnAddSaleModal" style="display:none;" onclick="openAddSaleModal()">🪟 彈窗新增賣出</button>
       <button class="btn btn-danger" id="btnDelLastRow" style="display:none;" onclick="handleDeleteLastPastRow()">➖ 刪除最後空白列</button>
       <button class="btn" id="btnAddYear" style="display:none; color:#5c5445; border-color:#ddd5c4; background:#fdfbf7;" onclick="handleAddYear()">📅 新增新年度</button>
 
@@ -608,6 +610,84 @@
       <div class="modal-footer">
         <button class="btn" onclick="closeNoteModal()">取消</button>
         <button class="btn btn-primary" onclick="saveNoteModal()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 股票賣出明細：彈窗式新增賣出紀錄（欄位與計算規則同表格） -->
+  <div class="modal-overlay" id="addSaleModal">
+    <div class="modal-card" style="width: 560px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🪟 新增賣出紀錄</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeAddSaleModal()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">日期 <span style="color:#b6533c;">*</span>（例如 1151013）</label>
+            <input type="text" id="saleModalDate" class="form-control font-mono" autocomplete="off" placeholder="民國年月日" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">名稱 <span style="color:#b6533c;">*</span></label>
+            <input type="text" id="saleModalName" class="form-control" autocomplete="off" placeholder="例：台積電" style="font-weight:700;" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">股數</label>
+            <input type="number" step="any" id="saleModalShares" class="form-control font-mono" oninput="onSaleModalInput('shares')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">狀態</label>
+            <select id="saleModalStatus" class="form-control" onkeydown="handleSaleModalKey(event)">
+              <option value="">-</option>
+              <option value="獲益">獲益</option>
+              <option value="認賠">認賠</option>
+              <option value="當沖">當沖</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">買進價格</label>
+            <input type="number" step="any" id="saleModalBuyPrice" class="form-control font-mono" oninput="onSaleModalInput('buyPrice')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">賣出價格</label>
+            <input type="number" step="any" id="saleModalSellPrice" class="form-control font-mono" oninput="onSaleModalInput('sellPrice')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">買進手續費</label>
+            <input type="number" step="any" id="saleModalBuyFee" class="form-control font-mono" oninput="onSaleModalInput('buyFee')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">賣出手續費</label>
+            <input type="number" step="any" id="saleModalSellFee" class="form-control font-mono" oninput="onSaleModalInput('sellFee')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">交易稅</label>
+            <input type="number" step="any" id="saleModalTax" class="form-control font-mono" oninput="onSaleModalInput('tax')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">成本 ($)</label>
+            <input type="number" step="any" id="saleModalCost" class="form-control font-mono" oninput="onSaleModalInput('cost')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">賣出 ($)</label>
+            <input type="number" step="any" id="saleModalSellAmt" class="form-control font-mono" oninput="onSaleModalInput('sellAmt')" onkeydown="handleSaleModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">價差 / 報酬率（自動計算）</label>
+            <div id="saleModalPreview" class="font-mono" style="padding:8px 10px; border:1px dashed #ddd5c4; border-radius:6px; background:#fdfbf7; font-size:0.85rem; font-weight:700;">-</div>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">備註</label>
+            <textarea id="saleModalNote" rows="3" style="width:100%; box-sizing:border-box; padding:8px; border:1px solid #ddd5c4; border-radius:6px; font-family:inherit; font-size:0.9rem; resize:vertical; outline:none;" placeholder="輸入這筆紀錄的備註內容..."></textarea>
+          </div>
+        </div>
+        <div style="margin-top:10px; font-size:0.75rem; color:#766c5a; line-height:1.5;">
+          成本＝股數×買進價格＋買進手續費；賣出＝股數×賣出價格－賣出手續費－交易稅，會隨輸入自動帶入，也可以直接手動修改。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAddSaleModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitAddSaleModal()">確認新增</button>
       </div>
     </div>
   </div>

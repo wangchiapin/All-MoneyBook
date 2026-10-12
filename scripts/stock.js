@@ -940,6 +940,15 @@
       const salesQueryPanel = document.getElementById('salesQueryPanel');
       if (salesQueryPanel) salesQueryPanel.style.display = 'none'; // 預設隱藏，只有「賣出明細」子分頁會打開
 
+      // 「彈窗新增賣出」按鈕：只在股票賣出的「賣出明細」子分頁顯示（小計/歷年紀錄子分頁、或分頁被鎖定時都不顯示）
+      const btnAddSaleModal = document.getElementById('btnAddSaleModal');
+      if (btnAddSaleModal) {
+        const showSaleModalBtn = currentFilter === 'STOCK_SALES'
+          && salesSubTab !== 'summary' && salesSubTab !== 'history'
+          && !isPageLocked('sales') && !isPageLocked('sales_detail');
+        btnAddSaleModal.style.display = showSaleModalBtn ? '' : 'none';
+      }
+
       // 預設：一般表格版面（單欄、無小計列），只有「歷年股利總合」子分頁會切換成雙欄+小計
       const isYearlySummaryView = (currentFilter === 'DIVIDENDS_TAB' && dividendsSubTab === 'summary');
       if (tableWithChartLayout) tableWithChartLayout.classList.toggle('split-mode', isYearlySummaryView);

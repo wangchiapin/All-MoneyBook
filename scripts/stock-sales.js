@@ -478,6 +478,139 @@
       });
     }
 
+    /* ====== 彈窗式新增賣出紀錄 ======
+       與表格內「新增賣出紀錄列」並存。欄位與計算規則完全比照 updateSaleRow：
+       成本 = 股數*買進價格 + 買進手續費；賣出 = 股數*賣出價格 - 賣出手續費 - 交易稅；
+       直接改成本/賣出金額則尊重手動輸入；成本與賣出皆 > 0 才算價差與報酬率。
+       儲存時沿用同一套流程：依日期排序、重算當日共計、存檔、重繪。 */
+    const SALE_MODAL_FIELDS = {
+      date: 'saleModalDate', name: 'saleModalName', shares: 'saleModalShares', status: 'saleModalStatus',
+      buyPrice: 'saleModalBuyPrice', sellPrice: 'saleModalSellPrice',
+      buyFee: 'saleModalBuyFee', sellFee: 'saleModalSellFee', tax: 'saleModalTax',
+      cost: 'saleModalCost', sellAmt: 'saleModalSellAmt', note: 'saleModalNote'
+    };
+    // Enter 依序跳下一格（比照表格的鍵盤操作）；最後一格跳到備註
+    const SALE_MODAL_ORDER = ['date', 'name', 'shares', 'status', 'buyPrice', 'sellPrice', 'buyFee', 'sellFee', 'tax', 'cost', 'sellAmt', 'note'];
+
+    function saleModalEl(field) {
+      return document.getElementById(SALE_MODAL_FIELDS[field]);
+    }
+
+    // 數字欄位：空白維持空白，其餘 parseFloat（與 updateSaleRow 相同）
+    function saleModalNum(field) {
+      const v = saleModalEl(field).value;
+      return v === '' ? '' : (parseFloat(v) || 0);
+    }
+
+    function openAddSaleModal() {
+      if (isPageLocked('sales') || isPageLocked('sales_detail')) {
+        showToast('此分頁已鎖定，請先解鎖', 'error');
+        return;
+      }
+      Object.keys(SALE_MODAL_FIELDS).forEach(f => {
+        const el = saleModalEl(f);
+        if (el) el.value = '';
+      });
+      // 日期預設帶入今天（民國年月日，例如 1151013），可自行修改
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      saleModalEl('date').value = String(now.getFullYear() - 1911) + mm + dd;
+      updateSaleModalPreview();
+      const modal = document.getElementById('addSaleModal');
+      if (modal) modal.classList.add('open');
+      setTimeout(() => saleModalEl('name').focus(), 50);
+    }
+
+    function closeAddSaleModal() {
+      const modal = document.getElementById('addSaleModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function onSaleModalInput(field) {
+      const shares = Number(saleModalEl('shares').value) || 0;
+      if (field === 'shares' || field === 'buyPrice' || field === 'buyFee') {
+        const buyPrice = Number(saleModalEl('buyPrice').value) || 0;
+        const buyFee = Number(saleModalEl('buyFee').value) || 0;
+        saleModalEl('cost').value = Math.round((shares * buyPrice + buyFee) * 1e6) / 1e6;
+      }
+      if (field === 'shares' || field === 'sellPrice' || field === 'sellFee' || field === 'tax') {
+        const sellPrice = Number(saleModalEl('sellPrice').value) || 0;
+        const sellFee = Number(saleModalEl('sellFee').value) || 0;
+        const tax = Number(saleModalEl('tax').value) || 0;
+        saleModalEl('sellAmt').value = Math.round((shares * sellPrice - sellFee - tax) * 1e6) / 1e6;
+      }
+      updateSaleModalPreview();
+    }
+
+    function updateSaleModalPreview() {
+      const cost = Number(saleModalEl('cost').value) || 0;
+      const sellAmt = Number(saleModalEl('sellAmt').value) || 0;
+      const box = document.getElementById('saleModalPreview');
+      if (!box) return;
+      if (cost > 0 && sellAmt > 0) {
+        const spread = sellAmt - cost;
+        const rate = spread / cost;
+        const isPos = spread >= 0;
+        box.style.color = isPos ? 'var(--up-red)' : 'var(--down-green)';
+        box.textContent = (isPos ? '+' : '') + '$' + formatNum(spread, 0) + ' ／ ' + (rate * 100).toFixed(2) + '%';
+      } else {
+        box.style.color = '';
+        box.textContent = '-';
+      }
+    }
+
+    function handleSaleModalKey(e) {
+      if (e.isComposing || e.keyCode === 229) return; // 輸入法組字中不攔截
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const id = e.target.id;
+      const cur = SALE_MODAL_ORDER.findIndex(f => SALE_MODAL_FIELDS[f] === id);
+      if (cur >= 0 && cur < SALE_MODAL_ORDER.length - 1) {
+        const next = saleModalEl(SALE_MODAL_ORDER[cur + 1]);
+        if (next) { next.focus(); if (next.select) next.select(); }
+      }
+    }
+
+    function submitAddSaleModal() {
+      const date = saleModalEl('date').value.trim();
+      const name = saleModalEl('name').value.trim();
+      if (!date) { showToast('請輸入日期', 'error'); saleModalEl('date').focus(); return; }
+      if (!name) { showToast('請輸入股票名稱', 'error'); saleModalEl('name').focus(); return; }
+
+      const row = {
+        date,
+        name,
+        shares: saleModalNum('shares'),
+        buyPrice: saleModalNum('buyPrice'),
+        sellPrice: saleModalNum('sellPrice'),
+        cost: saleModalNum('cost'),
+        sellAmt: saleModalNum('sellAmt'),
+        spread: 0,
+        returnRate: 0,
+        buyFee: saleModalNum('buyFee'),
+        sellFee: saleModalNum('sellFee'),
+        tax: saleModalNum('tax'),
+        status: saleModalEl('status').value,
+        dayTotal: null,
+        note: saleModalEl('note').value,
+        note2: ''
+      };
+      if (Number(row.cost) > 0 && Number(row.sellAmt) > 0) {
+        row.spread = Number(row.sellAmt) - Number(row.cost);
+        row.returnRate = row.spread / Number(row.cost);
+      }
+
+      recordSnapshot();
+      stockSales.push(row);
+      yfAutoSortByDate(stockSales, 'date');
+      recalcSalesDayTotals();
+      saveToStorage();
+      closeAddSaleModal();
+      renderTable();
+      showToast('已新增賣出紀錄：' + name);
+    }
+
     function addStockSaleRow() {
       recordSnapshot();
       stockSales.push({
