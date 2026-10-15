@@ -31,6 +31,9 @@
       <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')">🛡️ 保險總覽</button>
     </div>
     <div class="app-header-cloud">
+      <label class="usd-rate-box" title="股票管理換算美股台幣用的預設美元匯率（財務總覽每期另有自己的匯率）">💵 美元匯率
+        <input type="number" id="usdRateInput" step="0.01" min="0" inputmode="decimal" onchange="onUsdRateInputChange(this)">
+      </label>
       <span id="syncStatus">☁️ 未連線</span>
       <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
       <button class="btn btn-outline" id="logoutBtn" style="display:none;" onclick="firebaseSignOut()">登出</button>
@@ -105,7 +108,7 @@
         <div class="stat-card">
           <div class="stat-title">全體總投入成本</div>
           <div class="stat-value font-mono" id="summaryCost">$0</div>
-          <div class="stat-desc">台股與外幣本金合計 (美股以匯率29計算)</div>
+          <div class="stat-desc">台股與外幣本金合計 (美股以匯率 <span id="usdRateDesc">29</span> 計算)</div>
         </div>
         <div class="stat-card">
           <div class="stat-title">全體目前總市值</div>

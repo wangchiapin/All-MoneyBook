@@ -10,6 +10,7 @@
         lendingIncomeRows, lendingIncomeManualYearly, dcaRows,
         dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
+        usdRate: (typeof getUsdRate === 'function') ? getUsdRate() : 29,
         updatedAt: new Date().toISOString()
       };
     }
@@ -32,6 +33,7 @@
       if (data.yfDividendRows) yfDividendRows = data.yfDividendRows;
       if (data.yfOverview) yfOverview = data.yfOverview;
       if (data.snapshots) localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(data.snapshots));
+      if (data.usdRate && typeof applyUsdRate === 'function') applyUsdRate(data.usdRate, { silent: true });
 
       localStorage.setItem(STORAGE_KEY_STOCKS, JSON.stringify(stocks));
       localStorage.setItem(STORAGE_KEY_PAST, JSON.stringify(pastColumns));

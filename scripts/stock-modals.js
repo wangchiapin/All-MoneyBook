@@ -11,7 +11,7 @@
 
       stocks.forEach(st => {
         const isUS = isUsStock(st);
-        const fxRate = isUS ? 29 : 1;
+        const fxRate = isUS ? getUsdRate() : 1;
         (st.dividendHistory || []).forEach(dh => {
           if (normalizeYearKey(dh.year) !== rawKey) return;
           const cash = (Number(dh.cash) || 0) * fxRate;
@@ -102,7 +102,7 @@
       currentEditingStockId = stockId;
 
       const isUS = isUsStock(target);
-      const fxRate = isUS ? 29 : 1;
+      const fxRate = isUS ? getUsdRate() : 1;
       const unitSymbol = isUS ? 'US$' : '$';
 
       const curPrice = (Number(target.currentPrice) || 0) * fxRate;

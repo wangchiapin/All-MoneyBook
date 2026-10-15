@@ -500,3 +500,42 @@
       }
       if (typeof saveNavState === 'function') saveNavState();
     }
+
+    /* ====== 全站美元匯率預設值 ======
+       股票管理、股票分析圖、小提醒卡片、Excel 匯出/匯入換算美股台幣時，都用這個值
+       （以前寫死 29）。財務總覽每個日期欄位仍然用各自的「美金匯率」那一列，不受影響。
+       存在本機 (USD_DEFAULT_RATE_V1)，登入後跟著股票管理資料一起同步到雲端 (stockAssets.usdRate)。 */
+    const USD_RATE_KEY = 'USD_DEFAULT_RATE_V1';
+    let usdDefaultRate = (() => {
+      try { const v = Number(localStorage.getItem(USD_RATE_KEY)); return v > 0 ? v : 29; } catch (e) { return 29; }
+    })();
+
+    function getUsdRate() { return usdDefaultRate; }
+
+    function applyUsdRate(v, opts = {}) {
+      const n = Number(v);
+      if (!(n > 0)) return false;
+      usdDefaultRate = n;
+      try { localStorage.setItem(USD_RATE_KEY, String(n)); } catch (e) { /* 略過 */ }
+      const input = document.getElementById('usdRateInput');
+      if (input && document.activeElement !== input) input.value = n;
+      const desc = document.getElementById('usdRateDesc');
+      if (desc) desc.textContent = n;
+      if (!opts.silent) {
+        if (typeof renderTable === 'function') renderTable();
+        if (typeof renderSummary === 'function') renderSummary();
+      }
+      return true;
+    }
+
+    function onUsdRateInputChange(input) {
+      if (!applyUsdRate(input.value)) {
+        alert('請輸入大於 0 的數字');
+        input.value = usdDefaultRate;
+        return;
+      }
+      if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
+      if (typeof showToast === 'function') showToast('💵 美元匯率已改為 ' + usdDefaultRate, 'success');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => applyUsdRate(usdDefaultRate, { silent: true }));

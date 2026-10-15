@@ -246,7 +246,7 @@ function buildHoldingsSheet(wb) {
 
   stocks.forEach(s => {
     const isUS = isUsStock(s);
-    const fxRate = isUS ? 29 : 1;
+    const fxRate = isUS ? getUsdRate() : 1;
     const totalCost = (Number(s.totalCost) || 0) * fxRate;
     const shares = Number(s.shares) || 0;
     const currentPrice = (Number(s.currentPrice) || 0) * fxRate;

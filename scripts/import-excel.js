@@ -406,7 +406,7 @@ function importHoldingsSheet(ws) {
     const account = idx.account !== undefined ? xlStr(row[idx.account]) : '';
     const code = idx.code !== undefined ? xlStr(row[idx.code]) : '';
     const isUS = account === '美股複委託';
-    const fx = isUS ? 29 : 1;
+    const fx = isUS ? getUsdRate() : 1;
 
     const shares = idx.shares !== undefined ? xlNum(row[idx.shares]) : 0;
     const totalCost = idx.totalCost !== undefined ? xlNum(row[idx.totalCost]) / fx : 0;

@@ -92,7 +92,7 @@ function tipsWidgetBuildHoldings() {
     let totalCost = 0, totalVal = 0;
     const perStock = [];
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       const cost = (Number(s.totalCost) || 0) * fx;
       const val = (Number(s.shares) || 0) * (Number(s.currentPrice) || 0) * fx;
       totalCost += cost; totalVal += val;
@@ -137,7 +137,7 @@ function tipsWidgetBuildAllTimeDividend() {
   try {
     if (typeof stocks === 'undefined' || typeof pastColumns === 'undefined' || typeof isUsStock !== 'function') return [];
     let totalDiv = 0;
-    stocks.forEach(s => { totalDiv += (Number(s.cashDividends) || 0) * (isUsStock(s) ? 29 : 1); });
+    stocks.forEach(s => { totalDiv += (Number(s.cashDividends) || 0) * (isUsStock(s) ? getUsdRate() : 1); });
     const realized = pastColumns.reduce((sum, col) => sum + col.items.reduce((s, it) => s + (Number(it.amount) || 0), 0), 0);
     const combined = totalDiv + realized;
     if (combined <= 0) return [];
@@ -223,7 +223,7 @@ function tipsWidgetBuildTopDividendStockThisYear() {
     const thisYear = new Date().getFullYear();
     let best = null;
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       const sum = (s.dividendHistory || [])
         .filter(h => Number(h.year) === thisYear)
         .reduce((acc, h) => acc + (Number(h.cash) || 0), 0) * fx;
@@ -261,7 +261,7 @@ function tipsWidgetBuildDividendYoY() {
 
     let thisYearSum = 0, lastYearSum = 0;
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       (s.dividendHistory || []).forEach(h => {
         if (!h.cashDate || !h.cash) return;
         const d = yfParseDateInt(h.cashDate);
@@ -293,13 +293,13 @@ function tipsWidgetBuildOverallYield() {
   try {
     if (typeof stocks === 'undefined' || typeof getUniqueEstimateStocks !== 'function' || typeof dividendEstimates === 'undefined' || typeof isUsStock !== 'function') return [];
     let totalEstCash = 0, totalCost = 0;
-    stocks.forEach(s => { totalCost += (Number(s.totalCost) || 0) * (isUsStock(s) ? 29 : 1); });
+    stocks.forEach(s => { totalCost += (Number(s.totalCost) || 0) * (isUsStock(s) ? getUsdRate() : 1); });
     getUniqueEstimateStocks().forEach(us => {
       const key = us.code || us.name;
       const est = dividendEstimates[key];
       if (est && est.expCash) {
         const stock = stocks.find(s => (s.code || s.name) === key);
-        const fx = stock && isUsStock(stock) ? 29 : 1;
+        const fx = stock && isUsStock(stock) ? getUsdRate() : 1;
         totalEstCash += (Number(est.expCash) || 0) * (Number(us.shares) || 0) * fx;
       }
     });
@@ -315,7 +315,7 @@ function tipsWidgetBuildConcentration() {
     let totalVal = 0;
     const perStock = [];
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       const val = (Number(s.shares) || 0) * (Number(s.currentPrice) || 0) * fx;
       totalVal += val;
       perStock.push({ name: s.name, val });
@@ -335,7 +335,7 @@ function tipsWidgetBuildAccountAllocation() {
     let totalVal = 0;
     const byAccount = {};
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       const val = (Number(s.shares) || 0) * (Number(s.currentPrice) || 0) * fx;
       totalVal += val;
       const acc = s.account || '未分類';
@@ -363,7 +363,7 @@ function tipsWidgetBuildAccountReturnCompare() {
     if (typeof stocks === 'undefined' || !stocks.length || typeof isUsStock !== 'function') return [];
     const byAccount = {};
     stocks.forEach(s => {
-      const fx = isUsStock(s) ? 29 : 1;
+      const fx = isUsStock(s) ? getUsdRate() : 1;
       const cost = (Number(s.totalCost) || 0) * fx;
       const val = (Number(s.shares) || 0) * (Number(s.currentPrice) || 0) * fx;
       if (cost <= 0) return;
@@ -463,7 +463,7 @@ function tipsWidgetBuildMilestone() {
   try {
     if (typeof stocks === 'undefined' || typeof pastColumns === 'undefined' || typeof isUsStock !== 'function') return [];
     let totalDiv = 0;
-    stocks.forEach(s => { totalDiv += (Number(s.cashDividends) || 0) * (isUsStock(s) ? 29 : 1); });
+    stocks.forEach(s => { totalDiv += (Number(s.cashDividends) || 0) * (isUsStock(s) ? getUsdRate() : 1); });
     const realized = pastColumns.reduce((sum, col) => sum + col.items.reduce((s, it) => s + (Number(it.amount) || 0), 0), 0);
     const combined = totalDiv + realized;
     const milestones = [1000000, 500000, 300000, 100000, 50000, 10000];

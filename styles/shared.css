@@ -28,6 +28,8 @@
     .app-header-cloud .btn { font-size: 12px; padding: 6px 12px; background: transparent; color: #f4f0e8; border-color: rgba(244,240,232,0.35); }
     .app-header-cloud .btn:hover { background: rgba(244,240,232,0.12); }
     .app-header-cloud #syncStatus { color: #ddd5c4; }
+    .app-header-cloud .usd-rate-box { display: inline-flex; align-items: center; gap: 6px; color: #ddd5c4; white-space: nowrap; }
+    .app-header-cloud .usd-rate-box input { width: 64px; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(244,240,232,0.35); background: rgba(244,240,232,0.08); color: #f4f0e8; }
 
 /* ====== 懸浮小型計算機 (全域版本，financeView / stockView 皆可使用) ======
    與 stock.css 內 #stockView 專用樣式規則相同，僅移除 #stockView 前綴、
