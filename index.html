@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles/insurance.css">
   <link rel="stylesheet" href="styles/tips-widget.css">
   <link rel="stylesheet" href="styles/overview.css">
+  <link rel="stylesheet" href="styles/mobile.css">
 
   <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -26,11 +27,12 @@
 
   <div class="app-header">
     <div class="app-header-title">📋 個人財務資產狀況管理</div>
+    <button type="button" class="mb-header-more" id="mbHeaderMore" onclick="mbToggleHeaderMenu(event)" aria-label="匯率與登入">⋯</button>
     <div class="app-tabs">
-      <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')">📋 財務總覽</button>
-      <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')">📈 股票管理</button>
-      <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')">🛡️ 保險總覽</button>
-      <button class="app-tab-btn" id="tabBtnOverview" onclick="switchAppView('overview')">📊 資產總覽</button>
+      <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')"><span class="tab-ic">📋</span> <span class="tab-lb">財務總覽</span></button>
+      <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')"><span class="tab-ic">📈</span> <span class="tab-lb">股票管理</span></button>
+      <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')"><span class="tab-ic">🛡️</span> <span class="tab-lb">保險總覽</span></button>
+      <button class="app-tab-btn" id="tabBtnOverview" onclick="switchAppView('overview')"><span class="tab-ic">📊</span> <span class="tab-lb">資產總覽</span></button>
     </div>
     <div class="app-header-cloud">
       <label class="usd-rate-box" title="股票管理換算美股台幣用的預設美元匯率（財務總覽每期另有自己的匯率）">💵 美元匯率
@@ -949,5 +951,6 @@
   <script src="scripts/export-excel.js"></script>
   <script src="scripts/import-excel.js"></script>
   <script src="scripts/tips-widget.js"></script>
+  <script src="scripts/mobile.js"></script>
 </body>
 </html>

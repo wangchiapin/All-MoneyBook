@@ -1,0 +1,208 @@
+/* ====================================================================
+   手機版（螢幕寬度 ≤ 760px）專用樣式 —— 搭配 scripts/mobile.js。
+   電腦版完全不受影響：所有規則都在下面這個 @media 裡面，
+   只有 .mb-header-more（⋯ 按鈕）在電腦版需要先隱藏。
+   ==================================================================== */
+.mb-header-more { display: none; }
+.mb-toolbar-more { display: none; }
+.mb-only { display: none; }
+
+@media (max-width: 760px) {
+  .mb-only { display: block; }
+  body { padding: 6px 6px calc(70px + env(safe-area-inset-bottom)) !important; }
+
+  /* ---------- 標題列：只留一行 ---------- */
+  .app-header {
+    position: relative;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding: 9px 12px !important;
+    margin-bottom: 8px !important;
+    border-radius: 8px !important;
+  }
+  .app-header-title { font-size: 0.98rem !important; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .mb-header-more {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 32px; border-radius: 8px;
+    border: 1px solid rgba(244,240,232,0.35); background: transparent; color: #f4f0e8;
+    font-size: 1.2rem; line-height: 1; cursor: pointer;
+  }
+  /* 匯率、同步狀態、登入：收進 ⋯ 選單 */
+  .app-header-cloud { display: none !important; }
+  .app-header.mb-menu-open .app-header-cloud {
+    display: flex !important; flex-direction: column; align-items: stretch; gap: 10px !important;
+    position: absolute; top: calc(100% + 6px); right: 6px; z-index: 1600;
+    min-width: 230px; padding: 12px; margin: 0 !important;
+    background: #4a4438; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    font-size: 13px !important;
+  }
+  .app-header.mb-menu-open .app-header-cloud .usd-rate-box { justify-content: space-between; }
+  .app-header.mb-menu-open .app-header-cloud .usd-rate-box input { width: 90px; font-size: 14px; padding: 6px 8px; }
+  .app-header.mb-menu-open .app-header-cloud .btn { font-size: 13px !important; padding: 9px 12px !important; }
+
+  /* ---------- 分頁按鈕：移到畫面最下方 ---------- */
+  .app-tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+    display: flex !important; gap: 0 !important;
+    background: #fdfbf7; border-top: 1px solid #ddd5c4;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(60,54,46,0.06);
+  }
+  .app-tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    border: none !important; border-radius: 8px !important; background: transparent !important;
+    color: #93897a !important; padding: 5px 0 4px !important; font-size: 10.5px !important;
+  }
+  .app-tab-btn .tab-ic { font-size: 19px; line-height: 1.1; filter: grayscale(0.6); opacity: 0.75; }
+  .app-tab-btn.active { color: #3c362e !important; font-weight: 700 !important; background: #f1ebdf !important; }
+  .app-tab-btn.active .tab-ic { filter: none; opacity: 1; }
+
+  /* 浮動元件不要蓋住底部分頁 */
+  .tips-widget { bottom: calc(80px + env(safe-area-inset-bottom)) !important; left: 10px !important; z-index: 800 !important; }
+  #globalToastBox { bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+
+  /* 操作指南寫的是鍵盤快捷鍵，手機用不到 */
+  .help-tips { display: none !important; }
+
+  /* ---------- 共用：從下方滑出的面板 ---------- */
+  .mb-sheet-overlay {
+    position: fixed; inset: 0; z-index: 2500; background: rgba(0,0,0,0.4);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    animation: mbFade 0.15s ease-out;
+  }
+  .mb-sheet {
+    background: #fdfbf7; color: #3c362e; border-radius: 16px 16px 0 0;
+    max-height: 88vh; overflow-y: auto; padding: 8px 14px calc(14px + env(safe-area-inset-bottom));
+    animation: mbUp 0.18s ease-out;
+  }
+  .mb-sheet-grab { width: 38px; height: 4px; border-radius: 2px; background: #ddd5c4; margin: 4px auto 10px; }
+  .mb-sheet-title { font-size: 1.02rem; font-weight: 700; margin-bottom: 2px; }
+  .mb-sheet-sub { font-size: 0.78rem; color: #93897a; margin-bottom: 12px; }
+  .mb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .mb-field label { display: block; font-size: 0.74rem; color: #93897a; margin-bottom: 3px; }
+  .mb-field input {
+    width: 100%; box-sizing: border-box; font-size: 16px; padding: 9px 10px;
+    border: 1px solid #ddd5c4; border-radius: 8px; background: #fff; color: #3c362e; font-family: inherit;
+  }
+  .mb-field .mb-ro { padding: 9px 10px; border-radius: 8px; background: #f1ebdf; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .mb-row-btns { display: flex; gap: 8px; margin-bottom: 10px; }
+  .mb-row-btns button, .mb-actions button, .mb-menu-list button {
+    flex: 1; padding: 11px 8px; border-radius: 10px; border: 1px solid #ddd5c4;
+    background: #fff; color: #3c362e; font-size: 0.9rem; font-family: inherit; cursor: pointer;
+  }
+  .mb-actions { display: flex; gap: 8px; }
+  .mb-actions .mb-primary-btn { background: #766c5a; border-color: #766c5a; color: #fff; font-weight: 700; }
+  .mb-actions .mb-danger-btn { color: #b6533c; flex: 0 0 auto; padding: 11px 14px; }
+  .mb-menu-list { display: flex; flex-direction: column; gap: 8px; }
+  .mb-menu-list button { text-align: left; padding: 13px 14px; }
+  .mb-menu-list .mb-danger-btn { color: #b6533c; }
+  .mb-note { font-size: 0.78rem; color: #93897a; margin: -4px 0 12px; }
+  @keyframes mbUp { from { transform: translateY(30px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+  @keyframes mbFade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- 視窗：全螢幕、欄位排成一欄 ---------- */
+  .modal-overlay, #stockView .modal-overlay, #insuranceView .modal-overlay { align-items: stretch !important; justify-content: stretch !important; }
+  .modal-overlay .modal-card, #stockView .modal-overlay .modal-card, #insuranceView .modal-overlay .modal-card {
+    width: 100vw !important; max-width: 100vw !important;
+    height: 100% !important; max-height: 100% !important;
+    border-radius: 0 !important; margin: 0 !important;
+    display: flex !important; flex-direction: column !important;
+  }
+  .modal-overlay .modal-body, #stockView .modal-overlay .modal-body, #insuranceView .modal-overlay .modal-body { flex: 1 !important; max-height: none !important; overflow-y: auto !important; padding: 14px !important; }
+  .modal-overlay .modal-header, #stockView .modal-overlay .modal-header, #insuranceView .modal-overlay .modal-header, .modal-overlay .modal-footer, #stockView .modal-overlay .modal-footer, #insuranceView .modal-overlay .modal-footer { flex-shrink: 0 !important; padding: 10px 14px !important; }
+  .modal-overlay .modal-footer, #stockView .modal-overlay .modal-footer, #insuranceView .modal-overlay .modal-footer { padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important; }
+  .modal-overlay .modal-footer .btn, #stockView .modal-overlay .modal-footer .btn, #insuranceView .modal-overlay .modal-footer .btn { min-height: 42px; padding: 10px 16px !important; }
+  .modal-overlay .form-grid, #stockView .modal-overlay .form-grid, #insuranceView .modal-overlay .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .modal-overlay .form-grid > *, #stockView .modal-overlay .form-grid > *, #insuranceView .modal-overlay .form-grid > * { grid-column: 1 / -1 !important; }
+  .modal-overlay input, .modal-overlay select, .modal-overlay textarea { font-size: 16px !important; }
+
+  /* ---------- 股票管理 ---------- */
+  #stockView { padding: 0 !important; }
+  #stockView .header { padding: 4px 4px 8px !important; margin-bottom: 6px !important; }
+  #stockView .header h1 { font-size: 1.02rem !important; }
+  #stockView .header h1 span { display: none; }
+
+  /* 數字卡片：兩欄、縮小；分頁專屬的那排預設收起來 */
+  body #stockView .dashboards-wrapper { gap: 6px !important; margin-bottom: 6px !important; }
+  body #stockView .dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 6px !important; }
+  body #stockView .stat-card { padding: 8px 8px !important; border-radius: 10px !important; }
+  body #stockView .stat-title { font-size: 0.68rem !important; margin-bottom: 1px !important; }
+  body #stockView .stat-value { font-size: 1.02rem !important; }
+  body #stockView .stat-desc { font-size: 0.66rem !important; }
+  body #stockView #subDashboardContainer { display: none !important; }
+  body #stockView.mb-more-stats #subDashboardContainer { display: grid !important; }
+  #stockView .mb-more-stats-btn {
+    display: block; width: 100%; margin: 0 0 8px; padding: 7px; border-radius: 8px;
+    border: 1px dashed #ddd5c4; background: transparent; color: #766c5a; font-size: 0.8rem; font-family: inherit;
+  }
+
+  /* 工具列：只留常用按鈕，其他收進「⋯ 更多」 */
+  #stockView .toolbar-bar { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; margin-bottom: 6px !important; }
+  #stockView .toolbar-bar:not(.mb-open) > :not(.mb-primary):not(.mb-toolbar-more) { display: none !important; }
+  #stockView .toolbar-bar > .mb-primary, #stockView .toolbar-bar > .mb-toolbar-more { flex: 1 1 auto; }
+  #stockView .toolbar-bar .btn { min-height: 40px !important; padding: 8px 10px !important; font-size: 0.82rem !important; }
+  #stockView .mb-toolbar-more {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto !important; min-height: 40px; padding: 8px 12px; border-radius: 6px;
+    border: 1px solid #ddd5c4; background: #fdfbf7; color: #3c362e; font-size: 0.82rem; font-family: inherit;
+  }
+
+  /* 子分頁：單排左右滑，右邊淡出提示還有 */
+  #stockView .filter-bar { flex-direction: column !important; align-items: stretch !important; gap: 6px !important; padding: 6px !important; }
+  #stockView .tab-group {
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
+            mask-image: linear-gradient(to right, #000 85%, transparent);
+    padding-right: 24px !important; scrollbar-width: none;
+  }
+  #stockView .tab-group::-webkit-scrollbar { display: none; }
+  #stockView .search-input { width: 100% !important; box-sizing: border-box; font-size: 16px !important; }
+
+  /* 持股卡片 */
+  #stockView.mb-cards-mode #tableWithChartLayout,
+  #stockView.mb-cards-mode #topScrollWrapper { display: none !important; }
+  #stockView .mb-stock-cards { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  #stockView .mb-stock-card {
+    background: #fdfbf7; border: 1px solid #ddd5c4; border-radius: 12px; padding: 10px 12px;
+    color: #3c362e; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  #stockView .mb-stock-card:active { background: #f1ebdf; }
+  #stockView .mb-sc-r1, #stockView .mb-sc-r2, #stockView .mb-sc-r3 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .mb-sc-name { font-weight: 700; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mb-sc-name small { font-weight: 500; color: #93897a; font-size: 0.75rem; }
+  .mb-sc-val { font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #stockView .mb-sc-r2 { margin-top: 3px; font-size: 0.76rem; color: #93897a; }
+  .mb-sc-r2 span:last-child { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #stockView .mb-sc-r3 { margin-top: 3px; font-size: 0.72rem; color: #b3a998; }
+  .mb-up { color: var(--up-red, #b6533c) !important; }
+  .mb-down { color: var(--down-green, #4a7c59) !important; }
+  #stockView .mb-empty { text-align: center; color: #93897a; padding: 30px 0; font-size: 0.85rem; }
+
+  /* ---------- 財務總覽：窄左欄 ---------- */
+  #financeView .toolbar { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; }
+  #financeView .toolbar .btn { padding: 8px 10px !important; font-size: 0.8rem !important; min-height: 38px !important; }
+  #financeView .toolbar .btn[style*="margin-left:auto"] { margin-left: 0 !important; }
+  #floatingChartPanel { top: 60px !important; right: 8px !important; left: auto !important; }
+
+  .row-label, th.row-label {
+    min-width: 0 !important; width: 27vw !important; max-width: 112px !important;
+    padding: 4px 5px !important; font-size: 0.72rem !important; white-space: normal !important;
+  }
+  .row-label-left { display: none !important; }            /* ☰ 拖曳、✖ 封存 → 改成點名稱叫出選單 */
+  .row-label-content { flex-wrap: wrap; justify-content: center; padding: 0 !important; gap: 0 2px; line-height: 1.25; }
+  .row-label .name-input {
+    width: 100% !important; font-size: 0.74rem !important; padding: 1px 0 !important;
+    pointer-events: none; white-space: normal; text-overflow: ellipsis;
+  }
+  .row-label .row-label-text { max-width: 100% !important; white-space: normal !important; }
+  .row-label .badge-auto { font-size: 0.58rem !important; padding: 0 4px !important; }
+  td.row-label.mb-label-tappable { cursor: pointer; }
+  td.row-label.mb-label-tappable::after {
+    content: '⋯'; position: absolute; right: 3px; top: 1px; font-size: 0.65rem; color: #b3a998;
+  }
+  #financeTable th:not(.row-label), #financeTable td:not(.row-label) {
+    min-width: 84px !important; font-size: 0.78rem !important; padding: 4px 6px !important;
+  }
+  /* 分區標題（一、銀行與現金帳戶…）固定在左邊，往右滑也看得到 */
+  .sec-header { text-align: left !important; }
+  .sec-header .mb-sec-text { position: sticky; left: 8px; display: inline-block; padding: 0 4px; }
+}
