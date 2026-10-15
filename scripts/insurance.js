@@ -15,11 +15,101 @@ let insurancePolicies = [];
 try { insurancePolicies = JSON.parse(localStorage.getItem('INSURANCE_POLICIES_V1')) || []; } catch (e) { insurancePolicies = []; }
 
 function saveInsuranceToStorage() {
+  saveInsuranceLocalOnly();
+  scheduleInsuranceCloudSync();
+}
+
+function saveInsuranceLocalOnly() {
   try {
     localStorage.setItem('INSURANCE_POLICIES_V1', JSON.stringify(insurancePolicies));
   } catch (e) {
     if (typeof showToast === 'function') showToast('⚠️ 本機儲存失敗，這次的變更可能沒有存進去', 'error');
   }
+}
+
+/* ====== 保險雲端同步 (Firestore: insuranceAssets/{uid}) ======
+   做法比照股票管理：登入時讀雲端；修改後 2 秒自動整份上傳；
+   上傳前先比對 updatedAt，若別台裝置在這之後存過，先問要不要覆蓋。
+   保護機制：雲端沒有資料、或雲端是空清單但本機有保單時，以本機為準並上傳，
+   避免先用手機（本機沒有保單）登入時把電腦上的保單蓋成空的。 */
+let insuranceCloudLoaded = false;          // 雲端讀完之前不上傳，避免舊的本機資料先蓋掉雲端
+let insuranceCloudSyncTimer = null;
+let lastKnownInsuranceCloudUpdatedAt = null;
+
+function insuranceDocRef() {
+  if (typeof fbDb === 'undefined' || !fbDb || typeof fbUser === 'undefined' || !fbUser) return null;
+  return fbDb.collection('insuranceAssets').doc(fbUser.uid);
+}
+
+async function loadInsuranceFromCloud() {
+  const ref = insuranceDocRef();
+  if (!ref) return;
+  try {
+    const snap = await ref.get();
+    const cloudList = (snap.exists && Array.isArray(snap.data().policies)) ? snap.data().policies : null;
+    if (cloudList && cloudList.length > 0) {
+      insurancePolicies = cloudList;
+      lastKnownInsuranceCloudUpdatedAt = snap.data().updatedAt || null;
+      saveInsuranceLocalOnly();
+      renderInsuranceTable();
+      insuranceCloudLoaded = true;
+    } else {
+      // 雲端沒有資料或是空清單：把本機的保單傳上去
+      lastKnownInsuranceCloudUpdatedAt = (snap.exists && snap.data().updatedAt) || null;
+      insuranceCloudLoaded = true;
+      await pushInsuranceToCloud();
+    }
+  } catch (e) {
+    console.warn('讀取保險雲端資料失敗', e);
+    if (typeof showToast === 'function') showToast('⚠️ 讀取保險雲端資料失敗，目前顯示的是本機資料', 'error');
+  }
+}
+
+async function pushInsuranceToCloud() {
+  const ref = insuranceDocRef();
+  if (!ref || !insuranceCloudLoaded) return;
+  try {
+    const snap = await ref.get();
+    if (snap.exists) {
+      const cloudUpdatedAt = snap.data().updatedAt || null;
+      if (lastKnownInsuranceCloudUpdatedAt && cloudUpdatedAt && cloudUpdatedAt !== lastKnownInsuranceCloudUpdatedAt) {
+        const proceed = confirm(
+          '⚠️ 偵測到雲端的保險資料在你上次同步之後，已經被其他裝置更新過（可能是手機或另一台電腦）。\n\n' +
+          '按「確定」會用這台裝置目前的內容覆蓋雲端（另一台裝置的變更會遺失）。\n' +
+          '按「取消」不會儲存，建議重新整理頁面，拉取雲端最新版本後再繼續編輯。'
+        );
+        if (!proceed) {
+          if (typeof showToast === 'function') showToast('已暫停同步：雲端有更新的保險資料，尚未覆蓋', 'error');
+          return;
+        }
+      }
+    }
+    const updatedAt = new Date().toISOString();
+    // 整份覆蓋（不用 merge:true），避免刪除的保單又被合併回來
+    await ref.set({ policies: insurancePolicies, updatedAt });
+    lastKnownInsuranceCloudUpdatedAt = updatedAt;
+  } catch (e) {
+    console.warn('保險資料雲端同步失敗', e);
+    const hint = (e && e.code === 'permission-denied') ? '（Firebase 規則尚未開放 insuranceAssets）' : '';
+    if (typeof showToast === 'function') showToast('⚠️ 保險資料雲端同步失敗' + hint + '，本機已儲存', 'error');
+  }
+}
+
+function scheduleInsuranceCloudSync() {
+  if (typeof fbUser === 'undefined' || !fbUser || !insuranceCloudLoaded) return;
+  clearTimeout(insuranceCloudSyncTimer);
+  insuranceCloudSyncTimer = setTimeout(pushInsuranceToCloud, 2000);
+}
+
+if (typeof fbAuth !== 'undefined' && fbAuth) {
+  fbAuth.onAuthStateChanged((user) => {
+    if (user) {
+      loadInsuranceFromCloud();
+    } else {
+      insuranceCloudLoaded = false;
+      lastKnownInsuranceCloudUpdatedAt = null;
+    }
+  });
 }
 
 const INSURANCE_TYPE_OPTIONS = ['壽險', '醫療險', '意外險', '防癌險', '失能扶助險', '重大疾病險', '儲蓄型保險', '投資型保單', '其他'];
