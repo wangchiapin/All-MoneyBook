@@ -1,0 +1,36 @@
+name: 每日更新收盤價
+
+on:
+  schedule:
+    - cron: "10 8 * * 1-5"   # 台灣時間每週一到週五 16:10（收盤後）
+  workflow_dispatch:         # 也可以在 Actions 頁面手動按「Run workflow」立刻抓一次
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-prices
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 抓證交所與櫃買中心收盤價
+        run: python .github/scripts/fetch_prices.py
+      - name: 有變動就存回 repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/prices.json
+          if git diff --cached --quiet; then
+            echo "價格沒有變動（可能是放假），不存檔"
+          else
+            git commit -m "更新股價資料 $(TZ=Asia/Taipei date +%F)"
+            git push
+          fi

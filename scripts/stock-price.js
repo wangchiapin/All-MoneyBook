@@ -1,45 +1,28 @@
-/* ====== 🔄 更新股價（按了才抓，抓完仍可手動改市值） ======
-   來源：證交所 OpenAPI（上市股票與 ETF 的最近一個交易日收盤價），
-         櫃買中心 OpenAPI（上櫃股票，抓不到就跳過）。
+/* ====== 🔄 更新股價（按了才更新，更新後仍可手動改市值） ======
+   資料來源：GitHub Action（.github/workflows/prices.yml）每週一到週五 16:10
+   自動去證交所、櫃買中心抓收盤價，存成本網站的 data/prices.json，這裡只讀這個檔案，
+   不直接連證交所（避免被擋）。
    比對方式：用持股的「股票代號」對應。美股、沒填代號、找不到的持股維持原本的數字不動。
    更新內容：現價 + 市值（市值 = 收盤價 × 持有股數），跟手動改市值的結果一樣會存檔、同步雲端，
    也可以用「復原」(Ctrl+Z) 回到更新前。 */
 
+/* 回傳 { '00878': { price: 35.34, date: '1151013' } }；讀不到回傳 null */
 async function fetchTwPriceMap() {
-  const prices = {};   // { '00878': { price: 35.34, date: '1151013' } }
-  let ok = false;
-
   try {
-    const res = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
-    const list = await res.json();
-    if (Array.isArray(list)) {
-      list.forEach(r => {
-        const p = parseFloat(String(r.ClosingPrice || '').replace(/,/g, ''));
-        if (r.Code && p > 0) prices[String(r.Code).trim().toUpperCase()] = { price: p, date: r.Date || '' };
-      });
-      ok = true;
-    }
+    // 加上時間參數，避免瀏覽器拿到舊的快取檔案
+    const res = await fetch('data/prices.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const prices = {};
+    Object.entries((json && json.prices) || {}).forEach(([code, v]) => {
+      const p = Number(v && v.p);
+      if (p > 0) prices[String(code).trim().toUpperCase()] = { price: p, date: (v && v.d) || '' };
+    });
+    return Object.keys(prices).length ? prices : null;
   } catch (e) {
-    console.warn('證交所收盤價抓取失敗', e);
+    console.warn('讀取 data/prices.json 失敗', e);
+    return null;
   }
-
-  try {
-    const res2 = await fetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
-    const list2 = await res2.json();
-    if (Array.isArray(list2)) {
-      list2.forEach(r => {
-        const code = String(r.SecuritiesCompanyCode || r.Code || '').trim().toUpperCase();
-        const p = parseFloat(String(r.Close || r.ClosingPrice || '').replace(/,/g, ''));
-        if (code && p > 0 && !prices[code]) prices[code] = { price: p, date: r.Date || '' };
-      });
-      ok = true;
-    }
-  } catch (e) {
-    // 上櫃來源抓不到就跳過，不影響上市資料
-    console.warn('櫃買中心收盤價抓取失敗', e);
-  }
-
-  return ok ? prices : null;
 }
 
 function formatRocDate(d) {
@@ -53,7 +36,7 @@ async function updateStockPrices() {
   try {
     const prices = await fetchTwPriceMap();
     if (!prices) {
-      showToast('⚠️ 抓取失敗，連不上證交所網站，股價沒有變動', 'error');
+      showToast('⚠️ 讀不到股價資料（data/prices.json），股價沒有變動。第一次使用請先到 GitHub Actions 手動執行「每日更新收盤價」', 'error');
       return;
     }
 
