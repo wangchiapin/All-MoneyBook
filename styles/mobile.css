@@ -6,6 +6,7 @@
 .mb-header-more { display: none; }
 .mb-toolbar-more { display: none; }
 .mb-only { display: none; }
+.mb-section-bar, .mb-table-cards { display: none; }
 
 @media (max-width: 760px) {
   .mb-only { display: block; }
@@ -176,6 +177,155 @@
   .mb-up { color: var(--up-red, #b6533c) !important; }
   .mb-down { color: var(--down-green, #4a7c59) !important; }
   #stockView .mb-empty { text-align: center; color: #93897a; padding: 30px 0; font-size: 0.85rem; }
+
+  /* ================= 第二階段 ================= */
+
+  /* 上排大分頁：持股／賣出／借出／股利／永豐／定期定額／紀錄 */
+  #stockView .mb-section-bar {
+    display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none;
+    position: sticky; top: 0; z-index: 60;
+    margin: 0 -6px 8px; padding: 6px 6px 7px;
+    background: var(--bg-color, #f4f0e8);
+    -webkit-mask-image: linear-gradient(to right, #000 92%, transparent);
+            mask-image: linear-gradient(to right, #000 92%, transparent);
+  }
+  #stockView .mb-section-bar::-webkit-scrollbar { display: none; }
+  #stockView .mb-section-bar button {
+    flex: 1 0 auto; padding: 8px 12px; border-radius: 999px;
+    border: 1px solid #ddd5c4; background: #fdfbf7; color: #766c5a;
+    font-size: 0.86rem; font-family: inherit; white-space: nowrap; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #stockView .mb-section-bar button.active { background: #5c5445; border-color: #5c5445; color: #fff; font-weight: 700; }
+  #stockView .mb-section-bar button:last-child { margin-right: 18px; }
+
+  /* 原本那排裡的賣出、借出…按鈕在手機上收掉（已經在上排了） */
+  #stockView .tab-group .tab-btn-sales, #stockView .tab-group .tab-btn-lending, #stockView .tab-group .tab-btn-dividends,
+  #stockView .tab-group .tab-btn-yf, #stockView .tab-group .tab-btn-dca, #stockView .tab-group .tab-btn-snapshot { display: none !important; }
+
+  /* 持股以外的分頁：不顯示全體數字卡、帳戶篩選、搜尋框；改顯示該分頁自己的數字卡 */
+  #stockView.mb-special .filter-bar { display: none !important; }
+  #stockView.mb-special .dashboards-wrapper > .dashboard:not(#subDashboardContainer) { display: none !important; }
+  body #stockView.mb-special #subDashboardContainer { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  body #stockView.mb-special #subDashboardContainer > *[style*="display: none"],
+  body #stockView.mb-special #subDashboardContainer > *[style*="display:none"] { display: none !important; }
+  #stockView.mb-special .mb-more-stats-btn { display: none !important; }
+  body #stockView.mb-special #subDashboardContainer > .mb-hide-empty { display: none !important; }
+
+  /* 分頁裡的小分頁（賣出明細／小計／歷年…）：一排左右滑 */
+  #stockView .sales-sub-bar { flex-direction: column !important; align-items: stretch !important; gap: 6px !important; margin-bottom: 8px !important; }
+  #stockView .sales-sub-toggle { width: auto !important; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap !important; }
+  #stockView .sales-sub-toggle::-webkit-scrollbar { display: none; }
+  #stockView .sales-sub-btn { flex: 1 0 auto; white-space: nowrap; padding: 8px 10px !important; font-size: 0.8rem !important; }
+  #stockView #summaryYearSelectorContainer, #stockView #divEstToolbar { justify-content: space-between; }
+  #stockView .snapshot-date-bar { flex-direction: column !important; align-items: stretch !important; padding: 8px !important; }
+  #stockView #snapshotDatePillsContainer { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 2px; }
+  #stockView .snapshot-pill-group { flex-shrink: 0; }
+
+  /* 賣出明細的查詢列：欄位排滿一行 */
+  #stockView #salesQueryPanel { padding: 10px !important; }
+  #stockView #salesQueryPanel > div:first-child > div { flex: 1 1 140px; }
+  #stockView #salesQueryPanel .form-control { width: 100% !important; box-sizing: border-box; font-size: 16px !important; }
+  #stockView #salesQueryPanel > div:first-child > .btn { flex: 1 1 100%; min-height: 38px; }
+  #stockView #salesQuerySummary { gap: 4px 14px !important; }
+  #stockView .stock-calc-card { flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
+  #stockView .stock-calc-left { flex-wrap: wrap; gap: 6px !important; }
+  #stockView #calcTargetInput { width: 100% !important; box-sizing: border-box; font-size: 16px !important; }
+
+  /* 表格 → 卡片 */
+  #stockView.mb-tcards-mode #tableWithChartLayout,
+  #stockView.mb-tcards-mode #topScrollWrapper,
+  #insuranceView.mb-tcards-mode .table-container { display: none !important; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-table-cards { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-table-cards:empty { display: none; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tcard {
+    background: #fdfbf7; border: 1px solid #ddd5c4; border-radius: 12px; padding: 10px 12px;
+    color: #3c362e; -webkit-tap-highlight-color: transparent;
+  }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tcard.mb-tappable { cursor: pointer; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tcard.mb-tappable:active { background: #f1ebdf; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tcard-total { background: #f1ebdf; border-style: dashed; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tc-head { display: flex; align-items: baseline; gap: 8px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tc-title { font-weight: 700; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tc-sub { font-size: 0.74rem; color: #93897a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-tc-arrow { margin-left: auto; color: #b3a998; font-size: 1.1rem; line-height: 1; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kvs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; margin-top: 6px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kvs.mb-kvs-1 { grid-template-columns: minmax(0, 1fr); }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 0.78rem; min-width: 0; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv > span { color: #93897a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv > b { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-colcard .mb-kv { padding: 3px 0; border-bottom: 1px dotted #e8e1d3; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-colcard .mb-kv:last-child { border-bottom: none; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv .mb-cell-clone { max-width: 55%; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-row-heading { font-weight: 700; color: #5c5445; font-size: 0.85rem; padding: 10px 2px 0; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-row-heading .btn, :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-empty .btn { margin-top: 8px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-table-cards .mb-empty { text-align: center; color: #93897a; padding: 26px 8px; font-size: 0.85rem; background: #fdfbf7; border: 1px dashed #ddd5c4; border-radius: 12px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-inline-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    background: #fdfbf7; border: 1px solid #ece6d9; border-radius: 10px; font-size: 0.82rem;
+  }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-inline-label { flex: 1; min-width: 0; color: #5c5445; font-weight: 700; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-inline-val { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-inline-row .mb-cell-clone { max-width: 45%; }
+
+  /* 卡片／面板裡複製過來的輸入框 */
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone input, :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone select, :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone textarea {
+    flex: 1; min-width: 0; width: 100%; box-sizing: border-box; font-size: 16px; padding: 8px 10px;
+    border: 1px solid #ddd5c4; border-radius: 8px; background: #fff; color: #3c362e; font-family: inherit; text-align: left;
+  }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone button { font-size: 0.9rem; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd5c4; background: #fff; color: #3c362e; font-family: inherit; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-cell-clone .dca-date-picker-btn { width: 100%; text-align: left; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-fields.mb-fields-1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-fields.mb-fields-1 .mb-field .mb-ro { min-height: 20px; word-break: break-all; }
+
+  /* 月份／年度區塊（每日買賣紀錄小計、非持股股利） */
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    background: #ece6d9; border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; color: #5c5445;
+  }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-top b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group { background: #fdfbf7; border: 1px solid #ddd5c4; border-radius: 12px; overflow: hidden; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 9px 12px; background: #f1ebdf; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-title { font-weight: 700; font-size: 0.92rem; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-foot { display: flex; gap: 10px; font-size: 0.76rem; color: #766c5a; flex-wrap: wrap; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-foot b { font-variant-numeric: tabular-nums; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-group-body { padding: 4px 12px 8px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px dotted #e8e1d3; font-size: 0.84rem; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair:last-child { border-bottom: none; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair-head { font-size: 0.72rem; color: #93897a; padding-bottom: 2px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair-b { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; justify-content: flex-end; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair-new { opacity: 0.75; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair .mb-cell-clone input { padding: 6px 8px; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair .stock-cell-wrap { display: flex; flex-direction: column; gap: 2px; width: 100%; min-width: 0 !important; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair .stock-cell-box { display: flex; gap: 4px; width: 100%; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair .stock-cell-date { font-size: 0.68rem; color: #b3a998; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-pair .btn-cal-icon { padding: 4px 8px; }
+
+  /* 股利「歷年股利總合」：表格跟折線圖上下排 */
+  #stockView .table-with-chart-layout.split-mode { display: flex !important; flex-direction: column !important; gap: 10px; }
+  #stockView .table-with-chart-layout.split-mode > * { width: 100% !important; max-width: 100% !important; flex: none !important; }
+
+  #stockView .split-mode #stockGrid th { white-space: normal !important; font-size: 0.74rem !important; padding: 6px 4px !important; }
+  #stockView .split-mode #stockGrid td { font-size: 0.8rem !important; padding: 8px 4px !important; }
+  #stockView .split-mode #mainTableContainer { overflow-x: hidden !important; }
+
+  /* 媽的永豐：三張表上下排、數字卡兩欄 */
+  #stockView .yf-tables-container { flex-direction: column !important; gap: 10px !important; }
+  #stockView .yf-table-card { width: 100% !important; min-width: 0 !important; flex: none !important; }
+  #stockView .yf-table-scroll { max-height: 60vh; overflow-x: auto; }
+  #stockView .yf-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 6px !important; }
+  #stockView .yf-overview-header { flex-wrap: wrap; gap: 6px; }
+  #stockView #yfOvName { max-width: 100% !important; flex: 1; }
+
+  /* 保險總覽工具列 */
+  #insuranceView .toolbar { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; }
+  #insuranceView .toolbar .btn { flex: 1 1 auto; min-height: 40px; }
+  #insuranceView #insuranceSearchBox { flex: 1 1 100%; min-width: 0 !important; font-size: 16px !important; box-sizing: border-box; }
+
+  /* 投資小知識：縮小後的小圓鈕放右下角，不擋內容 */
+  .tips-widget-bubble { left: auto !important; right: 12px !important; bottom: calc(78px + env(safe-area-inset-bottom)) !important; width: 38px !important; height: 38px !important; font-size: 1.05rem !important; z-index: 850 !important; }
+  .tips-widget { width: auto !important; right: 10px !important; }
 
   /* ---------- 財務總覽：窄左欄 ---------- */
   #financeView .toolbar { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; }
