@@ -1,0 +1,75 @@
+/* ====== 📊 資產總覽 (#overviewView) 專屬樣式，沿用 finance.css 的 :root 色票 ====== */
+#overviewView { padding: 18px 20px 40px; max-width: 1200px; margin: 0 auto; color: var(--text-main); }
+#overviewView .ov-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+#overviewView .ov-title { font-size: 1.35rem; font-weight: 700; }
+#overviewView .ov-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+#overviewView .ov-actions { display: flex; gap: 8px; }
+#overviewView .ov-note { background: #f6ecd2; border: 1px solid #e6d3a3; color: #7a5a1c; border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; line-height: 1.6; margin-bottom: 8px; }
+#overviewView .ov-cmp-line { margin-bottom: 10px; }
+
+#overviewView .ov-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
+#overviewView .ov-kpi { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; }
+#overviewView .ov-kpi:first-child { background: #f5eee0; border-color: #ddc4b3; }
+#overviewView .ov-kpi-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+#overviewView .ov-kpi-value { font-size: 1.35rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+#overviewView .ov-kpi-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 3px; }
+#overviewView .ov-delta { font-size: 0.75rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#overviewView .ov-up { color: #4a7c59; }
+#overviewView .ov-down { color: #b6533c; }
+#overviewView .ov-flat { color: var(--text-muted); }
+#overviewView .ov-muted { color: var(--text-muted); font-weight: normal; }
+
+#overviewView .ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+#overviewView .ov-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; }
+#overviewView .ov-card-wide { grid-column: 1 / -1; }
+#overviewView .ov-card-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+#overviewView .ov-chart { position: relative; height: 240px; }
+#overviewView .ov-chart-pie { height: 220px; }
+
+#overviewView .ov-detail { border-top: 1px solid var(--border-color); }
+#overviewView .ov-detail:first-of-type { border-top: none; }
+#overviewView .ov-detail summary { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 10px 2px; cursor: pointer; font-size: 0.88rem; list-style: none; }
+#overviewView .ov-detail summary::-webkit-details-marker { display: none; }
+#overviewView .ov-detail summary::before { content: '▸'; color: var(--text-muted); position: absolute; margin-left: -14px; }
+#overviewView .ov-detail[open] summary::before { content: '▾'; }
+#overviewView .ov-detail summary { position: relative; padding-left: 16px; }
+#overviewView .ov-detail summary b { font-variant-numeric: tabular-nums; }
+#overviewView .ov-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 0 0 10px; }
+#overviewView .ov-table th { text-align: left; color: var(--text-muted); font-weight: 700; padding: 5px 6px; border-bottom: 1px solid var(--border-color); }
+#overviewView .ov-table td { padding: 5px 6px; border-bottom: 1px dashed #ebe4d6; font-variant-numeric: tabular-nums; }
+#overviewView .ov-table th, #overviewView .ov-table td { text-align: left; background: transparent; }
+#overviewView .ov-table .r { text-align: right; }
+#overviewView .ov-print-img { display: none; }
+
+@media (max-width: 760px) {
+  #overviewView { padding: 12px 12px 40px; }
+  #overviewView .ov-grid { grid-template-columns: minmax(0, 1fr); }
+  #overviewView .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #overviewView .ov-kpi { padding: 10px; }
+  #overviewView .ov-kpi-value { font-size: 1.05rem; }
+  #overviewView .ov-detail summary { grid-template-columns: 1fr auto; }
+  #overviewView .ov-detail summary .ov-muted { display: none; }
+}
+
+/* ====== 匯出 PDF（列印）：只印資產總覽，A4 直式 ====== */
+@media print {
+  body.ov-printing { background: #fff !important; }
+  body.ov-printing .app-header,
+  body.ov-printing #financeView,
+  body.ov-printing #stockView,
+  body.ov-printing #insuranceView,
+  body.ov-printing #tipsWidget,
+  body.ov-printing #floatingCalculator,
+  body.ov-printing #globalToastBox,
+  body.ov-printing #overviewView .ov-actions { display: none !important; }
+  body.ov-printing #overviewView { display: block !important; padding: 0; max-width: none; }
+  body.ov-printing #overviewView .ov-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.ov-printing #overviewView .ov-kpi-value { font-size: 1.05rem; }
+  body.ov-printing #overviewView .ov-card,
+  body.ov-printing #overviewView .ov-kpi { break-inside: avoid; }
+  body.ov-printing #overviewView .ov-detail summary::before { content: ''; }
+  body.ov-printing #overviewView .ov-chart { height: auto !important; }
+  body.ov-printing #overviewView .ov-chart canvas { display: none !important; }
+  body.ov-printing #overviewView .ov-print-img { display: block; width: 100%; height: auto; }
+  @page { size: A4 portrait; margin: 12mm; }
+}

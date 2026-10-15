@@ -341,6 +341,10 @@
         let appView = 'finance';
         if (stockViewEl && stockViewEl.style.display !== 'none') appView = 'stock';
         else if (insuranceViewEl && insuranceViewEl.style.display !== 'none') appView = 'insurance';
+        else {
+          const overviewViewEl = document.getElementById('overviewView');
+          if (overviewViewEl && overviewViewEl.style.display !== 'none') appView = 'overview';
+        }
         localStorage.setItem(NAV_STATE_KEY, JSON.stringify({
           appView: appView,
           stockFilter: currentFilter,
@@ -356,7 +360,9 @@
         const saved = JSON.parse(localStorage.getItem(NAV_STATE_KEY) || 'null');
         if (!saved) return;
 
-        if (saved.appView === 'insurance') {
+        if (saved.appView === 'overview') {
+          if (typeof switchAppView === 'function') switchAppView('overview');
+        } else if (saved.appView === 'insurance') {
           if (typeof switchAppView === 'function') switchAppView('insurance');
         } else if (saved.appView === 'stock') {
           if (typeof switchAppView === 'function') switchAppView('stock');

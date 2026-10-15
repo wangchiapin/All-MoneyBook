@@ -467,13 +467,17 @@
       const financeView = document.getElementById('financeView');
       const stockView = document.getElementById('stockView');
       const insuranceView = document.getElementById('insuranceView');
+      const overviewView = document.getElementById('overviewView');
       const tabFinance = document.getElementById('tabBtnFinance');
       const tabStock = document.getElementById('tabBtnStock');
       const tabInsurance = document.getElementById('tabBtnInsurance');
+      const tabOverview = document.getElementById('tabBtnOverview');
 
       financeView.style.display = 'none';
       stockView.style.display = 'none';
       if (insuranceView) insuranceView.style.display = 'none';
+      if (overviewView) overviewView.style.display = 'none';
+      if (tabOverview) tabOverview.classList.remove('active');
       tabFinance.classList.remove('active');
       tabStock.classList.remove('active');
       if (tabInsurance) tabInsurance.classList.remove('active');
@@ -489,6 +493,10 @@
         if (insuranceView) insuranceView.style.display = 'block';
         if (tabInsurance) tabInsurance.classList.add('active');
         if (typeof renderInsuranceTable === 'function') renderInsuranceTable();
+      } else if (view === 'overview') {
+        if (overviewView) overviewView.style.display = 'block';
+        if (tabOverview) tabOverview.classList.add('active');
+        if (typeof showOverview === 'function') showOverview();
       } else {
         financeView.style.display = 'block';
         tabFinance.classList.add('active');

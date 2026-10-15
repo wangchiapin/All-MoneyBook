@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/prices.json
+          git add data/prices.json data/month-end
           if git diff --cached --quiet; then
             echo "價格沒有變動（可能是放假），不存檔"
           else

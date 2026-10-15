@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles/stock.css">
   <link rel="stylesheet" href="styles/insurance.css">
   <link rel="stylesheet" href="styles/tips-widget.css">
+  <link rel="stylesheet" href="styles/overview.css">
 
   <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -29,6 +30,7 @@
       <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')">📋 財務總覽</button>
       <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')">📈 股票管理</button>
       <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')">🛡️ 保險總覽</button>
+      <button class="app-tab-btn" id="tabBtnOverview" onclick="switchAppView('overview')">📊 資產總覽</button>
     </div>
     <div class="app-header-cloud">
       <label class="usd-rate-box" title="股票管理換算美股台幣用的預設美元匯率（財務總覽每期另有自己的匯率）">💵 美元匯率
@@ -772,6 +774,11 @@
   </div>
   <!-- /#stockView -->
 
+  <!-- 📊 資產總覽：內容由 scripts/overview.js 產生（只看不改） -->
+  <div id="overviewView" style="display:none;">
+    <div id="overviewContent"></div>
+  </div>
+
   <div id="insuranceView" style="display:none;">
 
     <div class="toolbar">
@@ -938,6 +945,7 @@
   <script src="scripts/stock-price.js"></script>
   <script src="scripts/stock-analysis.js"></script>
   <script src="scripts/insurance.js"></script>
+  <script src="scripts/overview.js"></script>
   <script src="scripts/export-excel.js"></script>
   <script src="scripts/import-excel.js"></script>
   <script src="scripts/tips-widget.js"></script>

@@ -13,6 +13,10 @@
    "prices": {"00878": {"n": "國泰永續高股息", "p": 35.34, "d": "1151013"},
               "BTI": {"n": "BTI", "p": 52.1, "d": "2026-10-12", "us": 1}, ...}}
 
+另外把當天價格存成 data/month-end/YYYY-MM.json（台灣時間的月份），同一個月每次覆蓋，
+月份結束後留下的就是「該月最後一個交易日」的收盤價，給資產總覽算「上個月底」的股票現值。
+格式：{"month": "2026-10", "twseDate": "1151031", "usDate": "2026-10-30", "p": {"00878": 35.6, "BTI": 56.6}}
+
 不放「抓取時間」，這樣價格沒變的日子（例如放假）檔案內容完全一樣，就不會多一筆紀錄。
 證交所抓失敗時不覆蓋舊檔案，結束代碼非 0，Actions 頁面會顯示紅色失敗。
 """
@@ -34,6 +38,8 @@ URL_STOOQ = "https://stooq.com/q/l/?s={s}.us&f=sd2t2ohlcv&h&e=csv"
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 OUT = os.path.join(ROOT, "data", "prices.json")
 US_LIST = os.path.join(ROOT, "data", "us-symbols.txt")
+MONTH_DIR = os.path.join(ROOT, "data", "month-end")
+KEEP_MONTHS = 15  # 月底價保留幾個月
 TW = dt.timezone(dt.timedelta(hours=8))
 
 
@@ -161,6 +167,19 @@ def build(twse, tpex):
             "prices": dict(sorted(prices.items()))}
 
 
+def write_month_end(data):
+    month = dt.datetime.now(TW).strftime("%Y-%m")
+    os.makedirs(MONTH_DIR, exist_ok=True)
+    out = {"month": month, "twseDate": data["twseDate"], "usDate": data.get("usDate", ""),
+           "p": {k: v["p"] for k, v in data["prices"].items()}}
+    with open(os.path.join(MONTH_DIR, month + ".json"), "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+        f.write("\n")
+    files = sorted(fn for fn in os.listdir(MONTH_DIR) if re.fullmatch(r"\d{4}-\d{2}\.json", fn))
+    for fn in files[:-KEEP_MONTHS]:
+        os.remove(os.path.join(MONTH_DIR, fn))
+
+
 def main():
     try:
         with open(OUT, encoding="utf-8") as f:
@@ -202,6 +221,7 @@ def main():
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
+    write_month_end(data)
     print(f"完成：上市 {len(twse)} 檔（{data['twseDate']}），上櫃 {len(tpex)} 檔（{data['tpexDate']}），美股 {len(us)} 檔（{data['usDate']}）")
     return 0
 
