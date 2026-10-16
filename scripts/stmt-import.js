@@ -282,6 +282,8 @@
       const list = (pool || stocks).filter(s => !account || s.account === account);
       const n = stmtNorm(name), c = String(code || '').trim();
       const mapped = stmtSettingsObj().nameMap[n];
+      if (mapped) stmtUsedNames.set(n, name);
+      if (mapped === STMT_GONE) return { h: null, how: 'gone' };
       if (c) { const h = list.find(s => String(s.code || '').trim() === c); if (h) return { h, how: 'code' }; }
       if (mapped) { const h = list.find(s => stmtNorm(s.name) === stmtNorm(mapped)); if (h) return { h, how: 'map' }; }
       let h = list.find(s => stmtNorm(s.name) === n);
@@ -295,7 +297,7 @@
       const m = stmtMatchHolding(name, code, account);
       if (m.h) return m.h.name;
       const mapped = stmtSettingsObj().nameMap[stmtNorm(name)];
-      return mapped || name;
+      return mapped && mapped !== STMT_GONE ? mapped : name;
     }
 
     /* ================= 3. 建立確認清單 ================= */
@@ -304,8 +306,12 @@
       return Object.assign({ id: stmtItemSeq++, checked: true, group: 'add', edit: [], data: {}, note: '' }, o);
     }
 
+    const STMT_GONE = '__gone';
+    const stmtUsedNames = new Map(); // 這次匯入有用到的名稱對應（設定區要留著讓你改）
+    function stmtIsGone(name) { return stmtSettingsObj().nameMap[stmtNorm(name)] === STMT_GONE; }
     function stmtBuildItems() {
       stmtItems = [];
+      stmtUsedNames.clear();
       const results = stmtResults();
       const imported = new Set((stmtImported || []).map(x => x.statementId));
       const sim = JSON.parse(JSON.stringify(stocks)); // 模擬：照順序套用買賣，算先買先賣成本和月底股數
@@ -548,6 +554,9 @@
       // 分組：可能已輸入 → 略過；有問題 → 需要你看
       stmtItems.forEach(it => {
         if (it.type === 'info') return;
+        if (['sell', 'stockDiv', 'cashDiv', 'holdingFix', 'lentShares'].includes(it.type) && stmtIsGone(it.data.name)) {
+          it.group = 'skip'; it.checked = false; it.note = '設定成「已經沒有這檔，不用問」'; return;
+        }
         if (it.dup) { it.group = 'skip'; it.checked = false; it.note = '可能已經輸入過了'; return; }
         if (it.failed) { it.group = 'review'; it.checked = false; it.note = '這份對帳單自我檢查沒通過，請先確認'; return; }
         if ((it.type === 'sell') && it.noHolding) { it.group = 'review'; it.note = '持股裡找不到這檔，只會記賣出、不會扣持股（成本要自己填）'; }
@@ -585,9 +594,14 @@
       });
       stmtItems.forEach(it => {
         if ((it.type === 'cashDiv' && !it.holdingId) || ((it.type === 'sell' || it.type === 'stockDiv' || it.type === 'holdingFix') && it.noHolding)) {
-          const n = it.type === 'cashDiv' ? it.data.name : it.data.name;
+          const n = it.data.name;
+          if (stmtIsGone(n)) return;
           if (!seenNames.has(stmtNorm(n))) { seenNames.add(stmtNorm(n)); out.names.push({ name: n, account: it.account || '' }); }
         }
+      });
+      // 這次有用到、之前設過的名稱對應：也列出來，方便改
+      stmtUsedNames.forEach((name, n) => {
+        if (!seenNames.has(n)) { seenNames.add(n); out.names.push({ name, account: '', saved: true }); }
       });
       return out;
     }
@@ -634,16 +648,88 @@
             <option value="share" ${s.lendUnit === 'share' ? 'selected' : ''}>股（2,000 股填 2000）</option>
           </select></div>`);
       }
-      need.names.forEach(({ name, account }) => {
-        const pool = stocks.filter(st => !account || st.account === account);
-        rows.push(`<div class="stmt-set-row need"><span>對帳單上的「${stmtEsc(name)}」是持股的</span>
-          <select onchange="stmtSetName('${stmtEsc(stmtNorm(name))}', this.value)">
-            <option value="">請選擇</option>
-            ${pool.map(st => `<option value="${stmtEsc(st.name)}">${stmtEsc(st.name)}${account ? '' : '（' + stmtEsc(st.account) + '）'}</option>`).join('')}
-          </select></div>`);
+      need.names.forEach(({ name, account, saved }) => {
+        const cur = s.nameMap[stmtNorm(name)] || '';
+        rows.push(`<div class="stmt-set-row ${cur ? '' : 'need'}"><span>對帳單上的「${stmtEsc(name)}」是持股的</span>
+          ${stmtNameSelect(stmtNorm(name), cur, account)}</div>`);
       });
-      if (!rows.length) return '';
-      return `<div class="stmt-settings"><div class="stmt-sec-title">⚙️ 對應設定（設一次之後會記住）</div>${rows.join('')}</div>`;
+      const manage = stmtManageHtml();
+      if (!rows.length && !manage) return '';
+      return `<div class="stmt-settings"><div class="stmt-sec-title">⚙️ 對應設定（設一次之後會記住）</div>${rows.join('')}${manage}</div>`;
+    }
+    function stmtNameSelect(n, cur, account) {
+      const pool = stocks.filter(st => !account || st.account === account);
+      const names = [];
+      pool.forEach(st => { if (!names.some(x => x.name === st.name)) names.push(st); });
+      const known = !cur || cur === STMT_GONE || names.some(st => st.name === cur);
+      return `<select onchange="stmtSetName('${stmtEsc(n)}', this.value)">
+            <option value="" ${cur ? '' : 'selected'}>${cur ? '（清除這個設定）' : '請選擇'}</option>
+            ${known ? '' : `<option value="${stmtEsc(cur)}" selected>${stmtEsc(cur)}（持股裡找不到）</option>`}
+            ${names.map(st => `<option value="${stmtEsc(st.name)}" ${st.name === cur ? 'selected' : ''}>${stmtEsc(st.name)}${account ? '' : '（' + stmtEsc(st.account) + '）'}</option>`).join('')}
+            <option value="${STMT_GONE}" ${cur === STMT_GONE ? 'selected' : ''}>已經沒有這檔，不用問</option>
+          </select>`;
+    }
+
+    // 管理所有記住的設定（這次沒用到的也能改、能刪）
+    let stmtManageOpen = false;
+    function stmtKeyLabel(key, v) {
+      if (v && v.label) return v.label;
+      const now = stmtLabelFor(key);
+      if (now) return now;
+      return String(key).replace(/\|/g, ' ');
+    }
+    function stmtManageHtml() {
+      const s = stmtSettingsObj();
+      const accs = getAllAccounts();
+      const items = (typeof state !== 'undefined' && state.bankItems) ? state.bankItems : [];
+      const secRows = [], bankRows = [], nameRows = [];
+      Object.keys(s.accountMap).forEach(key => {
+        const v = s.accountMap[key] || {};
+        const del = `<button type="button" class="stmt-del-btn" onclick="stmtDelSetting('acc', '${stmtEsc(key)}')">刪除</button>`;
+        if (v.stockAccount !== undefined) {
+          secRows.push(`<div class="stmt-set-row"><span>${stmtEsc(stmtKeyLabel(key, v))} → 證券帳戶</span><span class="stmt-set-ctl">
+            <select onchange="stmtSetSec('${stmtEsc(key)}', this.value)">
+              ${accs.includes(v.stockAccount) ? '' : `<option value="${stmtEsc(v.stockAccount)}" selected>${stmtEsc(v.stockAccount)}</option>`}
+              ${accs.map(a => `<option value="${stmtEsc(a)}" ${a === v.stockAccount ? 'selected' : ''}>${stmtEsc(a)}</option>`).join('')}
+            </select>${del}</span></div>`);
+        } else {
+          const val = v.skip ? '__skip' : String(v.financeItemId || '');
+          bankRows.push(`<div class="stmt-set-row"><span>${stmtEsc(stmtKeyLabel(key, v))} → 財務總覽</span><span class="stmt-set-ctl">
+            <select onchange="stmtSetBank('${stmtEsc(key)}', this.value)">
+              ${items.map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === val ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+              <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
+            </select>${del}</span></div>`);
+        }
+      });
+      Object.keys(s.nameMap).forEach(n => {
+        nameRows.push(`<div class="stmt-set-row"><span>「${stmtEsc(n)}」是持股的</span><span class="stmt-set-ctl">
+          ${stmtNameSelect(n, s.nameMap[n], '')}
+          <button type="button" class="stmt-del-btn" onclick="stmtDelSetting('name', '${stmtEsc(n)}')">刪除</button></span></div>`);
+      });
+      if (!secRows.length && !bankRows.length && !nameRows.length) return '';
+      const sec = (t, r) => r.length ? `<div class="stmt-manage-sub">${t}</div>${r.join('')}` : '';
+      return `<details class="stmt-manage" ${stmtManageOpen ? 'open' : ''} ontoggle="stmtManageOpen = this.open">
+        <summary>🗂️ 管理所有記住的設定（${secRows.length + bankRows.length + nameRows.length}）</summary>
+        <div class="stmt-set-tip">這裡會列出以前設過的全部對應，這次沒用到的也可以改或刪掉。</div>
+        ${sec('證券帳戶', secRows)}${sec('銀行帳戶', bankRows)}${sec('股票名稱', nameRows)}
+      </details>`;
+    }
+    function stmtDelSetting(kind, key) {
+      const s = stmtSettingsObj();
+      if (!confirm('確定要刪掉這個設定嗎？下次匯入會再問你一次。')) return;
+      if (kind === 'acc') delete s.accountMap[key]; else delete s.nameMap[key];
+      stmtAfterSetting();
+    }
+    // 存設定時順便記下看得懂的名稱（管理清單用）
+    function stmtLabelFor(key) {
+      for (const r of stmtResults()) {
+        if (r.kind === 'securities' && stmtAccKey(r) === key) return `${r.label}（帳號 ${r.account || '—'}）`;
+        if (r.kind === 'bank') for (const a of (r.bankAccounts || [])) {
+          if (stmtAccKey(r, a.accountNo, a.currency) === key) return `${r.label} ${a.type || ''} ${a.accountNo}（${a.currency}）`;
+        }
+      }
+      const old = stmtSettingsObj().accountMap[key];
+      return old && old.label ? old.label : '';
     }
 
     function stmtAfterSetting() {
@@ -651,8 +737,8 @@
       stmtBuildItems();
       stmtRender();
     }
-    function stmtSetSec(key, acc) { stmtSettingsObj().accountMap[key] = { stockAccount: acc }; stmtAfterSetting(); }
-    function stmtSetBank(key, v) { stmtSettingsObj().accountMap[key] = v === '__skip' ? { skip: true } : { financeItemId: v }; stmtAfterSetting(); }
+    function stmtSetSec(key, acc) { const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign({ stockAccount: acc }, label ? { label } : {}); stmtAfterSetting(); }
+    function stmtSetBank(key, v) { const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign(v === '__skip' ? { skip: true } : { financeItemId: v }, label ? { label } : {}); stmtAfterSetting(); }
     function stmtSetCol(v) { stmtSettingsObj().financeCol = Number(v); stmtAfterSetting(); }
     function stmtSetLendUnit(v) { stmtSettingsObj().lendUnit = v || undefined; stmtAfterSetting(); }
     function stmtSetName(n, v) { if (v) stmtSettingsObj().nameMap[n] = v; else delete stmtSettingsObj().nameMap[n]; stmtAfterSetting(); }
@@ -735,6 +821,18 @@
         </div>`;
     }
 
+    // 每一區裡面照種類排：買進 → 賣出 → 當沖 → 配股 → 現金股利 → 借卷收入 → 出借張數 → 庫存 → 銀行
+    const STMT_KINDS = ['buy', 'sell', 'daytrade', 'stockDiv', 'cashDiv', 'lendIncome', 'lentShares', 'holding', 'balance', 'bankref', 'other'];
+    const STMT_KIND_LABEL = { buy: '買進', sell: '賣出', daytrade: '當沖', stockDiv: '配股', cashDiv: '現金股利', lendIncome: '借卷收入', lentShares: '出借張數', holding: '庫存', balance: '銀行餘額', bankref: '銀行入帳核對', other: '其他' };
+    function stmtKindOf(it) {
+      if (it.type === 'holdingFix') return 'holding';
+      if (it.type !== 'info') return STMT_KINDS.includes(it.type) ? it.type : 'other';
+      const t = String(it.title || '');
+      if (t.startsWith('庫存')) return 'holding';
+      if (t.startsWith('銀行入帳')) return 'bankref';
+      if (t.startsWith('當沖')) return 'daytrade';
+      return 'other';
+    }
     function stmtReviewHtml() {
       const cards = stmtFiles.map(f => {
         if (f.status === 'ok') {
@@ -753,11 +851,18 @@
       const gHtml = groups.map(([g, title, tip]) => {
         const list = stmtItems.filter(it => it.group === g);
         if (!list.length) return '';
-        const sorted = list.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+        const sorted = list.slice().sort((a, b) => STMT_KINDS.indexOf(stmtKindOf(a)) - STMT_KINDS.indexOf(stmtKindOf(b)) || String(a.date || '').localeCompare(String(b.date || '')));
         const open = g !== 'skip' || list.length <= 6;
+        let lastKind = null;
+        const body = sorted.map(it => {
+          const k = stmtKindOf(it);
+          let head = '';
+          if (k !== lastKind) { lastKind = k; head = `<div class="stmt-subhead">${STMT_KIND_LABEL[k]}（${sorted.filter(x => stmtKindOf(x) === k).length}）</div>`; }
+          return head + stmtItemHtml(it);
+        }).join('');
         const canCnt = list.filter(it => it.type !== 'info').length;
         const btns = canCnt ? `<span class="stmt-group-btns"><button type="button" onclick="event.preventDefault(); event.stopPropagation(); stmtGroupCheck('${g}', true)">全選</button><button type="button" onclick="event.preventDefault(); event.stopPropagation(); stmtGroupCheck('${g}', false)">全不選</button></span>` : '';
-        return `<details class="stmt-group g-${g}" ${open ? 'open' : ''}><summary><span class="stmt-sec-title">${title}（${list.length}）</span><span class="stmt-group-tip">${tip}</span>${btns}</summary>${sorted.map(stmtItemHtml).join('')}</details>`;
+        return `<details class="stmt-group g-${g}" ${open ? 'open' : ''}><summary><span class="stmt-sec-title">${title}（${list.length}）</span><span class="stmt-group-tip">${tip}</span>${btns}</summary>${body}</details>`;
       }).join('');
       return `<div class="stmt-cards">${cards}</div>${stmtSettingsHtml()}${gHtml || '<div class="stmt-empty">沒有要匯入的內容</div>'}`;
     }

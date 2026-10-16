@@ -98,3 +98,12 @@ tr.row-todo td:first-child { box-shadow: inset 4px 0 0 #c8553d; }
 .todo-flag { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; }
 tr.todo-banner td { background: #f6d4c8; color: #7a2f1e; font-size: 0.85rem; font-weight: 600; padding: 8px 12px; text-align: left; }
 tr.todo-banner button { margin-left: 8px; font-size: 0.78rem; padding: 2px 10px; border-radius: 6px; border: 1px solid #c8553d; background: #fff; color: #7a2f1e; cursor: pointer; }
+
+/* 每一區裡的種類小標題 */
+.stmt-subhead { padding: 6px 12px; font-size: 0.78rem; font-weight: 800; color: #6b5f4c; background: #faf7f0; border-top: 1px solid #efe9de; letter-spacing: 0.05em; }
+/* 管理所有記住的設定 */
+.stmt-manage { margin-top: 8px; border-top: 1px dashed #ead8bd; padding-top: 6px; }
+.stmt-manage > summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #6b5f4c; padding: 4px 0; }
+.stmt-manage-sub { font-size: 0.78rem; font-weight: 800; color: #8a6d45; margin-top: 8px; }
+.stmt-set-ctl { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.stmt-del-btn { font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #e0a491; background: #fff; color: #a8543d; cursor: pointer; }
