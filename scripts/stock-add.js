@@ -58,6 +58,7 @@
     function getCurrentPageLockKey() {
       if (currentFilter === 'YONG_FENG_TAB') return 'yf';
       if (currentFilter === 'DIVIDENDS_TAB') return 'dividends';
+      if (currentFilter === 'STOCK_BUYS') return 'buys';
       if (currentFilter === 'STOCK_SALES') return 'sales';
       if (currentFilter === 'STOCK_LENDING_TAB') return 'lending';
       if (currentFilter === 'DCA_TAB') return 'dca';
@@ -74,6 +75,10 @@
       }
       if (currentFilter === 'DIVIDENDS_TAB' && dividendsSubTab === 'past') {
         handleAddNew();
+        return;
+      }
+      if (currentFilter === 'STOCK_BUYS') {
+        openAddBuyModal();
         return;
       }
       if (currentFilter === 'STOCK_SALES') {

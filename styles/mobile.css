@@ -200,7 +200,7 @@
   #stockView .mb-section-bar button:last-child { margin-right: 18px; }
 
   /* 原本那排裡的賣出、借出…按鈕在手機上收掉（已經在上排了） */
-  #stockView .tab-group .tab-btn-sales, #stockView .tab-group .tab-btn-lending, #stockView .tab-group .tab-btn-dividends,
+  #stockView .tab-group .tab-btn-buys, #stockView .tab-group .tab-btn-sales, #stockView .tab-group .tab-btn-lending, #stockView .tab-group .tab-btn-dividends,
   #stockView .tab-group .tab-btn-yf, #stockView .tab-group .tab-btn-dca, #stockView .tab-group .tab-btn-snapshot { display: none !important; }
 
   /* 持股以外的分頁：不顯示全體數字卡、帳戶篩選、搜尋框；改顯示該分頁自己的數字卡 */
@@ -355,4 +355,8 @@
   /* 分區標題（一、銀行與現金帳戶…）固定在左邊，往右滑也看得到 */
   .sec-header { text-align: left !important; }
   .sec-header .mb-sec-text { position: sticky; left: 8px; display: inline-block; padding: 0 4px; }
+}
+
+@media (max-width: 760px) {
+  #stockView .mb-stock-card.mb-sold-out { opacity: 0.55; background: #f4f2ee; }
 }

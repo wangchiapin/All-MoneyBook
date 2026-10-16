@@ -344,6 +344,14 @@
       </div>
     </div>
 
+    <!-- 股票買進分頁專屬：次頁籤切換列 -->
+    <div class="sales-sub-bar" id="buysSubBar" style="display:none;">
+      <div class="sales-sub-toggle">
+        <button class="sales-sub-btn active" id="subBtnBuyList" onclick="setBuysSubTab('list')">📋 買進明細</button>
+        <button class="sales-sub-btn" id="subBtnBuyLots" onclick="setBuysSubTab('lots')">🧺 剩餘批次（先買先賣）</button>
+      </div>
+    </div>
+
     <!-- 股票借出分頁專屬：次頁籤切換列 -->
     <div class="sales-sub-bar" id="lendingSubBar" style="display:none;">
       <div class="sales-sub-toggle">
@@ -622,6 +630,73 @@
     </div>
   </div>
 
+  <!-- 股票買進：彈窗新增（存檔時會自動加進持股） -->
+  <div class="modal-overlay" id="addBuyModal">
+    <div class="modal-card" style="width: 560px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">📈 新增買進</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeAddBuyModal()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">日期 <span style="color:#b6533c;">*</span>（例如 1151016）</label>
+            <input type="text" id="buyModalDate" class="form-control font-mono" autocomplete="off" placeholder="民國年月日" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">證券帳戶 <span style="color:#b6533c;">*</span></label>
+            <select id="buyModalAccount" class="form-control" onchange="onBuyModalInput('account')" onkeydown="handleBuyModalKey(event)"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">名稱 <span style="color:#b6533c;">*</span></label>
+            <input type="text" id="buyModalName" class="form-control" list="stockNameDatalist" autocomplete="off" placeholder="例：台積電" style="font-weight:700;" oninput="onBuyModalInput('name')" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">股數 <span style="color:#b6533c;">*</span></label>
+            <input type="number" step="any" id="buyModalShares" class="form-control font-mono" oninput="onBuyModalInput('shares')" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">成交價</label>
+            <input type="number" step="any" id="buyModalPrice" class="form-control font-mono" oninput="onBuyModalInput('price')" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">成交金額（自動計算）</label>
+            <div id="buyModalAmount" class="font-mono" style="padding:8px 10px; border:1px dashed #ddd5c4; border-radius:6px; background:#fdfbf7; font-size:0.85rem; font-weight:700;">$0</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">手續費</label>
+            <input type="number" step="any" id="buyModalFee" class="form-control font-mono" oninput="onBuyModalInput('fee')" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">成本 ($)</label>
+            <input type="number" step="any" id="buyModalCost" class="form-control font-mono font-bold" oninput="onBuyModalInput('cost')" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">類型</label>
+            <select id="buyModalType" class="form-control" onkeydown="handleBuyModalKey(event)">
+              <option value="一般">一般</option>
+              <option value="定期定額">定期定額</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">備註</label>
+            <input type="text" id="buyModalNote" class="form-control" autocomplete="off" onkeydown="handleBuyModalKey(event)" />
+          </div>
+          <div class="form-group full">
+            <div id="buyModalHoldingInfo" class="buy-modal-info"></div>
+          </div>
+        </div>
+        <div style="margin-top:10px; font-size:0.75rem; color:#766c5a; line-height:1.5;">
+          成交金額＝股數×成交價；成本＝成交金額＋手續費（會自動帶入，也可以直接改）。存檔後持股的股數、成本會跟著加上去。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAddBuyModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitAddBuyModal()">確認新增</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 股票賣出明細：彈窗式新增賣出紀錄（欄位與計算規則同表格） -->
   <div class="modal-overlay" id="addSaleModal">
     <div class="modal-card" style="width: 560px;">
@@ -637,7 +712,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">名稱 <span style="color:#b6533c;">*</span></label>
-            <input type="text" id="saleModalName" class="form-control" autocomplete="off" placeholder="例：台積電" style="font-weight:700;" onkeydown="handleSaleModalKey(event)" />
+            <input type="text" id="saleModalName" class="form-control" autocomplete="off" placeholder="例：台積電" style="font-weight:700;" oninput="onSaleModalFifoToggle(true)" onkeydown="handleSaleModalKey(event)" />
           </div>
           <div class="form-group">
             <label class="form-label">股數</label>
@@ -683,6 +758,15 @@
           <div class="form-group">
             <label class="form-label">價差 / 報酬率（自動計算）</label>
             <div id="saleModalPreview" class="font-mono" style="padding:8px 10px; border:1px dashed #ddd5c4; border-radius:6px; background:#fdfbf7; font-size:0.85rem; font-weight:700;">-</div>
+          </div>
+          <div class="form-group full">
+            <div class="sale-fifo-box" style="padding:10px 12px;">
+              <label class="sale-fifo-check"><input type="checkbox" id="saleModalFifo" onchange="onSaleModalFifoToggle()" /> 同時從持股扣掉（先買先賣）</label>
+              <div class="sale-fifo-detail" id="saleModalFifoDetail">
+                <select id="saleModalHolding" class="form-control" onchange="onSaleModalFifoRefresh()"></select>
+                <div id="saleModalFifoInfo" style="font-size:0.8rem; color:#5c5445; line-height:1.5;"></div>
+              </div>
+            </div>
           </div>
           <div class="form-group full">
             <label class="form-label">備註</label>
@@ -937,6 +1021,7 @@
   <script src="scripts/stock-lending.js"></script>
   <script src="scripts/dividends.js"></script>
   <script src="scripts/stock-sales.js"></script>
+  <script src="scripts/stock-buys.js"></script>
   <script src="scripts/stock.js"></script>
   <script src="scripts/stock-sync.js"></script>
   <script src="scripts/stock-calculator.js"></script>

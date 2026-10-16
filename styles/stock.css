@@ -511,3 +511,15 @@
 #stockView .excel-import-cols { display: block; color: #b3a998; font-weight: 400; margin-top: 2px; }
 #stockView .excel-import-note { margin-top: 8px; font-size: 0.78rem; color: #b6533c; }
 #stockView .excel-import-note-info { color: #5c5445; background: #f4ecd4; padding: 8px 10px; border-radius: 6px; margin-top: 0; margin-bottom: 10px; }
+
+/* ====== 股票買進分頁 ＋ 已全數賣出的持股 ====== */
+#stockView .tab-btn-buys { color: #8a4b38; background: #f3e4dc; font-weight: 700; }
+#stockView tr.row-sold-out td { color: #a9a090; background: #f4f2ee; }
+#stockView tr.row-sold-out input { color: #a9a090; }
+#stockView .sold-out-tag { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; background: #e6e1d8; color: #7d7466; font-size: 0.7rem; font-weight: 700; vertical-align: middle; }
+.buy-modal-info { padding: 8px 10px; border: 1px dashed #ddd5c4; border-radius: 6px; background: #fdfbf7; font-size: 0.82rem; color: #5c5445; line-height: 1.5; }
+.sale-fifo-box { padding: 10px 12px; border: 1px solid #e3dccd; border-radius: 8px; background: #faf7f0; }
+.sale-fifo-box label.sale-fifo-check { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+.sale-fifo-box label.sale-fifo-check input { width: 18px; height: 18px; }
+.sale-fifo-detail { margin-top: 8px; display: none; flex-direction: column; gap: 6px; }
+.sale-fifo-detail.show { display: flex; }

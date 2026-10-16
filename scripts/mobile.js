@@ -62,7 +62,7 @@ function mbCloseSheet() {
 }
 
 /* ==================== 股票管理 ==================== */
-const MB_SPECIAL_FILTERS = ['STOCK_SALES', 'STOCK_LENDING_TAB', 'DIVIDENDS_TAB', 'YONG_FENG_TAB', 'DCA_TAB', 'SNAPSHOT_LOGS', 'PAST_DIVIDENDS'];
+const MB_SPECIAL_FILTERS = ['STOCK_BUYS', 'STOCK_SALES', 'STOCK_LENDING_TAB', 'DIVIDENDS_TAB', 'YONG_FENG_TAB', 'DCA_TAB', 'SNAPSHOT_LOGS', 'PAST_DIVIDENDS'];
 
 function mbIsHoldingsView() {
   return typeof currentFilter !== 'undefined' && !MB_SPECIAL_FILTERS.includes(currentFilter);
@@ -135,7 +135,10 @@ function mbRenderStockCards() {
   box.style.display = useCards ? '' : 'none';
   if (!useCards) { box.innerHTML = ''; return; }
 
-  const list = mbHoldingsList();
+  let list = mbHoldingsList();
+  // 已全數賣出的排到最下面
+  const soldOut = s => typeof isSoldOut === 'function' && isSoldOut(s);
+  list = list.filter(s => !soldOut(s)).concat(list.filter(soldOut));
   if (!list.length) { box.innerHTML = '<div class="mb-empty">沒有符合的股票</div>'; return; }
 
   box.innerHTML = list.map(s => {
@@ -162,8 +165,8 @@ function mbRenderStockCards() {
     if (s.isMerged) extra.push('⚡ 合併顯示，到各帳戶修改');
     void fx;
     return `
-      <div class="mb-stock-card" onclick="mbOpenStockEditor('${mbEsc(String(s.id))}')">
-        <div class="mb-sc-r1"><span class="mb-sc-name">${mbEsc(s.name)} <small>${mbEsc(s.code || '')}</small></span><span class="mb-sc-val">${mvText}</span></div>
+      <div class="mb-stock-card${soldOut(s) ? ' mb-sold-out' : ''}" onclick="mbOpenStockEditor('${mbEsc(String(s.id))}')">
+        <div class="mb-sc-r1"><span class="mb-sc-name">${mbEsc(s.name)} <small>${mbEsc(s.code || '')}</small>${soldOut(s) ? ' <span class="sold-out-tag">已全數賣出</span>' : ''}</span><span class="mb-sc-val">${mvText}</span></div>
         <div class="mb-sc-r2"><span>${mbEsc(s.account || '')}・${sharesText}・${priceText}</span><span class="${profit >= 0 ? 'mb-up' : 'mb-down'}">${profitText}</span></div>
         ${extra.length ? `<div class="mb-sc-r3"><span>${extra.map(mbEsc).join('・')}</span></div>` : ''}
       </div>`;
@@ -317,6 +320,7 @@ function mbMoveFinanceItem(type, id, dir) {
    按鈕一樣是呼叫原本的 setFilter()，被「隱藏子分頁」設定藏起來的，這裡也不顯示。 */
 const MB_SECTIONS = [
   { id: 'HOLDINGS', label: '持股' },
+  { id: 'STOCK_BUYS', label: '買進' },
   { id: 'STOCK_SALES', label: '賣出' },
   { id: 'STOCK_LENDING_TAB', label: '借出' },
   { id: 'DIVIDENDS_TAB', label: '股利' },
@@ -458,6 +462,8 @@ function mbCloneCell(td) {
 
 /* 每個分頁卡片上要顯示哪些欄位（用表頭文字對應；沒設定的就用前幾欄） */
 const MB_ROW_CFG = {
+  'STOCK_BUYS|list': { title: ['名稱'], sub: ['日期', '證券帳戶'], keys: ['股數', '成交價', '成本', '類型'] },
+  'STOCK_BUYS|lots': { title: ['股票名稱'], sub: ['證券帳戶', '批次'], keys: ['剩餘股數', '剩餘成本', '每股成本'] },
   'STOCK_SALES|list': { title: ['名稱'], sub: ['日期', '狀態'], keys: ['股數', '賣出價格', '價差', '報酬率'] },
   'STOCK_SALES|history': { title: ['年份'], keys: ['總成本', '總賣出', '價差', '報酬率'] },
   'STOCK_LENDING_TAB|holdings': { title: ['股票名稱'], keys: ['出借張數', '市值', '成本', '未實現損益'] },
@@ -468,6 +474,7 @@ const MB_SKIP_COLS = ['操作', '備考'];
 
 function mbContextKey() {
   if (typeof currentFilter === 'undefined') return '';
+  if (currentFilter === 'STOCK_BUYS') return 'STOCK_BUYS|' + buysSubTab;
   if (currentFilter === 'STOCK_SALES') return 'STOCK_SALES|' + salesSubTab;
   if (currentFilter === 'STOCK_LENDING_TAB') return 'STOCK_LENDING_TAB|' + lendingSubTab;
   if (currentFilter === 'DIVIDENDS_TAB') return 'DIVIDENDS_TAB|' + dividendsSubTab;
@@ -988,7 +995,8 @@ function mbInit() {
 
   // 在賣出／借出／定期定額按「➕ 新增…列」：新的那一列畫好後自動打開編輯面板
   document.getElementById('btnAddNewStock')?.addEventListener('click', () => {
-    if (mbIsMobile() && !mbIsHoldingsView() && mbModeFor(mbContextKey()) === 'rows') mbMarkPendingNew('mbTableCards');
+    // 股票買進是用彈窗新增，不是新增一列，所以不用自動打開面板
+    if (mbIsMobile() && !mbIsHoldingsView() && currentFilter !== 'STOCK_BUYS' && mbModeFor(mbContextKey()) === 'rows') mbMarkPendingNew('mbTableCards');
   }, true);
 
   // 財務總覽：點名稱叫出選單；點數字格直接進入編輯（手機沒有雙擊）

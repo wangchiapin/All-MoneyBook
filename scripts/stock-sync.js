@@ -6,7 +6,7 @@
     /* ====== Firebase 雲端同步 ====== */
     function gatherAllData() {
       return {
-        stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending,
+        stocks, pastColumns, customAccounts, stockSales, stockBuys, salesHistory, stockLending,
         lendingIncomeRows, lendingIncomeManualYearly, dcaRows,
         dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
@@ -21,6 +21,7 @@
       if (data.pastColumns) pastColumns = data.pastColumns;
       if (data.customAccounts) customAccounts = data.customAccounts;
       if (data.stockSales) stockSales = data.stockSales;
+      if (data.stockBuys) stockBuys = data.stockBuys;
       if (data.salesHistory) salesHistory = data.salesHistory;
       if (data.stockLending) stockLending = data.stockLending;
       if (data.lendingIncomeRows) lendingIncomeRows = data.lendingIncomeRows;
@@ -39,6 +40,7 @@
       localStorage.setItem(STORAGE_KEY_PAST, JSON.stringify(pastColumns));
       localStorage.setItem(STORAGE_KEY_CUSTOM_ACCOUNTS, JSON.stringify(customAccounts));
       localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
+      localStorage.setItem(STORAGE_KEY_STOCK_BUYS, JSON.stringify(stockBuys));
       localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
       localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
       localStorage.setItem(STORAGE_KEY_LENDING_INCOME, JSON.stringify(lendingIncomeRows));
@@ -78,6 +80,8 @@
       upsertByKey(salesHistory, data.salesHistory, h => String(h.year || ''));
       upsertByKey(stockLending, data.stockLending, l => (l.name || '').trim());
       upsertByKey(dcaRows, data.dcaRows, r => (r.name || '').trim());
+      // 股票買進：每筆有自己的 id；持股那邊已經含這些買進的股數，所以只補紀錄、不再加到持股
+      upsertByKey(stockBuys, data.stockBuys, r => String(r.id || ''));
       upsertByKey(pastColumns, data.pastColumns, c => String(c.year || ''));
       if (Array.isArray(data.customAccounts)) {
         data.customAccounts.forEach(acc => {
@@ -216,6 +220,7 @@
         pastColumns: pastColumns,
         customAccounts: customAccounts,
         stockSales: stockSales,
+        stockBuys: stockBuys,
         salesHistory: salesHistory,
         stockLending: stockLending,
         lendingIncomeRows: lendingIncomeRows,

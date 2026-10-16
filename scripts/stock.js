@@ -12,6 +12,7 @@
     const STORAGE_KEY_LENDING_INCOME = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME';
     const STORAGE_KEY_LENDING_INCOME_YEARLY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME_YEARLY';
     const STORAGE_KEY_DCA = 'STOCK_INVESTMENT_EXCEL_PRO_V32_DCA';
+    const STORAGE_KEY_STOCK_BUYS = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_BUYS';
 
     const INITIAL_DATA = [];
 
@@ -31,6 +32,7 @@
     let pastColumns = [];
     let customAccounts = [];
     let stockSales = [];
+    let stockBuys = []; // 股票買進明細 (stock-buys.js)
     let salesHistory = [];
     let stockLending = [];
     let lendingManagedIds = []; // 本次執行期間，曾被「股票借出」分頁同步過出借張數的持股 id
@@ -97,6 +99,9 @@
         const savedDca = localStorage.getItem(STORAGE_KEY_DCA);
         dcaRows = savedDca ? JSON.parse(savedDca) : [];
 
+        const savedBuys = localStorage.getItem(STORAGE_KEY_STOCK_BUYS);
+        stockBuys = savedBuys ? JSON.parse(savedBuys) : [];
+
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
 
@@ -112,6 +117,7 @@
         lendingIncomeRows = [];
         lendingIncomeManualYearly = {};
         dcaRows = [];
+        stockBuys = [];
         dividendEstimates = {};
         exRightsInfo = {};
       }
@@ -128,7 +134,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, stockBuys, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -141,6 +147,7 @@
           pastColumns = prev.pastColumns;
           if (prev.customAccounts) customAccounts = prev.customAccounts;
           if (prev.stockSales) stockSales = prev.stockSales;
+          if (prev.stockBuys) stockBuys = prev.stockBuys;
           if (prev.salesHistory) salesHistory = prev.salesHistory;
           if (prev.stockLending) stockLending = prev.stockLending;
           if (prev.lendingIncomeRows) lendingIncomeRows = prev.lendingIncomeRows;
@@ -179,6 +186,7 @@
         localStorage.setItem(STORAGE_KEY_LENDING_INCOME, JSON.stringify(lendingIncomeRows));
         localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
         localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
+        localStorage.setItem(STORAGE_KEY_STOCK_BUYS, JSON.stringify(stockBuys));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
         localStorage.setItem('STOCK_INVESTMENT_EXRIGHTS_INFO_V1', JSON.stringify(exRightsInfo));
         localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));
@@ -230,6 +238,7 @@
         ...allAccs.map(acc => ({ id: acc, label: acc, isAccount: true, isCustom: !['富邦證券', '國泰證券', '美股複委託'].includes(acc) })),
         { id: 'ETF', label: 'ETF' },
         { id: '台股', label: '台股個股 (合併)' },
+        { id: 'STOCK_BUYS', label: '📈 股票買進', isBuys: true },
         { id: 'STOCK_SALES', label: '📉 股票賣出', isSales: true },
         { id: 'STOCK_LENDING_TAB', label: '📦 股票借出', isLending: true },
         { id: 'DIVIDENDS_TAB', label: '📊 股利', isDividends: true },
@@ -253,7 +262,7 @@
 
       tabContainer.innerHTML = visibleTabs.map(t => {
         let countText = '';
-        if (t.id === 'DIVIDENDS_TAB' || t.id === 'STOCK_SALES' || t.id === 'STOCK_LENDING_TAB' || t.id === 'SNAPSHOT_LOGS' || t.id === 'YONG_FENG_TAB' || t.id === 'DCA_TAB') {
+        if (t.id === 'DIVIDENDS_TAB' || t.id === 'STOCK_SALES' || t.id === 'STOCK_BUYS' || t.id === 'STOCK_LENDING_TAB' || t.id === 'SNAPSHOT_LOGS' || t.id === 'YONG_FENG_TAB' || t.id === 'DCA_TAB') {
           countText = '';
         } else {
           countText = ` (${countByFilter(t.id)})`;
@@ -272,12 +281,18 @@
           `;
         } else {
           return `
-            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''} ${t.isLending ? 'tab-btn-lending' : ''} ${t.isDCA ? 'tab-btn-dca' : ''}" onclick="setFilter('${safeId}')">
+            <button class="tab-btn ${currentFilter === t.id ? 'active' : ''} ${t.isDividends ? 'tab-btn-dividends' : ''} ${t.isYF ? 'tab-btn-yf' : ''} ${t.isSnapshot ? 'tab-btn-snapshot' : ''} ${t.isSales ? 'tab-btn-sales' : ''} ${t.isBuys ? 'tab-btn-buys' : ''} ${t.isLending ? 'tab-btn-lending' : ''} ${t.isDCA ? 'tab-btn-dca' : ''}" onclick="setFilter('${safeId}')">
               ${esc(t.label)}${countText}
             </button>
           `;
         }
       }).join('');
+    }
+
+    // 已全數賣出：用過買進／先買先賣（有批次清單）而且股數變 0 的持股。
+    // 剛手動新增、還沒填股數的持股沒有批次清單，不算。
+    function isSoldOut(s) {
+      return !!s && (Number(s.shares) || 0) <= 0 && Array.isArray(s.lots) && s.lots.length > 0;
     }
 
     function countByFilter(filterId) {
@@ -293,6 +308,9 @@
       currentFilter = filterId;
       if (filterId === 'STOCK_SALES') {
         salesSubTab = 'list';
+      }
+      if (filterId === 'STOCK_BUYS') {
+        buysSubTab = 'list';
       }
       if (filterId === 'STOCK_LENDING_TAB') {
         lendingSubTab = 'holdings';
@@ -350,6 +368,7 @@
           stockFilter: currentFilter,
           dividendsSubTab: dividendsSubTab,
           salesSubTab: salesSubTab,
+          buysSubTab: buysSubTab,
           lendingSubTab: lendingSubTab
         }));
       } catch (e) {}
@@ -373,6 +392,9 @@
             }
             if (saved.stockFilter === 'STOCK_SALES' && saved.salesSubTab) {
               setSalesSubTab(saved.salesSubTab);
+            }
+            if (saved.stockFilter === 'STOCK_BUYS' && saved.buysSubTab) {
+              setBuysSubTab(saved.buysSubTab);
             }
             if (saved.stockFilter === 'STOCK_LENDING_TAB' && saved.lendingSubTab) {
               setLendingSubTab(saved.lendingSubTab);
@@ -604,7 +626,7 @@
       // 判斷這次 render 是不是「剛切換進這個分頁/子分頁」——只有這種情況才要自動捲到
       // 最新一筆資料；如果分頁/子分頁組合跟上次一樣，代表這次只是編輯資料觸發的重繪，
       // 不該把使用者正在編輯的捲動位置強制捲走。
-      const tabContextKey = currentFilter + '|' + salesSubTab + '|' + dividendsSubTab + '|' + lendingSubTab;
+      const tabContextKey = currentFilter + '|' + buysSubTab + '|' + salesSubTab + '|' + dividendsSubTab + '|' + lendingSubTab;
       const isFreshTabEntry = tabContextKey !== lastEnteredTabContext;
       lastEnteredTabContext = tabContextKey;
 
@@ -632,6 +654,9 @@
       if (salesQueryPanel) salesQueryPanel.style.display = 'none'; // 預設隱藏，只有「賣出明細」子分頁會打開
 
       // 「彈窗新增賣出」按鈕：只在股票賣出的「賣出明細」子分頁顯示（小計/歷年紀錄子分頁、或分頁被鎖定時都不顯示）
+      const buysSubBar = document.getElementById('buysSubBar');
+      if (buysSubBar) buysSubBar.style.display = currentFilter === 'STOCK_BUYS' ? 'flex' : 'none';
+
       const btnAddSaleModal = document.getElementById('btnAddSaleModal');
       if (btnAddSaleModal) {
         const showSaleModalBtn = currentFilter === 'STOCK_SALES'
@@ -688,6 +713,17 @@
         if (yrContainer) yrContainer.style.display = (salesSubTab === 'summary') ? 'flex' : 'none';
         if (salesQueryPanel) salesQueryPanel.style.display = (salesSubTab !== 'summary' && salesSubTab !== 'history' && !isPageLocked('sales_detail') && !isPageLocked('sales')) ? 'flex' : 'none';
 
+        if (topScrollWrapper) topScrollWrapper.style.display = 'none';
+        if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
+      } else if (currentFilter === 'STOCK_BUYS') {
+        if (btnAddStock) btnAddStock.textContent = '➕ 新增買進';
+        if (btnAddStock) btnAddStock.style.display = (buysSubTab === 'list') ? '' : 'none';
+        if (btnDel) btnDel.style.display = 'none';
+        if (btnAddYear) btnAddYear.style.display = 'none';
+        if (pastCalcCard) pastCalcCard.style.display = 'none';
+        if (snapshotDateBar) snapshotDateBar.style.display = 'none';
+        if (salesSubBar) salesSubBar.style.display = 'none';
+        if (lendingSubBar) lendingSubBar.style.display = 'none';
         if (topScrollWrapper) topScrollWrapper.style.display = 'none';
         if (mainTableContainer) mainTableContainer.classList.remove('with-top-scroll');
       } else if (currentFilter === 'STOCK_LENDING_TAB') {
@@ -797,6 +833,17 @@
           renderEstimatedDividendsTable(thead, tbody);
           return;
         }
+      }
+
+      // 0-3. 股票買進分頁 (STOCK_BUYS) — stock-buys.js
+      if (currentFilter === 'STOCK_BUYS') {
+        if (isPageLocked('buys')) {
+          renderPageLockPlaceholder(thead, tbody, 'buys', 11);
+          return;
+        }
+        if (buysSubTab === 'lots') renderStockLotsTable(thead, tbody);
+        else renderStockBuysTable(thead, tbody, isFreshTabEntry);
+        return;
       }
 
       // 1. 股票賣出紀錄分頁 (STOCK_SALES)
@@ -1191,6 +1238,9 @@
         );
       }
 
+      // 已全數賣出（股數 0）的持股：保留（股利紀錄還在），排到最下面
+      displayList = displayList.filter(s => !isSoldOut(s)).concat(displayList.filter(s => isSoldOut(s)));
+
       if (displayList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${isAccountTab ? 13 : 12}" style="text-align:center; padding:30px; color:#94a3b8;">無相符股票標的</td></tr>`;
         renderSummary();
@@ -1290,7 +1340,7 @@
               `);
 
         return `
-          <tr data-id="${s.id}" ${enableDrag ? 'draggable="true" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, ' + s.id + ')" ondragend="onDragEnd(event)"' : ''}>
+          <tr data-id="${s.id}" class="${isSoldOut(s) ? 'row-sold-out' : ''}" ${enableDrag ? 'draggable="true" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, ' + s.id + ')" ondragend="onDragEnd(event)"' : ''}>
             ${isAccountTab ? `
               <td>
                 ${enableDrag ? `<span class="drag-handle" title="按住拖曳排序">☰</span>` : `<span style="color:#94a3b8; font-size:0.75rem;">-</span>`}
@@ -1298,7 +1348,7 @@
             ` : ''}
 
             <td>
-              <div style="font-weight:700;">${esc(s.name)} <span style="font-size:0.75rem; color:#64748b;">${s.code ? '(' + esc(s.code) + ')' : ''}</span></div>
+              <div style="font-weight:700;">${esc(s.name)} <span style="font-size:0.75rem; color:#64748b;">${s.code ? '(' + esc(s.code) + ')' : ''}</span>${isSoldOut(s) ? ' <span class="sold-out-tag">已全數賣出</span>' : ''}</div>
               <div style="font-size:0.72rem; color:${isMergedRow ? '#766c5a' : '#b3a998'}; font-weight:${isMergedRow ? '700' : 'normal'};">
                 ${s.account} ${isMergedRow ? '⚡' : ''} ${isUS ? '(美金)' : ''}
               </div>
@@ -1547,6 +1597,30 @@
         if (elTitleDiv) elTitleDiv.textContent = `累計領取股利`;
         if (elDivs) elDivs.textContent = '$' + formatNum(totalYfDiv, 0);
         if (elLent) elLent.textContent = `專屬領息總額`;
+        return;
+      } else if (currentFilter === 'STOCK_BUYS') {
+        if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
+        if (subCardValContainer) subCardValContainer.style.display = 'block';
+        const rocYear = String(new Date().getFullYear() - 1911);
+        const ofYear = r => String(r.date || '').replace(/[^0-9]/g, '').padStart(7, '0').slice(0, 3) === rocYear.padStart(3, '0');
+        const sumCost = arr => arr.reduce((t, r) => t + (Number(r.cost) || 0), 0);
+        const yearRows = stockBuys.filter(ofYear);
+        const dcaBuyRows = stockBuys.filter(r => r.type === '定期定額');
+        const lotCount = stocks.filter(st => (Number(st.shares) || 0) > 0).length;
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('filterTabCostTitle', '📌 [股票買進] 總成本');
+        set('filterCost', '$' + formatNum(sumCost(stockBuys), 0));
+        set('filterCostDesc', `共 ${stockBuys.length} 筆買進紀錄`);
+        set('filterTabValTitle', `📅 ${rocYear} 年買進`);
+        set('filterValue', '$' + formatNum(sumCost(yearRows), 0));
+        set('filterValDesc', `今年 ${yearRows.length} 筆`);
+        set('filterTabProfitTitle', '📆 定期定額買進');
+        const elProf = document.getElementById('filterProfit');
+        if (elProf) { elProf.textContent = '$' + formatNum(sumCost(dcaBuyRows), 0); elProf.style.color = ''; }
+        set('filterProfitRate', `共 ${dcaBuyRows.length} 筆`);
+        set('filterTabDivTitle', '📦 目前持股');
+        set('filterDividends', `${lotCount} 檔`);
+        set('filterLent', '「剩餘批次」可看每檔的先買先賣明細');
         return;
       } else if (currentFilter === 'DCA_TAB') {
         if (subDashContainer) subDashContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';

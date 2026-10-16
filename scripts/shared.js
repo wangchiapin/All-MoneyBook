@@ -164,6 +164,8 @@
       { key: 'finance_baddebt', label: '📋 財務總覽 → 呆帳區' },
       { key: 'holdings', label: '📈 股票管理 → 全部持股（含各券商帳戶 / ETF / 台股個股）' },
       { key: 'holdings_cards', label: '　└ 股票管理 → 全部持股 → 上方分頁概況卡片' },
+      { key: 'buys', label: '📈 股票管理 → 股票買進（整頁，含買進明細、剩餘批次）' },
+      { key: 'buys_cards', label: '　└ 股票管理 → 股票買進 → 上方分頁概況卡片' },
       { key: 'sales', label: '📈 股票管理 → 股票賣出（整頁，含以下三個子分頁）' },
       { key: 'sales_cards', label: '　└ 股票管理 → 股票賣出 → 上方分頁概況卡片' },
       { key: 'sales_detail', label: '　└ 股票管理 → 股票賣出 → 賣出明細' },
@@ -327,6 +329,7 @@
     // 目前只開放「股票管理」裡那幾個整頁式的子分頁（股票賣出／股票借出／股利／
     // 媽的永豐／定期定額／各股紀錄），不含 ALL/ETF/台股/各證券帳戶這些核心篩選分頁
     const HIDABLE_TABS = [
+      { key: 'STOCK_BUYS', label: '📈 股票買進' },
       { key: 'STOCK_SALES', label: '📉 股票賣出' },
       { key: 'STOCK_LENDING_TAB', label: '📦 股票借出' },
       { key: 'DIVIDENDS_TAB', label: '📊 股利' },

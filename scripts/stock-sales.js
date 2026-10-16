@@ -516,6 +516,10 @@
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
       saleModalEl('date').value = String(now.getFullYear() - 1911) + mm + dd;
+      const fifoCb = document.getElementById('saleModalFifo');
+      if (fifoCb) fifoCb.checked = false; // 預設不勾：手動賣出照舊，不動持股
+      saleModalCostManual = false;
+      onSaleModalFifoToggle();
       updateSaleModalPreview();
       const modal = document.getElementById('addSaleModal');
       if (modal) modal.classList.add('open');
@@ -528,6 +532,8 @@
     }
 
     function onSaleModalInput(field) {
+      if (field === 'cost') saleModalCostManual = saleModalEl('cost').value !== '';
+      if (field === 'shares' || field === 'buyPrice' || field === 'buyFee') saleModalCostManual = false;
       const shares = Number(saleModalEl('shares').value) || 0;
       if (field === 'shares' || field === 'buyPrice' || field === 'buyFee') {
         const buyPrice = Number(saleModalEl('buyPrice').value) || 0;
@@ -540,6 +546,61 @@
         const tax = Number(saleModalEl('tax').value) || 0;
         saleModalEl('sellAmt').value = Math.round((shares * sellPrice - sellFee - tax) * 1e6) / 1e6;
       }
+      onSaleModalFifoRefresh();
+      updateSaleModalPreview();
+    }
+
+    /* ====== 新增賣出：「同時從持股扣掉（先買先賣）」 ======
+       勾了才會動持股；成本欄在「買進價格」空白時自動填先買先賣算出來的成本（可以再改），
+       有填買進價格就照原本「股數×買進價格＋買進手續費」。 */
+    let saleModalCostManual = false;
+
+    function saleModalFifoOn() {
+      const cb = document.getElementById('saleModalFifo');
+      return !!(cb && cb.checked);
+    }
+
+    // 找出名稱相符、還有股數的持股（同一檔可能在好幾個證券帳戶）
+    function saleModalHoldingChoices() {
+      const n = sbNormName(saleModalEl('name').value);
+      if (!n) return [];
+      return stocks.filter(st => (Number(st.shares) || 0) > 0 && (sbNormName(st.name) === n || (st.code && String(st.code).trim() === n)));
+    }
+
+    function onSaleModalFifoToggle(fromName) {
+      const on = saleModalFifoOn();
+      const detail = document.getElementById('saleModalFifoDetail');
+      if (detail) detail.classList.toggle('show', on);
+      const sel = document.getElementById('saleModalHolding');
+      if (sel && on) {
+        const prev = sel.value;
+        const choices = saleModalHoldingChoices();
+        sel.innerHTML = choices.length
+          ? choices.map(st => `<option value="${esc(String(st.id))}">${esc(st.account || '')}・${esc(st.name)}（${formatNum(st.shares, 0)} 股）</option>`).join('')
+          : '<option value="">持股裡找不到這檔股票</option>';
+        if (choices.some(st => String(st.id) === prev)) sel.value = prev;
+      }
+      if (!fromName || on) onSaleModalFifoRefresh();
+    }
+
+    function onSaleModalFifoRefresh() {
+      const info = document.getElementById('saleModalFifoInfo');
+      if (!saleModalFifoOn()) { if (info) info.textContent = ''; return; }
+      const sel = document.getElementById('saleModalHolding');
+      const h = sel && sel.value ? stocks.find(st => String(st.id) === sel.value) : null;
+      const shares = Number(saleModalEl('shares').value) || 0;
+      if (!h) { if (info) info.textContent = '請先填名稱，選要從哪一個帳戶的持股扣。'; return; }
+      if (shares <= 0) { if (info) info.textContent = `${h.account}・${h.name} 目前 ${formatNum(h.shares, 0)} 股，填股數後會算出成本。`; return; }
+      const r = fifoPreview(h, shares);
+      const left = Math.max((Number(h.shares) || 0) - r.shares, 0);
+      const buyPriceEmpty = saleModalEl('buyPrice').value === '';
+      if (buyPriceEmpty && !saleModalCostManual) saleModalEl('cost').value = Math.round(r.cost);
+      let msg = `會從「${h.account}・${h.name}」扣 ${formatNum(r.shares, 0)} 股（剩 ${formatNum(left, 0)} 股），先買先賣成本 $${formatNum(r.cost, 0)}`;
+      if (r.parts.length > 1) msg += '（' + r.parts.map(p => `${p.kind === 'base' ? '第一批' : (p.kind === 'stockDiv' ? '配股' : p.date)} ${formatNum(p.shares, 0)} 股`).join('、') + '）';
+      if (left === 0) msg += '。這檔會變成「已全數賣出」。';
+      if (r.short > 0) msg += `\n⚠️ 持股只有 ${formatNum(h.shares, 0)} 股，比賣出的少 ${formatNum(r.short, 0)} 股，只會扣到 0。`;
+      if (!buyPriceEmpty) msg += '\n（有填買進價格，成本欄照買進價格算）';
+      if (info) info.innerText = msg;
       updateSaleModalPreview();
     }
 
@@ -577,6 +638,11 @@
       const name = saleModalEl('name').value.trim();
       if (!date) { showToast('請輸入日期', 'error'); saleModalEl('date').focus(); return; }
       if (!name) { showToast('請輸入股票名稱', 'error'); saleModalEl('name').focus(); return; }
+      const fifoOn = saleModalFifoOn();
+      const fifoSel = document.getElementById('saleModalHolding');
+      const fifoHolding = fifoOn && fifoSel && fifoSel.value ? stocks.find(st => String(st.id) === fifoSel.value) : null;
+      if (fifoOn && !fifoHolding) { showToast('勾了「從持股扣掉」，請選要扣哪一個帳戶的持股', 'error'); return; }
+      if (fifoOn && !(Number(saleModalEl('shares').value) > 0)) { showToast('請輸入股數', 'error'); saleModalEl('shares').focus(); return; }
 
       const row = {
         date,
@@ -602,13 +668,21 @@
       }
 
       recordSnapshot();
+      let fifoMsg = '';
+      if (fifoHolding) {
+        const res = fifoSell(fifoHolding, Number(row.shares) || 0, row.sellPrice);
+        row.fifo = { holdingId: fifoHolding.id, account: fifoHolding.account, shares: res.shares, cost: res.cost };
+        fifoMsg = `，持股扣 ${formatNum(res.shares, 0)} 股`;
+        if (res.short > 0) fifoMsg += `（持股不夠，少 ${formatNum(res.short, 0)} 股）`;
+      }
       stockSales.push(row);
       yfAutoSortByDate(stockSales, 'date');
       recalcSalesDayTotals();
       saveToStorage();
       closeAddSaleModal();
+      renderTabs();
       renderTable();
-      showToast('已新增賣出紀錄：' + name);
+      showToast('已新增賣出紀錄：' + name + fifoMsg);
     }
 
     function addStockSaleRow() {
