@@ -268,7 +268,7 @@
           }
 
           return `
-            <tr>
+            <tr${todoRowAttr(r, '')}>
               <td class="editable-col"><input type="text" class="cell-input font-bold" list="stockNameDatalist" data-row="${idx}" data-col="0" value="${esc(r.name || '')}" placeholder="選擇或輸入股票名稱" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 0)" onchange="updateLendingIncomeRow(${idx}, 'name', this.value)" /></td>
               <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="1" value="${esc(r.lendDate || '')}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 1)" onchange="updateLendingIncomeRow(${idx}, 'lendDate', this.value)" /></td>
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-row="${idx}" data-col="2" value="${esc(Number(r.lentShares) || 0)}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 2)" onchange="updateLendingIncomeRow(${idx}, 'lentShares', this.value)" /></td>
@@ -279,13 +279,13 @@
               <td class="font-mono font-bold" style="color:${actualIncome >= 0 ? 'var(--up-red)' : 'var(--down-green)'};">$${formatNum(actualIncome, 0)}</td>
               <td class="editable-col"><input type="text" class="cell-input font-mono" data-row="${idx}" data-col="7" value="${esc(r.paymentDate || '')}" onfocus="this.select()" onkeydown="handleCellKey(event, ${idx}, 7)" onchange="updateLendingIncomeRow(${idx}, 'paymentDate', this.value)" /></td>
               ${monthTotalHtml}
-              <td><button class="btn-del" title="刪除" onclick="deleteLendingIncomeRow(${idx})">✕</button></td>
+              <td style="white-space:nowrap;">${todoFlagBtn('lending', r)}<button class="btn-del" title="刪除" onclick="deleteLendingIncomeRow(${idx})">✕</button></td>
             </tr>
           `;
         }).join('');
       }
 
-      tbody.innerHTML = bodyHtml + renderLendingYearlyTotalRows(COL_COUNT);
+      tbody.innerHTML = todoBannerRow('lending', thead) + bodyHtml + renderLendingYearlyTotalRows(COL_COUNT);
       renderSummary();
     }
 

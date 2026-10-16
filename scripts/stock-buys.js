@@ -415,7 +415,7 @@
         const linked = r.holdingId != null && stocks.some(s => String(s.id) === String(r.holdingId));
         const fromStmt = r.source && r.source !== 'manual';
         return `
-          <tr${bg ? ` style="background:${bg};"` : ''}>
+          <tr${todoRowAttr(r, bg)}>
             <td class="editable-col"><input type="text" class="cell-input font-mono" data-buy-idx="${idx}" data-col="0" value="${esc(r.date || '')}" onfocus="this.select()" onkeydown="handleBuyKey(event, ${idx}, 0)" onchange="updateBuyRow(${idx}, 'date', this.value)" /></td>
             <td class="editable-col"><select class="cell-input" style="background:#fff; border:1px solid #cbd5e1; padding:2px;" data-buy-idx="${idx}" data-col="1" onkeydown="handleBuyKey(event, ${idx}, 1)" onchange="updateBuyRow(${idx}, 'account', this.value)">${accOpts}</select></td>
             <td class="editable-col"><input type="text" class="cell-input" list="stockNameDatalist" style="font-weight:700;" data-buy-idx="${idx}" data-col="2" value="${esc(r.name || '')}" onfocus="this.select()" onkeydown="handleBuyKey(event, ${idx}, 2)" onchange="updateBuyRow(${idx}, 'name', this.value)" /></td>
@@ -433,6 +433,7 @@
             <td class="editable-col"><input type="text" class="cell-input" data-buy-idx="${idx}" data-col="9" value="${esc(r.note || '')}" placeholder="${fromStmt ? '對帳單匯入' : ''}" onfocus="this.select()" onkeydown="handleBuyKey(event, ${idx}, 9)" onchange="updateBuyRow(${idx}, 'note', this.value)" /></td>
             <td style="white-space:nowrap;">
               <span title="${linked ? '已加進持股' : '還沒加進持股（帳戶、名稱、股數要填好）'}" style="font-size:0.8rem; opacity:${linked ? 1 : 0.4};">${linked ? '🔗' : '⛓️‍💥'}</span>
+              ${todoFlagBtn('buys', r)}
               <button class="btn-del" title="刪除" onclick="deleteStockBuy(${idx})">✕</button>
             </td>
           </tr>`;
@@ -452,7 +453,7 @@
           <td colspan="3">-</td>
         </tr>`;
 
-      tbody.innerHTML = html;
+      tbody.innerHTML = todoBannerRow('buys', thead) + html;
       renderSummary();
       if (isFreshTabEntry) {
         const box = document.getElementById('mainTableContainer');

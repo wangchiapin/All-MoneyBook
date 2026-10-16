@@ -476,9 +476,9 @@
           const sellAmt = stmtR(t.amount - t.fee - t.tax);
           stmtItems.push(stmtItem(Object.assign({}, base, {
             type: 'sell', date: t.date, account,
-            data: { date: stmtRoc(t.date), name, code: t.code || '', shares: t.shares, sellPrice: t.price, sellFee: t.fee, tax: t.tax, sellAmt },
+            data: { date: stmtRoc(t.date), name, code: t.code || '', shares: t.shares, sellPrice: t.price, sellFee: t.fee, tax: t.tax, sellAmt, cost: est ? Math.round(est.cost) : '', costEdited: false },
             est, noHolding: !h,
-            edit: [['name', '名稱', 'text'], ['shares', '股數'], ['sellPrice', '賣出價格'], ['sellFee', '賣出手續費'], ['tax', '交易稅']]
+            edit: [['name', '名稱', 'text'], ['shares', '股數'], ['sellPrice', '賣出價格'], ['sellFee', '賣出手續費'], ['tax', '交易稅'], ['cost', '成本']]
           })));
         } else if (t.side === 'stockdiv') {
           const h = simFind(account, t.name, '');
@@ -667,11 +667,11 @@
           detail: `${stmtEsc(it.account)}・成本 $${stmtFmt(d.cost)}（含手續費 ${stmtFmt(d.fee)}）${it.newHolding ? '・持股沒有這檔，會新增一檔' : ''}`, amount: d.cost
         };
         case 'sell': {
-          const cost = it.est ? Math.round(it.est.cost) : null;
+          const cost = d.cost === '' || d.cost == null ? null : Number(d.cost);
           const spread = cost != null ? d.sellAmt - cost : null;
           return {
             tag: '賣出', title: `${roc(d.date)} ${stmtEsc(d.name)} ${stmtFmt(d.shares)} 股 @ ${d.sellPrice}`,
-            detail: `${stmtEsc(it.account)}・賣出 $${stmtFmt(d.sellAmt)}` + (cost != null ? `・先買先賣成本約 $${stmtFmt(cost)}・損益 ${spread >= 0 ? '+' : ''}${stmtFmt(spread)}` : ''),
+            detail: `${stmtEsc(it.account)}・賣出 $${stmtFmt(d.sellAmt)}` + (cost != null ? `・${d.costEdited ? '成本（你改的）' : '先買先賣成本約'} $${stmtFmt(cost)}・損益 ${spread >= 0 ? '+' : ''}${stmtFmt(spread)}・${spread >= 0 ? '獲益' : '認賠'}` : ''),
             amount: d.sellAmt
           };
         }
@@ -717,7 +717,7 @@
           <label><input type="radio" name="hf${it.id}" ${it.choice === 'keep' ? 'checked' : ''} onchange="stmtSetChoice(${it.id}, 'keep')" /> 保留目前數字</label>
         </div>` : '';
       return `
-        <div class="stmt-item ${it.checked ? 'on' : ''}">
+        <div class="stmt-item ${it.checked ? 'on' : ''} ${it.flag ? 'flag' : ''}">
           ${canCheck ? `<input type="checkbox" class="stmt-cb" ${it.checked ? 'checked' : ''} onchange="stmtToggle(${it.id}, this.checked)" />` : '<span class="stmt-cb-space"></span>'}
           <div class="stmt-item-main">
             <div class="stmt-item-title">${ds.tag ? `<span class="stmt-badge t-${it.type}">${ds.tag}</span>` : ''}${ds.title}</div>
@@ -726,8 +726,12 @@
             ${it.dupWith ? `<div class="stmt-item-dupwith">App 裡已有：${stmtEsc(it.dupWith)}</div>` : ''}
             ${fixHtml}
             ${editHtml}
+            ${it.flag ? `<div class="stmt-flag-row">⚠️ 待修改，原因（可不填）：<input type="text" value="${stmtEsc(it.flagNote || '')}" placeholder="例如：成本不對" onchange="stmtSetFlagNote(${it.id}, this.value)" /></div>` : ''}
           </div>
-          ${it.edit.length ? `<button class="stmt-edit-btn" onclick="stmtToggleEdit(${it.id})">${it.editing ? '收起' : '✏️'}</button>` : ''}
+          <div class="stmt-item-btns">
+            ${STMT_FLAG_TYPES.includes(it.type) ? `<button class="stmt-flag-btn ${it.flag ? 'on' : ''}" title="${it.flag ? '取消待修改' : '標記待修改（匯入後在分頁提醒你）'}" onclick="stmtToggleFlag(${it.id})">⚠️</button>` : ''}
+            ${it.edit.length ? `<button class="stmt-edit-btn" onclick="stmtToggleEdit(${it.id})">${it.editing ? '收起' : '✏️'}</button>` : ''}
+          </div>
         </div>`;
     }
 
@@ -766,6 +770,9 @@
     }
 
     function stmtFind(id) { return stmtItems.find(it => it.id === id); }
+    const STMT_FLAG_TYPES = ['buy', 'sell', 'daytrade', 'lendIncome'];
+    function stmtToggleFlag(id) { const it = stmtFind(id); if (!it) return; it.flag = !it.flag; if (it.flag && !it.checked) it.checked = true; stmtRefreshKeepScroll(); }
+    function stmtSetFlagNote(id, v) { const it = stmtFind(id); if (it) it.flagNote = v; }
     function stmtGroupCheck(g, v) { stmtItems.forEach(it => { if (it.group === g && it.type !== 'info') it.checked = v; }); stmtRefreshKeepScroll(); }
     function stmtToggle(id, v) { const it = stmtFind(id); if (it) it.checked = v; stmtRefreshKeepScroll(); }
     function stmtToggleEdit(id) { const it = stmtFind(id); if (it) it.editing = !it.editing; stmtRefreshKeepScroll(); }
@@ -776,7 +783,15 @@
       it.data[k] = type === 'text' ? String(v).trim() : (parseFloat(v) || 0);
       const d = it.data;
       if (it.type === 'buy' && k !== 'cost' && k !== 'name') d.cost = stmtR(d.shares * d.price + d.fee);
-      if (it.type === 'sell' && k !== 'name') { d.sellAmt = stmtR(d.shares * d.sellPrice - d.sellFee - d.tax); it.est = null; }
+      if (it.type === 'sell' && k === 'cost') d.costEdited = true;
+      else if (it.type === 'sell' && k !== 'name') {
+        d.sellAmt = stmtR(d.shares * d.sellPrice - d.sellFee - d.tax);
+        if (k === 'shares') {
+          const h = stmtMatchHolding(d.name, d.code, it.account).h;
+          it.est = h ? fifoPreview(h, d.shares) : null;
+          if (!d.costEdited) d.cost = it.est ? Math.round(it.est.cost) : '';
+        }
+      }
       if (it.type === 'daytrade') { d.cost = stmtR(d.shares * d.buyPrice + d.buyFee); d.sellAmt = stmtR(d.shares * d.sellPrice - d.sellFee - d.tax); }
       stmtRefreshKeepScroll();
     }
@@ -812,22 +827,37 @@
 
       list.forEach(it => {
         const d = it.data;
+        const todo = it.flag ? (String(it.flagNote || '').trim() || '待修改') : '';
         try {
           if (it.type === 'buy') {
-            addStockBuy({ date: d.date, account: it.account, name: d.name, code: d.code, shares: d.shares, price: d.price, fee: d.fee, cost: d.cost, type: d.kind, note: '', source: it.sid });
+            const br = addStockBuy({ date: d.date, account: it.account, name: d.name, code: d.code, shares: d.shares, price: d.price, fee: d.fee, cost: d.cost, type: d.kind, note: '', source: it.sid });
+            if (todo) br.todo = todo;
             bump('買進');
           } else if (it.type === 'sell') {
             const h = stmtMatchHolding(d.name, d.code, it.account).h;
             const r = h ? fifoSell(h, d.shares, d.sellPrice) : null;
-            const cost = r ? Math.round(r.cost) : '';
+            const userCost = d.costEdited && d.cost !== '' && d.cost != null ? Number(d.cost) || 0 : null;
+            const cost = userCost != null ? userCost : (r ? Math.round(r.cost) : '');
             const row = { date: d.date, name: d.name, shares: d.shares, buyPrice: '', sellPrice: d.sellPrice, cost, sellAmt: d.sellAmt, spread: 0, returnRate: 0, buyFee: '', sellFee: d.sellFee, tax: d.tax, status: '', dayTotal: null, note: '', note2: '', source: it.sid };
-            if (r) row.fifo = { holdingId: h.id, account: h.account, shares: r.shares, cost: r.cost };
+            if (r) {
+              row.fifo = { holdingId: h.id, account: h.account, shares: r.shares, cost: r.cost };
+              // 你改了成本 → 持股也改成扣你填的成本（差額算在剩下最早的那一批）
+              if (userCost != null && Math.abs(userCost - r.cost) > 0.001) {
+                if ((Number(h.shares) || 0) > 0) {
+                  h.totalCost = Math.max(0, stmtR((Number(h.totalCost) || 0) - (userCost - r.cost)));
+                  sbEnsureLots(h);
+                }
+                row.fifo.cost = userCost;
+              }
+            }
             if (Number(row.cost) > 0) { row.spread = row.sellAmt - row.cost; row.returnRate = row.spread / row.cost; row.status = row.spread >= 0 ? '獲益' : '認賠'; }
             if (r && r.short > 0) problems.push(`${d.name} 持股不夠，少 ${stmtFmt(r.short)} 股`);
+            if (todo) row.todo = todo;
             stockSales.push(row);
             bump('賣出');
           } else if (it.type === 'daytrade') {
             const row = { date: d.date, name: d.name, shares: d.shares, buyPrice: d.buyPrice, sellPrice: d.sellPrice, cost: d.cost, sellAmt: d.sellAmt, spread: stmtR(d.sellAmt - d.cost), returnRate: d.cost > 0 ? (d.sellAmt - d.cost) / d.cost : 0, buyFee: d.buyFee, sellFee: d.sellFee, tax: d.tax, status: '當沖', dayTotal: null, note: '', note2: '', source: it.sid };
+            if (todo) row.todo = todo;
             stockSales.push(row);
             bump('當沖');
           } else if (it.type === 'stockDiv') {
@@ -846,7 +876,7 @@
             stmtRecalcDividends(h);
             bump('現金股利');
           } else if (it.type === 'lendIncome') {
-            lendingIncomeRows.push({ id: Date.now() + Math.floor(Math.random() * 100000), name: d.name, lendDate: d.lendDate, lentShares: stmtLentDisplay(d.lentShares), feeRate: d.feeRate, returnDate: d.returnDate, income: d.income, serviceFee: d.serviceFee, paymentDate: d.paymentDate, contractNo: d.contractNo || '', stmtMonth: d.stmtMonth || '', source: it.sid });
+            lendingIncomeRows.push({ todo: todo || undefined, id: Date.now() + Math.floor(Math.random() * 100000), name: d.name, lendDate: d.lendDate, lentShares: stmtLentDisplay(d.lentShares), feeRate: d.feeRate, returnDate: d.returnDate, income: d.income, serviceFee: d.serviceFee, paymentDate: d.paymentDate, contractNo: d.contractNo || '', stmtMonth: d.stmtMonth || '', source: it.sid });
             bump('借卷收入');
           } else if (it.type === 'lentShares') {
             const v = stmtLentDisplay(d.shares);
@@ -889,7 +919,7 @@
       renderTabs();
       renderTable();
 
-      stmtDoneInfo = { counts, problems };
+      stmtDoneInfo = { counts, problems, flagged: list.filter(it => it.flag && STMT_FLAG_TYPES.includes(it.type)).length };
       stmtStep = 'done';
       stmtItems = [];
       stmtRender();
@@ -908,6 +938,7 @@
         <div class="stmt-done">
           <div class="stmt-done-big">✅ 匯入完成</div>
           <ul>${lines || '<li>沒有寫入任何資料</li>'}</ul>
+          ${stmtDoneInfo && stmtDoneInfo.flagged ? `<div class="stmt-item-note">⚠️ 有 ${stmtDoneInfo.flagged} 筆標了「待修改」，在各分頁會整列標紅，改好後點那一列的 ⚠️ 取消</div>` : ''}
           ${p.length ? `<div class="stmt-item-note">有 ${p.length} 個地方沒寫進去：<br>${p.map(stmtEsc).join('<br>')}</div>` : ''}
           <button class="btn" style="margin-top:14px;" onclick="stmtUndoLast()">↩️ 復原這次匯入</button>
           <div class="stmt-set-tip">按下去會把股票管理和財務總覽，整個回到這次匯入前的樣子。</div>
@@ -926,4 +957,44 @@
       try { localStorage.removeItem(STMT_BACKUP_KEY); } catch (e) { /* 略過 */ }
       showToast('已復原這次匯入');
       closeStmtImport();
+    }
+
+
+/* ====================================================================
+   「⚠️ 待修改」標記：匯入時標的那幾筆，在股票買進／股票賣出／借卷收入分頁整列標紅
+   ==================================================================== */
+    function todoList(name) {
+      return name === 'buys' ? stockBuys : name === 'sales' ? stockSales : name === 'lending' ? lendingIncomeRows : [];
+    }
+    function todoRowAttr(r, bg) {
+      if (r && r.todo) return ` class="row-todo" style="background:#fbe1d8;"`;
+      return bg ? ` style="background:${bg};"` : '';
+    }
+    function todoFlagBtn(name, r) {
+      if (!r || !r.todo) return '';
+      const i = todoList(name).indexOf(r);
+      return `<button class="todo-flag" title="待修改：${stmtEsc(r.todo)}（改好後點這裡取消標記）" onclick="todoClear('${name}', ${i})">⚠️</button>`;
+    }
+    function todoBannerRow(name, thead) {
+      const list = todoList(name).filter(r => r && r.todo);
+      if (!list.length) return '';
+      let cols = 1;
+      const hr = thead && thead.rows && thead.rows[thead.rows.length - 1];
+      if (hr) cols = Array.from(hr.cells).reduce((s, c) => s + (c.colSpan || 1), 0);
+      const items = list.slice(0, 5).map(r => `${stmtEsc(r.date || r.lendDate || '')} ${stmtEsc(r.name || '')}：${stmtEsc(r.todo)}`).join('、');
+      return `<tr class="todo-banner"><td colspan="${cols}">⚠️ 有 <b>${list.length}</b> 筆待修改（${items}${list.length > 5 ? '…' : ''}）。改好後點那一列的 ⚠️ 取消標記。
+        <button type="button" onclick="todoJump()">跳到第一筆</button></td></tr>`;
+    }
+    function todoClear(name, i) {
+      const r = todoList(name)[i];
+      if (!r || !r.todo) return;
+      if (!confirm(`這筆改好了嗎？\n（${r.todo}）\n\n按確定會取消「待修改」標記。`)) return;
+      if (typeof recordSnapshot === 'function') recordSnapshot();
+      delete r.todo;
+      if (typeof saveToStorage === 'function') saveToStorage();
+      if (typeof renderTable === 'function') renderTable();
+    }
+    function todoJump() {
+      const el = document.querySelector('tr.row-todo');
+      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }

@@ -1020,7 +1020,7 @@
           const rowBg = salesMonthColor(r.date);
 
           return `
-            <tr${rowBg ? ` style="background:${rowBg};"` : ''}>
+            <tr${todoRowAttr(r, rowBg)}>
               ${dateCellHtml}
               <td class="editable-col"><input type="text" class="cell-input" style="font-weight:700;" data-sale-idx="${rIdx}" data-col="1" value="${esc(r.name || '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 1)" onchange="updateSaleRow(${rIdx}, 'name', this.value)" /></td>
               <td class="editable-col"><input type="number" step="any" class="cell-input font-mono" data-sale-idx="${rIdx}" data-col="2" value="${esc(r.shares !== undefined && r.shares !== '' ? r.shares : '')}" onfocus="this.select()" onkeydown="handleSaleKey(event, ${rIdx}, 2)" onchange="updateSaleRow(${rIdx}, 'shares', this.value)" /></td>
@@ -1043,6 +1043,7 @@
                 <button class="btn-icon-plain" title="${(r.note || '').trim() ? '查看/編輯備註' : '新增備註'}" onclick="openNoteModal('sale', ${rIdx})" style="font-size:1.05rem; background:none; border:none; cursor:pointer;">${(r.note || '').trim() ? '📝' : '🗒️'}</button>
               </td>
               <td>
+                ${todoFlagBtn('sales', r)}
                 <button class="btn-del" title="刪除" onclick="deleteStockSale(${rIdx})">✕</button>
               </td>
             </tr>
@@ -1076,7 +1077,7 @@
           </tr>
         `;
 
-        tbody.innerHTML = rowsHtml;
+        tbody.innerHTML = todoBannerRow('sales', thead) + rowsHtml;
         renderSummary();
         if (isFreshTabEntry) {
           setTimeout(() => {
