@@ -13,6 +13,8 @@
     const STORAGE_KEY_LENDING_INCOME_YEARLY = 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME_YEARLY';
     const STORAGE_KEY_DCA = 'STOCK_INVESTMENT_EXCEL_PRO_V32_DCA';
     const STORAGE_KEY_STOCK_BUYS = 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_BUYS';
+    const STORAGE_KEY_STMT_SETTINGS = 'STMT_IMPORT_SETTINGS_V1'; // 對帳單匯入：帳戶／名稱對應等設定
+    const STORAGE_KEY_STMT_IMPORTED = 'STMT_IMPORTED_V1';        // 對帳單匯入：已匯入過的對帳單
 
     const INITIAL_DATA = [];
 
@@ -33,6 +35,8 @@
     let customAccounts = [];
     let stockSales = [];
     let stockBuys = []; // 股票買進明細 (stock-buys.js)
+    let stmtSettings = {}; // 對帳單匯入設定 (stmt-import.js)
+    let stmtImported = []; // 已匯入的對帳單 [{statementId, label, period, importedAt}]
     let salesHistory = [];
     let stockLending = [];
     let lendingManagedIds = []; // 本次執行期間，曾被「股票借出」分頁同步過出借張數的持股 id
@@ -101,6 +105,8 @@
 
         const savedBuys = localStorage.getItem(STORAGE_KEY_STOCK_BUYS);
         stockBuys = savedBuys ? JSON.parse(savedBuys) : [];
+        stmtSettings = JSON.parse(localStorage.getItem(STORAGE_KEY_STMT_SETTINGS) || '{}') || {};
+        stmtImported = JSON.parse(localStorage.getItem(STORAGE_KEY_STMT_IMPORTED) || '[]') || [];
 
         const savedEst = localStorage.getItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1');
         dividendEstimates = savedEst ? JSON.parse(savedEst) : {};
@@ -134,7 +140,7 @@
 
     function recordSnapshot() {
       try {
-        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, stockBuys, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview }));
+        historyStack.push(JSON.stringify({ stocks, pastColumns, customAccounts, stockSales, stockBuys, stmtSettings, stmtImported, salesHistory, stockLending, lendingIncomeRows, lendingIncomeManualYearly, dcaRows, dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview }));
         if (historyStack.length > 50) historyStack.shift();
       } catch(e) {}
     }
@@ -148,6 +154,8 @@
           if (prev.customAccounts) customAccounts = prev.customAccounts;
           if (prev.stockSales) stockSales = prev.stockSales;
           if (prev.stockBuys) stockBuys = prev.stockBuys;
+          if (prev.stmtSettings) stmtSettings = prev.stmtSettings;
+          if (prev.stmtImported) stmtImported = prev.stmtImported;
           if (prev.salesHistory) salesHistory = prev.salesHistory;
           if (prev.stockLending) stockLending = prev.stockLending;
           if (prev.lendingIncomeRows) lendingIncomeRows = prev.lendingIncomeRows;
@@ -187,6 +195,8 @@
         localStorage.setItem(STORAGE_KEY_LENDING_INCOME_YEARLY, JSON.stringify(lendingIncomeManualYearly));
         localStorage.setItem(STORAGE_KEY_DCA, JSON.stringify(dcaRows));
         localStorage.setItem(STORAGE_KEY_STOCK_BUYS, JSON.stringify(stockBuys));
+        localStorage.setItem(STORAGE_KEY_STMT_SETTINGS, JSON.stringify(stmtSettings || {}));
+        localStorage.setItem(STORAGE_KEY_STMT_IMPORTED, JSON.stringify(stmtImported || []));
         localStorage.setItem('STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', JSON.stringify(dividendEstimates));
         localStorage.setItem('STOCK_INVESTMENT_EXRIGHTS_INFO_V1', JSON.stringify(exRightsInfo));
         localStorage.setItem('YONG_FENG_DETAIL_V1', JSON.stringify(yfDetail));

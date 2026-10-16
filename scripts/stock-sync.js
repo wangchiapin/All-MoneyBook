@@ -6,7 +6,7 @@
     /* ====== Firebase 雲端同步 ====== */
     function gatherAllData() {
       return {
-        stocks, pastColumns, customAccounts, stockSales, stockBuys, salesHistory, stockLending,
+        stocks, pastColumns, customAccounts, stockSales, stockBuys, stmtSettings, stmtImported, salesHistory, stockLending,
         lendingIncomeRows, lendingIncomeManualYearly, dcaRows,
         dividendEstimates, exRightsInfo, yfDetail, yfAccount, yfDividendRows, yfOverview,
         snapshots: JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]'),
@@ -22,6 +22,8 @@
       if (data.customAccounts) customAccounts = data.customAccounts;
       if (data.stockSales) stockSales = data.stockSales;
       if (data.stockBuys) stockBuys = data.stockBuys;
+      if (data.stmtSettings) stmtSettings = data.stmtSettings;
+      if (data.stmtImported) stmtImported = data.stmtImported;
       if (data.salesHistory) salesHistory = data.salesHistory;
       if (data.stockLending) stockLending = data.stockLending;
       if (data.lendingIncomeRows) lendingIncomeRows = data.lendingIncomeRows;
@@ -41,6 +43,8 @@
       localStorage.setItem(STORAGE_KEY_CUSTOM_ACCOUNTS, JSON.stringify(customAccounts));
       localStorage.setItem(STORAGE_KEY_STOCK_SALES, JSON.stringify(stockSales));
       localStorage.setItem(STORAGE_KEY_STOCK_BUYS, JSON.stringify(stockBuys));
+      localStorage.setItem(STORAGE_KEY_STMT_SETTINGS, JSON.stringify(stmtSettings || {}));
+      localStorage.setItem(STORAGE_KEY_STMT_IMPORTED, JSON.stringify(stmtImported || []));
       localStorage.setItem(STORAGE_KEY_SALES_HISTORY, JSON.stringify(salesHistory));
       localStorage.setItem(STORAGE_KEY_STOCK_LENDING, JSON.stringify(stockLending));
       localStorage.setItem(STORAGE_KEY_LENDING_INCOME, JSON.stringify(lendingIncomeRows));

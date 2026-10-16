@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles/insurance.css">
   <link rel="stylesheet" href="styles/tips-widget.css">
   <link rel="stylesheet" href="styles/overview.css">
+  <link rel="stylesheet" href="styles/stmt-import.css">
   <link rel="stylesheet" href="styles/mobile.css">
 
   <!-- Firebase (compat SDK，跟其他 single-file HTML 工具一致的用法) -->
@@ -38,6 +39,7 @@
       <label class="usd-rate-box" title="股票管理換算美股台幣用的預設美元匯率（財務總覽每期另有自己的匯率）">💵 美元匯率
         <input type="number" id="usdRateInput" step="0.01" min="0" inputmode="decimal" onchange="onUsdRateInputChange(this)">
       </label>
+      <button class="btn btn-outline stmt-open-btn" id="stmtImportBtn" onclick="openStmtImport()">📥 匯入對帳單</button>
       <span id="syncStatus">☁️ 未連線</span>
       <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
       <button class="btn btn-outline" id="logoutBtn" style="display:none;" onclick="firebaseSignOut()">登出</button>
@@ -1022,6 +1024,8 @@
   <script src="scripts/dividends.js"></script>
   <script src="scripts/stock-sales.js"></script>
   <script src="scripts/stock-buys.js"></script>
+  <script src="scripts/stmt-parsers.js"></script>
+  <script src="scripts/stmt-import.js"></script>
   <script src="scripts/stock.js"></script>
   <script src="scripts/stock-sync.js"></script>
   <script src="scripts/stock-calculator.js"></script>
