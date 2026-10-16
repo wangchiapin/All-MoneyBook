@@ -90,6 +90,7 @@
       stmtItems = [];
       stmtStep = 'pick';
       stmtDoneInfo = null;
+      if (typeof stmtPendingActive !== 'undefined') stmtPendingActive = [];
       let ov = document.getElementById('stmtOverlay');
       if (!ov) {
         ov = document.createElement('div');
@@ -106,6 +107,8 @@
           </div>`;
         document.body.appendChild(ov);
       }
+      const titleEl = ov.querySelector('.stmt-title');
+      if (titleEl) titleEl.textContent = '📥 匯入對帳單';
       ov.classList.add('open');
       document.body.classList.add('stmt-open');
       stmtRender();
@@ -117,6 +120,7 @@
       document.body.classList.remove('stmt-open');
       stmtFiles = [];
       stmtItems = [];
+      if (typeof stmtPendingActive !== 'undefined') stmtPendingActive = [];
     }
 
     function stmtRender() {
@@ -124,6 +128,7 @@
       const foot = document.getElementById('stmtFoot');
       if (!body || !foot) return;
       if (stmtStep === 'pick') { body.innerHTML = stmtPickHtml(); foot.innerHTML = stmtPickFoot(); }
+      else if (stmtStep === 'pending') { body.innerHTML = stmtPendingHtml(); foot.innerHTML = stmtPendingFoot(); }
       else if (stmtStep === 'review') { body.innerHTML = stmtReviewHtml(); foot.innerHTML = stmtReviewFoot(); }
       else { body.innerHTML = stmtDoneHtml(); foot.innerHTML = `<button class="btn btn-primary" onclick="closeStmtImport()">完成</button>`; }
     }
@@ -870,7 +875,7 @@
     function stmtReviewFoot() {
       const n = stmtItems.filter(it => it.checked).length;
       return `
-        <button class="btn" onclick="stmtStep='pick'; stmtRender();">← 回上一步</button>
+        <button class="btn" onclick="stmtStep = (typeof stmtPendingActive !== 'undefined' && stmtPendingActive.length) ? 'pending' : 'pick'; stmtRender();">← 回上一步</button>
         <button class="btn btn-primary" ${n ? '' : 'disabled'} onclick="stmtApply()">確認寫入（${n} 筆）</button>`;
     }
 
@@ -1028,6 +1033,8 @@
       stmtStep = 'done';
       stmtItems = [];
       stmtRender();
+      // 從「📬 待確認」來的：寫好了就從待確認拿掉
+      if (typeof stmtPendingAfterApply === 'function') stmtPendingAfterApply();
     }
 
     function stmtRecalcDividends(h) {
@@ -1061,6 +1068,7 @@
       window.__stmtLastBackup = null;
       try { localStorage.removeItem(STMT_BACKUP_KEY); } catch (e) { /* 略過 */ }
       showToast('已復原這次匯入');
+      if (typeof stmtPendingAfterUndo === 'function') stmtPendingAfterUndo();
       closeStmtImport();
     }
 

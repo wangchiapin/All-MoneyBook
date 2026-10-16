@@ -107,3 +107,12 @@ tr.todo-banner button { margin-left: 8px; font-size: 0.78rem; padding: 2px 10px;
 .stmt-manage-sub { font-size: 0.78rem; font-weight: 800; color: #8a6d45; margin-top: 8px; }
 .stmt-set-ctl { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .stmt-del-btn { font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #e0a491; background: #fff; color: #a8543d; cursor: pointer; }
+
+/* ====== 📬 待確認（自動從 Gmail 讀好的對帳單） ====== */
+.app-header-cloud .btn.stmt-pending-btn { background: #c9773f; color: #fff; border-color: #c9773f; font-weight: 700; }
+.app-header-cloud .btn.stmt-pending-btn:hover { background: #b5652f; }
+.stmt-pending-num { display: inline-block; min-width: 1.4em; padding: 0 5px; margin-left: 2px; border-radius: 9px; background: #fff; color: #b5652f; font-size: 0.78rem; line-height: 1.4; text-align: center; }
+.stmt-pending-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 10px 12px; background: #eef0e6; }
+.stmt-pending-skip { margin-top: 14px; padding: 10px 12px; border: 1px dashed #ddd5c4; border-radius: 8px; font-size: 0.82rem; color: #766c5a; }
+.mb-header-more.has-pending { position: relative; }
+.mb-header-more.has-pending::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: #d0522f; border: 1.5px solid #fff; }

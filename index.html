@@ -40,6 +40,7 @@
         <input type="number" id="usdRateInput" step="0.01" min="0" inputmode="decimal" onchange="onUsdRateInputChange(this)">
       </label>
       <button class="btn btn-outline stmt-open-btn" id="stmtImportBtn" onclick="openStmtImport()">📥 匯入對帳單</button>
+      <button class="btn stmt-pending-btn" id="stmtPendingBtn" onclick="openStmtPending()" style="display:none;">📬 待確認</button>
       <span id="syncStatus">☁️ 未連線</span>
       <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
       <button class="btn btn-outline" id="logoutBtn" style="display:none;" onclick="firebaseSignOut()">登出</button>
@@ -1026,6 +1027,7 @@
   <script src="scripts/stock-buys.js"></script>
   <script src="scripts/stmt-parsers.js"></script>
   <script src="scripts/stmt-import.js"></script>
+  <script src="scripts/stmt-pending.js"></script>
   <script src="scripts/stock.js"></script>
   <script src="scripts/stock-sync.js"></script>
   <script src="scripts/stock-calculator.js"></script>
