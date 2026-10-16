@@ -54,6 +54,10 @@ body.stmt-open { overflow: hidden; }
 .stmt-item-main { flex: 1; min-width: 0; }
 .stmt-item-title { font-weight: 700; font-size: 0.9rem; line-height: 1.5; }
 .stmt-item-detail { font-size: 0.8rem; color: #766c5a; line-height: 1.5; }
+.stmt-item-dupwith { font-size: 0.78rem; color: #5b6b4a; background: #f1f3ea; border-radius: 6px; padding: 3px 7px; margin-top: 4px; line-height: 1.5; }
+.stmt-group-btns { margin-left: auto; display: inline-flex; gap: 6px; }
+.stmt-group-btns button { font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; border: 1px solid #d6cdb9; background: #fff; color: #4a4236; cursor: pointer; }
+.stmt-group-btns button:hover { background: #faf6ec; }
 .stmt-item-note { font-size: 0.8rem; color: #a8543d; font-weight: 700; margin-top: 3px; line-height: 1.5; }
 .stmt-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 6px; background: #eee8dc; color: #5c5445; vertical-align: 1px; }
 .stmt-badge.t-buy { background: #f3e4dc; color: #8a4b38; }

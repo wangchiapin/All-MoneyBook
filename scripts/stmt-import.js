@@ -33,6 +33,24 @@
       const d = s.slice(-2), m = s.slice(-4, -2), y = Number(s.slice(0, -4)) + 1911;
       return `${y}-${m}-${d}`;
     }
+    // 某天之後的第一個工作日（只跳過六日，國定假日不知道）
+    function stmtNextWorkday(iso) {
+      const t = Date.parse(iso + 'T00:00:00Z');
+      if (isNaN(t)) return '';
+      const d = new Date(t);
+      do { d.setUTCDate(d.getUTCDate() + 1); } while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+      return d.toISOString().slice(0, 10);
+    }
+    // 借券費的入款日、還券日：月底結算 → 下個月第一個工作日；這個月裡提早還券 → 還券後第一個工作日
+    function stmtLendDates(res, l) {
+      const pm = String(res.period || '').match(/^(\d{4})-(\d{2})$/);
+      if (!pm) return { pay: l.dueDate || l.lendDate, ret: '' };
+      const y = Number(pm[1]), m = Number(pm[2]);
+      const start = `${pm[1]}-${pm[2]}-01`;
+      const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+      if (l.dueDate && l.dueDate >= start && l.dueDate <= end) return { pay: stmtNextWorkday(l.dueDate), ret: l.dueDate };
+      return { pay: stmtNextWorkday(end), ret: '' };
+    }
     function stmtDaysApart(a, b) {
       const ta = Date.parse(a), tb = Date.parse(b);
       if (isNaN(ta) || isNaN(tb)) return 9999;
@@ -298,7 +316,7 @@
       const secPeriods = new Set(results.filter(r => r.kind === 'securities').map(r => r.period));
       const allSecMoney = [];
       results.forEach(r => {
-        (r.lendings || []).forEach(l => allSecMoney.push({ date: l.dueDate || l.lendDate, amount: l.net, kind: 'lendingFee' }));
+        (r.lendings || []).forEach(l => allSecMoney.push({ date: stmtLendDates(r, l).pay, amount: l.net, kind: 'lendingFee' }));
         (r.compensations || []).forEach(c => allSecMoney.push({ date: c.payDate, amount: c.amount, kind: 'compensation' }));
       });
 
@@ -366,20 +384,29 @@
           const lentByName = {};
           (res.lendings || []).forEach(l => {
             const name = stmtAppName(l.name, '', account);
-            lentByName[name] = (lentByName[name] || 0) + l.shares;
+            const ld = stmtLendDates(res, l);
+            lentByName[name] = (lentByName[name] || 0) + (ld.ret ? 0 : l.shares); // 這個月已還券的不算
             const data = {
-              name, lendDate: stmtRoc(l.lendDate), lentShares: l.shares, feeRate: l.rate, returnDate: stmtRoc(l.dueDate),
-              income: l.fee, serviceFee: stmtR((l.serviceFee || 0) + (l.tax || 0)), paymentDate: stmtRoc(l.dueDate || l.lendDate)
+              name, lendDate: stmtRoc(l.lendDate), lentShares: l.shares, feeRate: l.rate, returnDate: stmtRoc(ld.ret),
+              income: l.fee, serviceFee: stmtR((l.serviceFee || 0) + (l.tax || 0)), paymentDate: stmtRoc(ld.pay),
+              contractNo: l.contractNo || '', stmtMonth: res.period || ''
             };
-            const dup = lendingIncomeRows.some(r => stmtNorm(r.name) === stmtNorm(name) && String(r.lendDate) === data.lendDate && Math.abs((Number(r.income) || 0) - data.income) < 1);
+            // 重複：同一份合約＋同一個月；舊的手動紀錄沒有合約編號 → 名稱＋出借日＋金額＋入款日差 10 天內
+            const same = lendingIncomeRows.find(r => {
+              if (r.contractNo && data.contractNo) return String(r.contractNo) === String(data.contractNo) && (r.stmtMonth || String(stmtIsoFromRoc(r.paymentDate)).slice(0, 7)) === (data.stmtMonth || ld.pay.slice(0, 7)) && stmtNorm(r.name) === stmtNorm(name);
+              return stmtNorm(r.name) === stmtNorm(name) && String(r.lendDate).replace(/[^0-9]/g, '') === data.lendDate && Math.abs((Number(r.income) || 0) - data.income) < 1 && stmtDaysApart(stmtIsoFromRoc(r.paymentDate), ld.pay) <= 10;
+            });
+            const dup = !!same;
             stmtItems.push(stmtItem(Object.assign({}, base, {
               type: 'lendIncome', date: l.lendDate, data, dup,
+              dupWith: same ? `出借 ${same.lendDate} ${same.name} ${stmtFmt(same.lentShares)}　收入 $${stmtFmt(same.income)}　入款 ${same.paymentDate || '（空白）'}` : '',
               edit: [['name', '出借股票', 'text'], ['lendDate', '出借日期', 'text'], ['returnDate', '還卷日期', 'text'], ['paymentDate', '入款日期', 'text'], ['income', '收入'], ['serviceFee', '服務費']]
             })));
           });
           // 出借張數
           Object.keys(lentByName).forEach(name => {
             const row = stockLending.find(r => stmtNorm(r.name) === stmtNorm(name));
+            if (!row && !lentByName[name]) return; // 全部還券、App 也沒這列 → 不用新增
             stmtItems.push(stmtItem(Object.assign({}, base, {
               type: 'lentShares', group: 'update', data: { name, shares: lentByName[name] }, old: row ? Number(row.lentShares) || 0 : null
             })));
@@ -457,9 +484,11 @@
           const h = simFind(account, t.name, '');
           if (h) addStockDividendLot(h, stmtRoc(t.date), t.shares);
           const real = stmtMatchHolding(t.name, '', account).h;
-          const dup = real && (real.dividendHistory || []).some(dh => dh.stockDate === t.date && Number(dh.stockShares) === Number(t.shares));
+          const sameDh = real && (real.dividendHistory || []).find(dh => dh.stockDate === t.date && Number(dh.stockShares) === Number(t.shares));
+          const dup = !!sameDh;
           stmtItems.push(stmtItem(Object.assign({}, base, {
             type: 'stockDiv', date: t.date, account, dup, noHolding: !real,
+            dupWith: sameDh ? `${real.name} 股利紀錄：${stmtRoc(sameDh.stockDate)} 股票股利 ${stmtFmt(sameDh.stockShares)} 股` : '',
             data: { name, date: t.date, shares: t.shares },
             edit: [['shares', '配發股數']]
           })));
@@ -492,14 +521,15 @@
 
       // 跟手動輸入過的比對（同一天一樣的交易用筆數比）
       const keyOf = (d, n, s, p) => [d, stmtNorm(n), Number(s) || 0, stmtR(p)].join('|');
-      const appCount = {};
-      stockBuys.forEach(r => { const k = 'b|' + keyOf(r.date, r.name, r.shares, r.price); appCount[k] = (appCount[k] || 0) + 1; });
-      stockSales.forEach(r => { const k = 's|' + keyOf(r.date, r.name, r.shares, r.sellPrice); appCount[k] = (appCount[k] || 0) + 1; });
+      const appRows = {};
+      const addRow = (k, txt) => { (appRows[k] = appRows[k] || []).push(txt); };
+      stockBuys.forEach(r => addRow('b|' + keyOf(r.date, r.name, r.shares, r.price), `股票買進 ${r.date} ${r.name} ${stmtFmt(r.shares)} 股 @ ${r.price}`));
+      stockSales.forEach(r => addRow('s|' + keyOf(r.date, r.name, r.shares, r.sellPrice), `股票賣出 ${r.date} ${r.name} ${stmtFmt(r.shares)} 股 @ ${r.sellPrice}`));
       stmtItems.forEach(it => {
         let k = null;
         if (it.type === 'buy') k = 'b|' + keyOf(it.data.date, it.data.name, it.data.shares, it.data.price);
         if (it.type === 'sell' || it.type === 'daytrade') k = 's|' + keyOf(it.data.date, it.data.name, it.data.shares, it.data.sellPrice);
-        if (k && appCount[k] > 0) { appCount[k]--; it.dup = true; }
+        if (k && appRows[k] && appRows[k].length) { it.dup = true; it.dupWith = appRows[k].shift(); }
       });
 
       // 現金股利：找持股、比對手動輸入過的
@@ -509,7 +539,9 @@
         it.many = m.how === 'many';
         if (m.h) {
           it.data.name = m.h.name;
-          it.dup = (m.h.dividendHistory || []).some(dh => Math.abs((Number(dh.cash) || 0) - it.data.amount) < 1 && stmtDaysApart(dh.cashDate, it.data.date) <= 7);
+          const sameDh = (m.h.dividendHistory || []).find(dh => Math.abs((Number(dh.cash) || 0) - it.data.amount) < 1 && stmtDaysApart(dh.cashDate, it.data.date) <= 7);
+          it.dup = !!sameDh;
+          it.dupWith = sameDh ? `${m.h.name} 股利紀錄：${sameDh.cashDate} 現金股利 $${stmtFmt(sameDh.cash)}` : '';
         }
       });
 
@@ -649,7 +681,7 @@
         };
         case 'stockDiv': return { tag: '配股', title: `${stmtEsc(stmtRoc(d.date))} ${stmtEsc(d.name)} 配 ${stmtFmt(d.shares)} 股`, detail: `${stmtEsc(it.account)}・持股股數增加，成本不變` };
         case 'cashDiv': return { tag: '現金股利', title: `${stmtEsc(stmtRoc(d.date))} ${stmtEsc(d.name)} $${stmtFmt(d.amount)}`, detail: `${stmtEsc(d.how)}・記到持股的現金股利`, amount: d.amount };
-        case 'lendIncome': return { tag: '借卷收入', title: `${roc(d.lendDate)} ${stmtEsc(d.name)} ${stmtFmt(d.lentShares)} 股`, detail: `收入 $${stmtFmt(d.income)} − 服務費 $${stmtFmt(d.serviceFee)} ＝ 實際 $${stmtFmt(d.income - d.serviceFee)}`, amount: d.income - d.serviceFee };
+        case 'lendIncome': return { tag: '借卷收入', title: `${roc(d.lendDate)} ${stmtEsc(d.name)} ${stmtFmt(d.lentShares)} 股`, detail: `收入 $${stmtFmt(d.income)} − 服務費 $${stmtFmt(d.serviceFee)} ＝ 實際 $${stmtFmt(d.income - d.serviceFee)}・入款 ${roc(d.paymentDate)}` + (d.returnDate ? `・這個月還券 ${roc(d.returnDate)}` : '') + (d.contractNo ? `・合約 ${stmtEsc(d.contractNo)}` : ''), amount: d.income - d.serviceFee };
         case 'lentShares': {
           const unit = stmtSettingsObj().lendUnit;
           const nv = stmtLentDisplay(d.shares);
@@ -691,6 +723,7 @@
             <div class="stmt-item-title">${ds.tag ? `<span class="stmt-badge t-${it.type}">${ds.tag}</span>` : ''}${ds.title}</div>
             <div class="stmt-item-detail">${ds.detail || ''}</div>
             ${it.note ? `<div class="stmt-item-note">${stmtEsc(it.note)}</div>` : ''}
+            ${it.dupWith ? `<div class="stmt-item-dupwith">App 裡已有：${stmtEsc(it.dupWith)}</div>` : ''}
             ${fixHtml}
             ${editHtml}
           </div>
@@ -711,14 +744,16 @@
         ['add', '➕ 新增', '會寫進 App 的新紀錄'],
         ['update', '🔄 更新', '會改掉 App 裡現在的數字'],
         ['review', '👀 需要你看', '有地方對不上，或需要你決定'],
-        ['skip', '⏭️ 略過', '已經有了、只核對，或不需要寫入']
+        ['skip', '⏭️ 略過', '已經有了、只核對，或不需要寫入。這區預設不寫入，勾了就會寫入']
       ];
       const gHtml = groups.map(([g, title, tip]) => {
         const list = stmtItems.filter(it => it.group === g);
         if (!list.length) return '';
         const sorted = list.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
         const open = g !== 'skip' || list.length <= 6;
-        return `<details class="stmt-group g-${g}" ${open ? 'open' : ''}><summary><span class="stmt-sec-title">${title}（${list.length}）</span><span class="stmt-group-tip">${tip}</span></summary>${sorted.map(stmtItemHtml).join('')}</details>`;
+        const canCnt = list.filter(it => it.type !== 'info').length;
+        const btns = canCnt ? `<span class="stmt-group-btns"><button type="button" onclick="event.preventDefault(); event.stopPropagation(); stmtGroupCheck('${g}', true)">全選</button><button type="button" onclick="event.preventDefault(); event.stopPropagation(); stmtGroupCheck('${g}', false)">全不選</button></span>` : '';
+        return `<details class="stmt-group g-${g}" ${open ? 'open' : ''}><summary><span class="stmt-sec-title">${title}（${list.length}）</span><span class="stmt-group-tip">${tip}</span>${btns}</summary>${sorted.map(stmtItemHtml).join('')}</details>`;
       }).join('');
       return `<div class="stmt-cards">${cards}</div>${stmtSettingsHtml()}${gHtml || '<div class="stmt-empty">沒有要匯入的內容</div>'}`;
     }
@@ -731,6 +766,7 @@
     }
 
     function stmtFind(id) { return stmtItems.find(it => it.id === id); }
+    function stmtGroupCheck(g, v) { stmtItems.forEach(it => { if (it.group === g && it.type !== 'info') it.checked = v; }); stmtRefreshKeepScroll(); }
     function stmtToggle(id, v) { const it = stmtFind(id); if (it) it.checked = v; stmtRefreshKeepScroll(); }
     function stmtToggleEdit(id) { const it = stmtFind(id); if (it) it.editing = !it.editing; stmtRefreshKeepScroll(); }
     function stmtSetChoice(id, v) { const it = stmtFind(id); if (it) it.choice = v; }
@@ -810,7 +846,7 @@
             stmtRecalcDividends(h);
             bump('現金股利');
           } else if (it.type === 'lendIncome') {
-            lendingIncomeRows.push({ id: Date.now() + Math.floor(Math.random() * 100000), name: d.name, lendDate: d.lendDate, lentShares: stmtLentDisplay(d.lentShares), feeRate: d.feeRate, returnDate: d.returnDate, income: d.income, serviceFee: d.serviceFee, paymentDate: d.paymentDate, source: it.sid });
+            lendingIncomeRows.push({ id: Date.now() + Math.floor(Math.random() * 100000), name: d.name, lendDate: d.lendDate, lentShares: stmtLentDisplay(d.lentShares), feeRate: d.feeRate, returnDate: d.returnDate, income: d.income, serviceFee: d.serviceFee, paymentDate: d.paymentDate, contractNo: d.contractNo || '', stmtMonth: d.stmtMonth || '', source: it.sid });
             bump('借卷收入');
           } else if (it.type === 'lentShares') {
             const v = stmtLentDisplay(d.shares);
