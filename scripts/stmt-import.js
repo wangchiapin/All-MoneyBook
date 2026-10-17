@@ -580,6 +580,14 @@
       });
     }
 
+    // 這筆銀行餘額要寫到財務總覽的哪一格（沒設定或略過就是 null）
+    function stmtBalanceKey(it) {
+      const t = stmtBankTarget(it.res, it.acc);
+      if (!t || t.skip) return null;
+      const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
+      return item ? (item.isUSD ? item.id + '_usd' : item.id) : null;
+    }
+
     function stmtLentDisplay(shares) {
       return stmtSettingsObj().lendUnit === 'lot' ? stmtR(shares / 1000) : shares;
     }
@@ -784,9 +792,13 @@
           const col = stmtSettingsObj().financeCol;
           const key = item ? (item.isUSD ? item.id + '_usd' : item.id) : null;
           const old = key && state.values[key] ? state.values[key][col] : '';
+          // 好幾個銀行帳戶對到財務總覽同一個項目：有勾的加在一起寫進去
+          const same = key ? stmtItems.filter(x => x.type === 'balance' && x.checked && stmtBalanceKey(x) === key) : [];
+          const sum = same.length > 1 && it.checked ? stmtR(same.reduce((s, x) => s + (Number(x.data.value) || 0), 0)) : null;
           return {
             tag: '餘額', title: `${stmtEsc(it.res.label)} ${stmtEsc(it.acc.accountNo)} ${it.acc.currency === 'USD' ? 'US$' : '$'}${stmtFmt(d.value, it.acc.currency === 'USD' ? 2 : 0)}`,
-            detail: item ? `財務總覽「${stmtEsc(item.name)}」${stmtEsc(state.dates[col] || '')}：${old === '' || old == null ? '空白' : stmtFmt(Number(old) || 0, 2)} → ${stmtFmt(d.value, 2)}` : '還沒設定對應'
+            detail: item ? `財務總覽「${stmtEsc(item.name)}」${stmtEsc(state.dates[col] || '')}：${old === '' || old == null ? '空白' : stmtFmt(Number(old) || 0, 2)} → ${stmtFmt(sum != null ? sum : d.value, 2)}`
+              + (sum != null ? `（${same.length} 個帳戶加總：${same.map(x => stmtEsc(String(x.acc.accountNo).slice(-4)) + ' $' + stmtFmt(x.data.value, 0)).join(' ＋ ')}）` : '') : '還沒設定對應'
           };
         }
         case 'holdingFix': return {
@@ -918,6 +930,10 @@
       if (!chosen.length) return;
       if (chosen.some(it => it.type === 'lentShares') && !stmtSettingsObj().lendUnit) { showToast('請先在上面選「出借張數」是張還是股', 'error'); return; }
       if (chosen.some(it => it.type === 'balance' && !stmtBankTarget(it.res, it.acc))) { showToast('有銀行帳戶還沒設定對應', 'error'); return; }
+      if (chosen.some(it => it.type === 'balance')) {
+        const col = stmtSettingsObj().financeCol;
+        if (!(state.dates || []).length || col == null || col < 0 || col >= state.dates.length) { showToast('財務總覽還沒有日期欄，請先到財務總覽按「➕ 新增紀錄時間」，再回來匯入', 'error'); return; }
+      }
 
       // 備份（復原用）：股票資料＋財務總覽
       const backup = { at: new Date().toISOString(), stock: JSON.parse(JSON.stringify(gatherAllData())), finance: JSON.parse(JSON.stringify(state)) };
@@ -934,6 +950,7 @@
       const list = chosen.slice().sort((a, b) => ((bucket[a.type] ?? 1) - (bucket[b.type] ?? 1))
         || String(a.date || '').localeCompare(String(b.date || '')) || ((order[a.type] || 0) - (order[b.type] || 0)));
       let financeChanged = false;
+      const balanceSum = {}; // 同一個項目有好幾個帳戶 → 加總
 
       list.forEach(it => {
         const d = it.data;
@@ -1003,7 +1020,9 @@
             const t = stmtBankTarget(it.res, it.acc);
             const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
             if (!item) { problems.push(`財務總覽找不到帳戶 ${it.acc.accountNo} 對應的項目`); return; }
-            setRawVal(item.isUSD ? item.id + '_usd' : item.id, stmtSettingsObj().financeCol, d.value);
+            const bKey = item.isUSD ? item.id + '_usd' : item.id;
+            balanceSum[bKey] = stmtR((balanceSum[bKey] || 0) + (Number(d.value) || 0));
+            setRawVal(bKey, stmtSettingsObj().financeCol, balanceSum[bKey]);
             financeChanged = true;
             bump('銀行餘額');
           }
