@@ -36,6 +36,14 @@
       return !!(r && (stmtImported || []).some(x => x.statementId === r.statementId));
     }
 
+    // 同一份對帳單（例如兩個信箱都收到）在清單裡排在前面的那一份；沒有重複回傳 null
+    function stmtPendingDupOf(p) {
+      const r = stmtPendingResult(p);
+      if (!r || !r.statementId) return null;
+      return stmtPendingList.find(x => x !== p && x.status === 'ok' && stmtPendingResult(x) && stmtPendingResult(x).statementId === r.statementId
+        && stmtPendingList.indexOf(x) < stmtPendingList.indexOf(p)) || null;
+    }
+
     /* ---------------- 讀雲端、更新按鈕 ---------------- */
     async function stmtPendingRefresh() {
       const col = stmtPendingCol();
@@ -86,13 +94,13 @@
       openStmtImport();
       stmtStep = 'pending';
       stmtPendingPicked = {};
-      stmtPendingList.forEach(p => { if (p.status === 'ok' && !stmtPendingIsImported(p)) stmtPendingPicked[p.id] = true; });
+      stmtPendingList.forEach(p => { if (p.status === 'ok' && !stmtPendingIsImported(p) && !stmtPendingDupOf(p)) stmtPendingPicked[p.id] = true; });
       const t = document.querySelector('#stmtOverlay .stmt-title');
       if (t) t.textContent = '📬 待確認的對帳單';
       stmtRender();
       stmtPendingRefresh().then(() => {
         // 重新讀到的新項目，可以讀的也預設勾起來
-        stmtPendingList.forEach(p => { if (!(p.id in stmtPendingPicked) && p.status === 'ok' && !stmtPendingIsImported(p)) stmtPendingPicked[p.id] = true; });
+        stmtPendingList.forEach(p => { if (!(p.id in stmtPendingPicked) && p.status === 'ok' && !stmtPendingIsImported(p) && !stmtPendingDupOf(p)) stmtPendingPicked[p.id] = true; });
         if (stmtStep === 'pending') stmtRender();
       });
     }
@@ -112,6 +120,7 @@
       if (p.status === 'ok' && r) {
         tag = done
           ? '<span class="stmt-tag">之前已經匯入過</span>'
+          : stmtPendingDupOf(p) ? '<span class="stmt-tag">跟上面那份是同一份對帳單（另一個信箱收到的），可以丟掉</span>'
           : `<span class="stmt-tag ${p.allChecksOk ? 'ok' : 'bad'}">${p.allChecksOk ? '自我檢查通過' : '自我檢查沒通過，要仔細看'}</span>`;
         cb = `<input type="checkbox" class="stmt-cb" ${stmtPendingPicked[p.id] ? 'checked' : ''} onchange="stmtPendingPick('${p.id}', this.checked)">`;
       } else if (p.status === 'needpw') {
@@ -182,7 +191,14 @@
 
     /* ---------------- 送進原本的確認畫面 ---------------- */
     function stmtPendingGoReview() {
-      const chosen = stmtPendingList.filter(p => stmtPendingPicked[p.id] && p.status === 'ok' && stmtPendingResult(p));
+      const seen = new Set();
+      const chosen = stmtPendingList.filter(p => {
+        if (!(stmtPendingPicked[p.id] && p.status === 'ok' && stmtPendingResult(p))) return false;
+        const sid = stmtPendingResult(p).statementId;
+        if (sid && seen.has(sid)) return false; // 同一份對帳單勾了兩次，只算一次
+        if (sid) seen.add(sid);
+        return true;
+      });
       if (!chosen.length) return;
       stmtFiles = chosen.map(p => {
         const r = stmtPendingResult(p);
