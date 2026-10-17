@@ -4,7 +4,8 @@
    - 不用 AI、不連網：PDF 在使用者自己的裝置上打開（之後自動流程則在 GitHub 私人倉庫的臨時電腦上跑）
    - 同一份程式可以在瀏覽器（網頁的「📥 匯入對帳單」）和 Node（自動流程、測試）使用
 
-   目前支援：國泰證券、富邦證券、台北富邦銀行、國泰世華銀行、第一銀行
+   目前支援：國泰證券、富邦證券、永豐金證券、台北富邦銀行、國泰世華銀行、第一銀行、
+             永豐銀行、台新銀行、將來銀行、華南銀行、中國信託
    （富邦信用卡認得出來，但先不處理）
 
    每份對帳單讀完會得到同一種格式的結果（見 emptyResult），
@@ -64,8 +65,9 @@
      pdfjsLib：PDF.js（瀏覽器用 CDN 載入、Node 用 pdfjs-dist）
      password：對帳單密碼（沒有就留空）
      回傳 pages: [[ {y, cells:[{x0, x1, t}] } ]]，同一頁由上往下 */
-  async function extractPages(pdfjsLib, data, password) {
-    const task = pdfjsLib.getDocument({ data, password: password || undefined, isEvalSupported: false, useSystemFonts: true });
+  // docOpts：字型對照表的位置（cMapUrl、cMapPacked、standardFontDataUrl），有些中文字型要有它才讀得出字
+  async function extractPages(pdfjsLib, data, password, docOpts) {
+    const task = pdfjsLib.getDocument(Object.assign({ data, password: password || undefined, isEvalSupported: false, useSystemFonts: true, verbosity: 0 }, docOpts || {}));
     let doc;
     try {
       doc = await task.promise;
@@ -124,6 +126,12 @@
     if (t.includes('資產持有明細') && t.includes('taipeifubon')) return 'fubon_bank';
     if (t.includes('本期應繳總額') && t.includes('信用卡')) return 'fubon_card';
     if (t.includes('綜合業務對帳單') && (t.includes('第一銀行') || t.includes('firstbank'))) return 'first_bank';
+    if (t.includes('證券電子對帳單') && t.includes('sinotrade')) return 'sinopac_sec';
+    if (t.includes('綜合對帳單') && t.includes('永豐銀行')) return 'sinopac_bank';
+    if (t.includes('台新銀行綜合對帳單') || (t.includes('綜合對帳單') && t.includes('taishinbank'))) return 'taishin_bank';
+    if (t.includes('綜合對帳單') && t.includes('nextbank')) return 'next_bank';
+    if (t.includes('綜合對帳單') && t.includes('華南銀行')) return 'hncb_bank';
+    if (t.includes('ctbcbank.com')) return 'ctbc_bank';
     return '';
   }
 
@@ -324,15 +332,19 @@
   }
   // 銀行明細分類：只有「現金股息」會記帳；權益息、借券費只拿來核對證券對帳單
   function categorizeBankTx(desc) {
-    if (/現金股息|股利/.test(desc)) return 'cashDividend';
+    if (/現金股息|股利|配息/.test(desc)) return 'cashDividend';
     if (/權益息|權益補償/.test(desc)) return 'compensationRef';
     if (/借券費/.test(desc)) return 'lendingFeeRef';
-    if (/交割|證券定期|台股定期|定期定額/.test(desc)) return 'securitiesSettlement';
+    if (/交割|證券定期|台股定期|定期定額|定期買股/.test(desc)) return 'securitiesSettlement';
     return 'other';
   }
   function collectBankRefs(res) {
     res.bankTx.forEach(t => {
-      if (t.category === 'cashDividend') {
+      if (t.category === 'cashDividend' && /配息\s*([0-9]{4,6}[A-Z]?)/.test(t.desc)) {
+        // 「基金配息00878」→ 代號 00878
+        const code = t.desc.match(/配息\s*([0-9]{4,6}[A-Z]?)/)[1];
+        res.cashDividends.push({ date: t.date, name: code, code, amount: t.amount, desc: t.desc, accountNo: t.accountNo });
+      } else if (t.category === 'cashDividend') {
         // 「委代付 臺灣企銀現金股息」→ 臺灣企銀（只看有「現金股息」的那一段）
         const tok = t.desc.split(' ').find(x => /現金股息|股利/.test(x)) || t.desc;
         const m = tok.match(/^(.*?)(現金股息|股利)/);
@@ -499,22 +511,371 @@
     return res;
   }
 
+  /* ================= 共用：銀行明細（已知支出／存入欄） =================
+     rows: [{date, desc, out, in, balance}]；金額＝存入－支出，並核對「上一筆餘額＋金額＝這筆餘額」 */
+  function bankColTx(res, accountNo, rows, currency) {
+    let prev = null;
+    rows.forEach(r => {
+      const amount = round2((r.in || 0) - (r.out || 0));
+      if (prev !== null && Math.abs(round2(prev + amount) - r.balance) > 0.005) {
+        res.warnings.push(`${accountNo} ${r.date} ${r.desc}：餘額接不起來（${prev} ${amount >= 0 ? '+' : ''}${amount} ≠ ${r.balance}）`);
+      }
+      prev = r.balance;
+      res.bankTx.push({ accountNo, date: r.date, desc: r.desc, amount, balance: r.balance, currency: currency || 'TWD', category: categorizeBankTx(r.desc) });
+    });
+    return prev;
+  }
+  // 看數字格靠近哪一欄的標題（用中心點比）
+  function nearestCol(cell, cols) {
+    const cx = (cell.x0 + cell.x1) / 2;
+    let best = null, bd = Infinity;
+    Object.keys(cols).forEach(k => { const d = Math.abs(cx - cols[k]); if (d < bd) { bd = d; best = k; } });
+    return best;
+  }
+  function colCenters(line, names) {
+    const out = {};
+    Object.keys(names).forEach(k => { const c = line.cells.find(x => x.t === names[k]); if (c) out[k] = (c.x0 + c.x1) / 2; });
+    return out;
+  }
+  const money = t => num(String(t).replace(/^\$/, '').replace(/^NT\$/, ''));
+  const isMoney = t => isNum(String(t).replace(/^-?\$/, m => m.replace('$', '')).replace(/^NT\$/, '')) || /^-?\$[\d,]+(\.\d+)?$/.test(t);
+  function finishBank(res, source) {
+    collectBankRefs(res);
+    res.account = res.bankAccounts.map(a => a.accountNo).filter((x, i, a) => a.indexOf(x) === i).join(',');
+    res.statementId = `${source}|${res.account}|${res.period}`;
+    if (!res.bankAccounts.length) res.warnings.push('沒有讀到任何帳戶餘額');
+    if (!res.period) res.warnings.push('沒有讀到對帳單月份');
+    return res;
+  }
+  // 每個帳戶：明細最後一筆餘額＝帳戶餘額
+  function checkLastBalance(res, accountNo, last, currency) {
+    const acc = res.bankAccounts.find(a => a.accountNo === accountNo && (!currency || a.currency === currency));
+    if (acc && last !== null && last !== undefined) check(res, `${accountNo} 明細最後餘額＝帳戶餘額`, acc.balance, last);
+  }
+
+  /* ================= 永豐銀行 ================= */
+  function parseSinopacBank(pages) {
+    const res = emptyResult('sinopac_bank', '永豐銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/對帳單期間：\d{4}\/\d{2}\/\d{2}~(\d{4})\/(\d{2})\/\d{2}/);
+    if (pm) res.period = `${pm[1]}-${pm[2]}`;
+    const CUR = { '新臺幣': 'TWD', '美元': 'USD', '人民幣': 'CNY', '日圓': 'JPY', '歐元': 'EUR', '港幣': 'HKD', '澳幣': 'AUD' };
+    let twdOverview = null, cols = null, txAcc = '', txRows = [];
+    const flush = () => { if (txAcc && txRows.length) checkLastBalance(res, txAcc, bankColTx(res, txAcc, txRows, 'TWD')); txRows = []; };
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      if (l.page === 1 && c[0] === '臺幣' && c.length === 2 && twdOverview === null) twdOverview = num(c[1]);
+      const accIdx = c.findIndex(x => /^\d{3}-\d{2}\*-\*\*\d+-\*$/.test(x));
+      if (accIdx > 0 && CUR[c[0]]) {
+        const bal = c.slice(accIdx + 1).find(x => isNum(x));
+        res.bankAccounts.push({ accountNo: c[accIdx], type: c.slice(1, accIdx).join(''), currency: CUR[c[0]], balance: num(bal) });
+        return;
+      }
+      if (c.includes('支出') && c.includes('存入') && c.includes('餘額')) { cols = colCenters(l, { out: '支出', in: '存入', bal: '餘額' }); return; }
+      const am = c[0] && c[0].match(/^帳號:(.+?)\((.+)\)$/);
+      if (am) { flush(); txAcc = am[1]; return; }
+      if (txAcc && cols && isDate(c[0])) {
+        const row = { date: isoDate(c[0]), desc: '', out: 0, in: 0, balance: null };
+        const descs = [];
+        l.cells.slice(1).forEach(cell => {
+          if (isNum(cell.t) && cell.x0 > 180 && cell.x1 < 420) {
+            const k = nearestCol(cell, cols);
+            if (k === 'bal') row.balance = num(cell.t); else row[k] = num(cell.t);
+          } else descs.push(cell.t);
+        });
+        row.desc = descs.join(' ');
+        if (row.balance !== null) txRows.push(row);
+      }
+      if (/^【/.test(c[0] || '')) { flush(); txAcc = ''; }
+    });
+    flush();
+    if (twdOverview !== null) check(res, '臺幣存款合計', twdOverview, res.bankAccounts.filter(a => a.currency === 'TWD').reduce((s, a) => s + a.balance, 0));
+    return finishBank(res, 'sinopac_bank');
+  }
+
+  /* ================= 台新銀行（含 Richart） ================= */
+  function parseTaishinBank(pages) {
+    const res = emptyResult('taishin_bank', '台新銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/資料期間：\d{4}\/\d{2}\/\d{2}~(\d{4})\/(\d{2})\/\d{2}/);
+    if (pm) res.period = `${pm[1]}-${pm[2]}`;
+    let section = '', twdTotal = null, lastCur = '', cols = null, txSec = '';
+    const txByAcc = {};
+    const dollar = t => /^-?\$[\d,]+(\.\d+)?$/.test(t);
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (j.startsWith('新臺幣帳戶概要區')) { section = 'twd'; return; }
+      if (j.startsWith('外幣帳戶概要區')) { section = 'fx'; return; }
+      if (j === '您在本行的交易往來') { section = ''; return; }
+      if (j === '新臺幣帳戶的往來明細' && c.length === 1) { txSec = 'twd'; section = ''; return; }
+      if (j === '外幣帳戶的往來明細' && c.length === 1) { txSec = 'fx'; section = ''; return; }
+      if (j === '各產品訊息區') { txSec = ''; return; }
+      if (section === 'twd') {
+        if (c[0] === '合計') { twdTotal = money(c[c.length - 1]); return; }
+        const accIdx = c.findIndex(x => /^\d{6,}\*+\d+$/.test(x));
+        if (accIdx >= 0 && /活存|定存/.test(c[0])) {
+          const bal = c.slice(accIdx + 1).find(dollar);
+          res.bankAccounts.push({ accountNo: c[accIdx], type: c[0] + (c.includes('Richart') ? '（Richart）' : ''), currency: 'TWD', balance: money(bal) });
+        }
+      }
+      if (section === 'fx') {
+        if (c.length === 1 && /^[A-Z]{3}$/.test(c[0])) { lastCur = c[0]; return; }
+        const accIdx = c.findIndex(x => /^\d{5,}\*+\d+$/.test(x));
+        if (accIdx >= 0 && /活存|定存/.test(c[0])) {
+          const bal = c.slice(accIdx + 1).find(dollar); // 第一個是原幣
+          res.bankAccounts.push({ accountNo: c[accIdx], type: c[0] + (c.includes('Richart') ? '（Richart）' : ''), currency: lastCur || 'USD', balance: money(bal) });
+        }
+      }
+      if (txSec) {
+        if (c.includes('支出金額') && c.includes('存入金額')) { cols = colCenters(l, { out: '支出金額', in: '存入金額', bal: '帳戶餘額' }); return; }
+        if (!cols || !/^\d{5,}\*+\d+$/.test(c[0] || '') || !isDate(c[1])) return;
+        let cur = 'TWD';
+        const row = { date: isoDate(c[1]), desc: '', out: 0, in: 0, balance: null };
+        const descs = [];
+        l.cells.slice(2).forEach(cell => {
+          if (txSec === 'fx' && /^[A-Z]{3}$/.test(cell.t)) { cur = cell.t; return; }
+          if (dollar(cell.t)) { const k = nearestCol(cell, cols); if (k === 'bal') row.balance = money(cell.t); else row[k] = money(cell.t); }
+          else descs.push(cell.t);
+        });
+        row.desc = descs.join(' ');
+        const key = c[0] + '|' + cur;
+        (txByAcc[key] = txByAcc[key] || []).push(row);
+      }
+    });
+    Object.keys(txByAcc).forEach(key => {
+      const [acc, cur] = key.split('|');
+      const last = bankColTx(res, acc, txByAcc[key], cur);
+      checkLastBalance(res, acc, last, cur);
+    });
+    if (twdTotal !== null) check(res, '新臺幣帳戶合計', twdTotal, res.bankAccounts.filter(a => a.currency === 'TWD').reduce((s, a) => s + a.balance, 0));
+    return finishBank(res, 'taishin_bank');
+  }
+
+  /* ================= 將來銀行 ================= */
+  function parseNextBank(pages) {
+    const res = emptyResult('next_bank', '將來銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/帳單期間\d{4}\/\d{2}\/\d{2}~(\d{4})\/(\d{2})\/\d{2}/);
+    if (pm) res.period = `${pm[1]}-${pm[2]}`;
+    let total = null, inOverview = false, cols = null, txAcc = '', txRows = [];
+    const flush = () => { if (txAcc && txRows.length) checkLastBalance(res, txAcc, bankColTx(res, txAcc, txRows, 'TWD')); txRows = []; };
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      const tm = j.match(/總餘額：NT\$([\d,]+)/);
+      if (tm && total === null) total = num(tm[1]);
+      if (j.startsWith('臺外幣帳戶總覽')) { inOverview = true; return; }
+      if (inOverview) {
+        if (/^\d{6,}\*+\d+$/.test(c[0] || '') && /^[A-Z]{3}$/.test(c[1] || '')) {
+          const nums = c.slice(2).filter(isNum);
+          res.bankAccounts.push({ accountNo: c[0], type: '活存', currency: c[1], balance: num(nums[0]) });
+          return;
+        }
+        if (c[0] === '帳戶號碼') return; // 表頭
+        if (c.length && !/^\d/.test(c[0])) inOverview = false;
+      }
+      const am = j.match(/^帳號：(\d{6,}\*+\d+)/);
+      if (am) { flush(); txAcc = am[1]; return; }
+      if (c.includes('收入') && c.includes('支出') && c.includes('餘額')) { cols = colCenters(l, { in: '收入', out: '支出', bal: '餘額' }); return; }
+      if (j.startsWith('活存口袋明細')) { flush(); txAcc = ''; return; }
+      if (txAcc && cols && isDate(c[0])) {
+        const row = { date: isoDate(c[0]), desc: '', out: 0, in: 0, balance: null };
+        const descs = [];
+        l.cells.slice(1).forEach(cell => {
+          if (isNum(cell.t)) { const k = nearestCol(cell, cols); if (k === 'bal') row.balance = num(cell.t); else row[k] = num(cell.t); }
+          else descs.push(cell.t);
+        });
+        row.desc = descs.join(' ');
+        if (row.balance !== null) txRows.push(row);
+      }
+    });
+    flush();
+    if (total !== null) check(res, '存款總餘額', total, res.bankAccounts.reduce((s, a) => s + (a.currency === 'TWD' ? a.balance : 0), 0));
+    return finishBank(res, 'next_bank');
+  }
+
+  /* ================= 華南銀行 ================= */
+  function parseHncbBank(pages) {
+    const res = emptyResult('hncb_bank', '華南銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/餘額基準日：(\d{2,3})年(\d{2})月/);
+    if (pm) res.period = `${Number(pm[1]) + 1911}-${pm[2]}`;
+    let twdOverview = null, cols = null, txAcc = '', txRows = [], inSummary = false;
+    const flush = () => { if (txAcc && txRows.length) checkLastBalance(res, txAcc, bankColTx(res, txAcc, txRows, 'TWD')); txRows = []; };
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (/^1\.台幣存款/.test(j) && twdOverview === null) { const n = c.slice(1).find(isNum); twdOverview = n !== undefined ? num(n) : 0; }
+      if (j.startsWith('[往來帳戶餘額彙整表]')) { inSummary = true; return; }
+      if (j.startsWith('附註')) inSummary = false;
+      if (inSummary) {
+        const accIdx = c.findIndex(x => /^\d{4,}X+\d+$/.test(x));
+        const curIdx = c.findIndex(x => /^[A-Z]{3}$/.test(x));
+        if (accIdx >= 0 && curIdx > accIdx) {
+          // 台幣帳戶只有「台幣餘額」；外幣帳戶第一個數字是外幣餘額
+          const nums = l.cells.slice(curIdx + 1).filter(x => isNum(x.t));
+          res.bankAccounts.push({ accountNo: c[accIdx], type: c.slice(0, accIdx).join(''), currency: c[curIdx], balance: nums.length ? num(nums[0].t) : 0 });
+        }
+        return;
+      }
+      const am = j.match(/^帳號：(\d{4,}X+\d+)$/);
+      if (am) { flush(); txAcc = am[1]; return; }
+      if (c.includes('支出金額') && c.includes('存入金額')) { cols = colCenters(l, { out: '支出金額', in: '存入金額', bal: '餘額' }); return; }
+      if (/^◎|^\[外幣帳戶明細\]/.test(j)) { flush(); txAcc = ''; return; }
+      if (txAcc && cols && isDate(c[0])) {
+        const row = { date: isoDate(c[0]), desc: '', out: 0, in: 0, balance: null };
+        const descs = [];
+        l.cells.slice(1).forEach(cell => {
+          if (isNum(cell.t) && cell.x1 < (cols.bal || 400) + 40) { const k = nearestCol(cell, cols); if (k === 'bal') row.balance = num(cell.t); else row[k] = num(cell.t); }
+          else if (!/^[A-Z]{3}$/.test(cell.t)) descs.push(cell.t);
+        });
+        row.desc = descs.join(' ');
+        if (row.balance !== null) txRows.push(row);
+      }
+    });
+    flush();
+    if (twdOverview !== null) check(res, '台幣存款合計', twdOverview, res.bankAccounts.filter(a => a.currency === 'TWD').reduce((s, a) => s + a.balance, 0));
+    return finishBank(res, 'hncb_bank');
+  }
+
+  /* ================= 中國信託 =================
+     這家的中文字是用圖畫的（讀不出字），只能靠數字、帳號和位置：
+     第 2 頁先列台幣帳戶（帳號＋餘額），下一列只有一個數字的是「合計」；之後的帳戶是外幣（餘額有小數點）。
+     交易明細：帳號那列的數字是「上期結餘」，之後「日期 … 金額 … 餘額」，最後只有餘額的是「本期結餘」。 */
+  function parseCtbcBank(pages) {
+    const res = emptyResult('ctbc_bank', '中國信託');
+    res.kind = 'bank';
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/(\d{4})\/(\d{2})\/\d{2}(\d{4})\/(\d{2})\/(\d{2})/);
+    if (pm) res.period = `${pm[3]}-${pm[4]}`;
+    const accRe = /^\d{5}\*\*\d{4}\*$/;
+    let stage = 'twd', twdTotal = null, txAcc = '', opening = null, txRows = [], seenTx = new Set();
+    const p2 = pages[1] || [];
+    p2.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const accIdx = c.findIndex(x => accRe.test(x));
+      // 帳戶持有明細（帳號在左邊、x < 200）
+      if (accIdx >= 0 && l.cells[accIdx].x0 > 100 && l.cells[accIdx].x0 < 200 && !txAcc) {
+        const n = c.slice(accIdx + 1).find(isNum);
+        res.bankAccounts.push({ accountNo: c[accIdx], type: stage === 'twd' ? '台幣存款' : '外幣存款', currency: stage === 'twd' ? 'TWD' : 'USD', balance: num(n) });
+        return;
+      }
+      if (stage === 'twd' && res.bankAccounts.length && c.length === 1 && isNum(c[0])) { twdTotal = num(c[0]); stage = 'fx'; return; }
+      // 交易明細：帳號在最左邊（x < 60）
+      if (accIdx === 0 && l.cells[0].x0 < 60) {
+        if (txAcc) checkLastBalance(res, txAcc, bankColTx(res, txAcc, txRows, 'TWD'));
+        txAcc = c[0]; txRows = []; seenTx.add(txAcc);
+        const n = c.slice(1).filter(isNum);
+        opening = n.length ? num(n[n.length - 1]) : null;
+        return;
+      }
+      if (txAcc && isDate(c[0])) {
+        const nums = l.cells.slice(1).filter(x => isNum(x.t));
+        if (nums.length >= 2) {
+          const bal = num(nums[nums.length - 1].t), amt = num(nums[nums.length - 2].t);
+          const prev = txRows.length ? txRows[txRows.length - 1].balance : opening;
+          const isIn = prev === null ? true : Math.abs(round2(prev + amt) - bal) < 0.005;
+          txRows.push({ date: isoDate(c[0]), desc: '（中信明細，摘要讀不出字）', out: isIn ? 0 : amt, in: isIn ? amt : 0, balance: bal });
+        }
+      }
+    });
+    if (txAcc) checkLastBalance(res, txAcc, bankColTx(res, txAcc, txRows, 'TWD'));
+    if (twdTotal !== null) check(res, '台幣存款合計', twdTotal, res.bankAccounts.filter(a => a.currency === 'TWD').reduce((s, a) => s + a.balance, 0));
+    res.warnings = res.warnings.filter(w => !/摘要讀不出字/.test(w));
+    return finishBank(res, 'ctbc_bank');
+  }
+
+  /* ================= 永豐金證券（證券電子對帳單） =================
+     App 裡寫到「媽的永豐」分頁（買進明細、股數），所以結果多一個 yfMode */
+  function parseSinopacSec(pages) {
+    const res = emptyResult('sinopac_sec', '永豐金證券');
+    res.kind = 'securities';
+    res.yfMode = true;
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/成交年月：(\d{4})(\d{2})/);
+    if (pm) res.period = `${pm[1]}-${pm[2]}`;
+    const am = text.match(/客戶帳號：([0-9A-Z*\-]+)/);
+    if (am) res.account = am[1];
+    let section = '', holdSub = null, tradeSub = null, net = null;
+    lines.forEach((l, i) => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (j === '證券庫存') { section = 'hold'; return; }
+      if (j === '證券交易明細') { section = 'trade'; return; }
+      if (section === 'hold') {
+        if (c[0] === '小計') { holdSub = { shares: num(c[1]), cost: num(c[2]), value: num(c[3]) }; return; }
+        const ci = c.findIndex(x => /^\d{4,6}[A-Z]?$/.test(x));
+        if (ci >= 0 && /現股|融資|融券/.test(c[0])) {
+          // 名稱可能被拆成上下兩行（例如「國泰永續高股」「息」）
+          const up = lines[i - 1] && lines[i - 1].page === l.page ? lineText(lines[i - 1]).replace(/\s+/g, '') : '';
+          const down = lines[i + 1] && lines[i + 1].page === l.page ? lineText(lines[i + 1]).replace(/\s+/g, '') : '';
+          const name = (/^[^\d]{1,12}$/.test(up) ? up : '') + (/^[^\d]{1,4}$/.test(down) ? down : '');
+          res.holdings.push({ code: c[ci], name: name || c[ci], shares: num(c[ci + 1]), avgCost: num(c[ci + 2]), totalCost: num(c[ci + 3]), closePrice: num(c[ci + 4]), marketValue: num(c[ci + 5]) });
+        }
+      }
+      if (section === 'trade') {
+        if (c[0] === '小計') { tradeSub = { shares: num(c[1]), amount: num(c[2]), fee: num(c[3]), total: num(c[c.length - 1]) }; return; }
+        if (c.includes('客戶淨收付：')) { net = num(c[c.length - 1]); return; }
+        if (isDate(c[0]) && /買|賣/.test(c[1] || '')) {
+          const side = /賣/.test(c[1]) ? 'sell' : 'buy';
+          const nums = l.cells.slice(3).map(x => x.t);
+          const shares = num(nums[0]), price = num(nums[1]), amount = num(nums[2]), fee = num(nums[3]);
+          const tax = side === 'sell' && nums.length > 5 ? num(nums[4]) : 0;
+          const netAmt = num(nums[nums.length - 1]);
+          res.trades.push({ date: isoDate(c[0]), name: c[2], code: '', side, mode: 'normal', shares, price, amount, fee, tax, net: side === 'buy' ? -netAmt : netAmt, orderNo: '' });
+        }
+      }
+    });
+    // 名稱沒代號：用庫存裡名稱開頭一樣的那檔補上代號
+    res.trades.forEach(t => { const h = res.holdings.find(h => h.name.startsWith(t.name) || t.name.startsWith(h.name)); if (h) t.code = h.code; });
+    if (holdSub) {
+      check(res, '庫存股數小計', holdSub.shares, res.holdings.reduce((s, h) => s + h.shares, 0));
+      check(res, '庫存成本小計', holdSub.cost, res.holdings.reduce((s, h) => s + h.totalCost, 0));
+    }
+    if (tradeSub) {
+      check(res, '成交金額小計', tradeSub.amount, res.trades.reduce((s, t) => s + t.amount, 0));
+      check(res, '手續費小計', tradeSub.fee, res.trades.reduce((s, t) => s + t.fee, 0));
+    }
+    if (net !== null) check(res, '客戶淨收付', net, res.trades.reduce((s, t) => s + t.net, 0));
+    res.statementId = `sinopac_sec|${res.account}|${res.period}`;
+    if (!res.period) res.warnings.push('沒有讀到對帳單月份');
+    return res;
+  }
+
   /* ---------------- 總入口 ---------------- */
   const PARSERS = {
     cathay_sec: parseCathaySec,
     fubon_sec: parseFubonSec,
     fubon_bank: parseFubonBank,
     cathay_bank: parseCathayBank,
-    first_bank: parseFirstBank
+    first_bank: parseFirstBank,
+    sinopac_bank: parseSinopacBank,
+    taishin_bank: parseTaishinBank,
+    next_bank: parseNextBank,
+    hncb_bank: parseHncbBank,
+    ctbc_bank: parseCtbcBank,
+    sinopac_sec: parseSinopacSec
   };
   const LABELS = {
     cathay_sec: '國泰證券', fubon_sec: '富邦證券', fubon_bank: '台北富邦銀行',
-    cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡', first_bank: '第一銀行'
+    cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡', first_bank: '第一銀行',
+    sinopac_bank: '永豐銀行', taishin_bank: '台新銀行', next_bank: '將來銀行', hncb_bank: '華南銀行', ctbc_bank: '中國信託',
+    sinopac_sec: '永豐金證券'
   };
 
   // 讀一份 PDF：回傳結果（或 {unsupported:true}）
-  async function parsePdf(pdfjsLib, data, password) {
-    const pages = await extractPages(pdfjsLib, data, password);
+  async function parsePdf(pdfjsLib, data, password, docOpts) {
+    const pages = await extractPages(pdfjsLib, data, password, docOpts);
     const source = detect(pages);
     if (!source) return { unsupported: true, label: '認不出是哪一家的對帳單' };
     if (!PARSERS[source]) return { unsupported: true, source, label: LABELS[source] + '（目前先不處理）' };

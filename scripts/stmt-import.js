@@ -9,6 +9,11 @@
    ==================================================================== */
 
     const STMT_PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/';
+    // 有些對帳單的中文字型要「字型對照表」才讀得出字（華南銀行等）
+    const STMT_PDFJS_DOCOPTS = {
+      cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/', cMapPacked: true,
+      standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/'
+    };
     const STMT_PW_KEY = 'STMT_IMPORT_PASSWORDS_V1';   // 只存在這台裝置，不同步
     const STMT_BACKUP_KEY = 'STMT_IMPORT_LAST_BACKUP_V1';
 
@@ -201,7 +206,7 @@
       f.status = 'reading';
       for (const pw of tries) {
         try {
-          const res = await StmtParsers.parsePdf(pdfjs, new Uint8Array(buf.slice(0)), pw);
+          const res = await StmtParsers.parsePdf(pdfjs, new Uint8Array(buf.slice(0)), pw, STMT_PDFJS_DOCOPTS);
           if (pw && typed) {
             const rem = document.getElementById('stmtRememberPw');
             if (!rem || rem.checked) stmtRememberPassword(pw);
@@ -345,6 +350,10 @@
         }
         const base = { sid, src: res.label, failed };
 
+        if (res.kind === 'securities' && stmtUseYf(res)) {
+          stmtBuildYfItems(res, base);
+          return;
+        }
         if (res.kind === 'securities') {
           const account = stmtStockAccount(res);
           // 買賣
@@ -443,7 +452,7 @@
           (res.cashDividends || []).forEach(d => {
             stmtItems.push(stmtItem(Object.assign({}, base, {
               type: 'cashDiv', date: d.date, account: '',
-              data: { name: d.name, date: d.date, amount: d.amount, how: '銀行入帳' },
+              data: { name: d.name, code: d.code || '', date: d.date, amount: d.amount, how: '銀行入帳' },
               edit: [['amount', '金額'], ['date', '日期 (YYYY-MM-DD)', 'text']]
             })));
           });
@@ -545,7 +554,7 @@
 
       // 現金股利：找持股、比對手動輸入過的
       stmtItems.filter(it => it.type === 'cashDiv').forEach(it => {
-        const m = stmtMatchHolding(it.data.name, '', it.account);
+        const m = stmtMatchHolding(it.data.name, it.data.code || '', it.account);
         it.holdingId = m.h ? m.h.id : null;
         it.many = m.how === 'many';
         if (m.h) {
@@ -588,6 +597,50 @@
       return item ? (item.isUSD ? item.id + '_usd' : item.id) : null;
     }
 
+    /* 永豐金證券 → 媽的永豐分頁：買進明細、APP 顯示成本、核對股數 */
+    // 永豐金證券寫到「媽的永豐」：這個 App 要有媽的永豐分頁才這樣做，沒有的話就當一般券商（寫到股票買進）
+    function stmtUseYf(res) { return !!(res && res.yfMode) && typeof yfDetail !== 'undefined' && typeof yfOverview !== 'undefined'; }
+    function stmtYfDigits(v) { return String(v || '').replace(/[^0-9]/g, ''); }
+    function stmtBuildYfItems(res, base) {
+      const yfBase = Object.assign({}, base, { yf: true });
+      const pool = (yfDetail || []).map(r => ({ date: stmtYfDigits(r.date), shares: Number(r.shares) || 0, used: false }));
+      let addShares = 0;
+      (res.trades || []).forEach(t => {
+        if (t.side !== 'buy') {
+          stmtItems.push(stmtItem(Object.assign({}, yfBase, {
+            type: 'info', group: 'review', checked: false,
+            title: `媽的永豐：${stmtRoc(t.date)} 賣出 ${t.name} ${stmtFmt(t.shares)} 股`,
+            detail: '媽的永豐分頁沒有賣出的表，請自己處理'
+          })));
+          return;
+        }
+        const data = { date: stmtRoc(t.date), name: t.name, code: t.code, shares: t.shares, price: t.price, fee: t.fee, cost: stmtR(t.amount + t.fee) };
+        const same = pool.find(p => !p.used && p.date === stmtYfDigits(data.date) && p.shares === data.shares);
+        if (same) same.used = true; else addShares += data.shares;
+        stmtItems.push(stmtItem(Object.assign({}, yfBase, {
+          type: 'yfBuy', date: t.date, data, dup: !!same,
+          dupWith: same ? `媽的永豐買賣明細：${data.date} ${stmtFmt(data.shares)} 股` : '',
+          edit: [['date', '日期', 'text'], ['shares', '股數'], ['price', '價格'], ['cost', '成本']]
+        })));
+      });
+      const h = (res.holdings || []).find(x => x.code === '00878') || (res.holdings || [])[0];
+      if (h) {
+        const old = Number(yfOverview && yfOverview.appCost) || 0;
+        if (Math.abs(old - h.totalCost) >= 1) {
+          stmtItems.push(stmtItem(Object.assign({}, yfBase, {
+            type: 'yfAppCost', group: 'update', old, data: { value: h.totalCost, shares: h.shares }, edit: [['value', 'APP 顯示成本']]
+          })));
+        }
+        const appShares = (yfDetail || []).reduce((s, r) => s + (Number(r.shares) || 0), 0) + addShares;
+        const ok = Math.abs(appShares - h.shares) < 0.001;
+        stmtItems.push(stmtItem(Object.assign({}, yfBase, {
+          type: 'info', group: ok ? 'skip' : 'review', checked: false,
+          title: `媽的永豐股數核對：對帳單 ${stmtFmt(h.shares)} 股、App ${stmtFmt(appShares)} 股`,
+          detail: ok ? '一樣（已算進這次要新增的買進）' : `差 ${stmtFmt(h.shares - appShares)} 股，請到「媽的永豐 → 買賣明細」看一下（股數是用買賣明細加總的）`
+        })));
+      }
+    }
+
     function stmtLentDisplay(shares) {
       return stmtSettingsObj().lendUnit === 'lot' ? stmtR(shares / 1000) : shares;
     }
@@ -599,7 +652,7 @@
       const out = { sec: [], bank: [], names: [], lendUnit: false, financeCol: false };
       const seenNames = new Set();
       results.filter(r => !imported.has(r.statementId)).forEach(r => {
-        if (r.kind === 'securities') {
+        if (r.kind === 'securities' && !stmtUseYf(r)) {
           out.sec.push(r);
           if ((r.lendings || []).length) out.lendUnit = true;
         }
@@ -779,6 +832,14 @@
           detail: `損益 ${(d.sellAmt - d.cost) >= 0 ? '+' : ''}${stmtFmt(d.sellAmt - d.cost)}（成本 $${stmtFmt(d.cost)}、賣出 $${stmtFmt(d.sellAmt)}）`, amount: d.sellAmt - d.cost
         };
         case 'stockDiv': return { tag: '配股', title: `${stmtEsc(stmtRoc(d.date))} ${stmtEsc(d.name)} 配 ${stmtFmt(d.shares)} 股`, detail: `${stmtEsc(it.account)}・持股股數增加，成本不變` };
+        case 'yfBuy': return {
+          tag: '媽的永豐', title: `${roc(d.date)} ${stmtEsc(d.name)} ${stmtFmt(d.shares)} 股 @ ${d.price}`,
+          detail: `寫到「媽的永豐 → 買賣明細」・成本 $${stmtFmt(d.cost)}（含手續費 ${stmtFmt(d.fee)}）`, amount: d.cost
+        };
+        case 'yfAppCost': return {
+          tag: '媽的永豐', title: `APP 顯示成本：${stmtFmt(it.old)} → ${stmtFmt(d.value)}`,
+          detail: `永豐金證券對帳單的「總投資成本」（月底 ${stmtFmt(d.shares)} 股）`
+        };
         case 'cashDiv': return { tag: '現金股利', title: `${stmtEsc(stmtRoc(d.date))} ${stmtEsc(d.name)} $${stmtFmt(d.amount)}`, detail: `${stmtEsc(d.how)}・記到持股的現金股利`, amount: d.amount };
         case 'lendIncome': return { tag: '借卷收入', title: `${roc(d.lendDate)} ${stmtEsc(d.name)} ${stmtFmt(d.lentShares)} 股`, detail: `收入 $${stmtFmt(d.income)} − 服務費 $${stmtFmt(d.serviceFee)} ＝ 實際 $${stmtFmt(d.income - d.serviceFee)}・入款 ${roc(d.paymentDate)}` + (d.returnDate ? `・這個月還券 ${roc(d.returnDate)}` : '') + (d.contractNo ? `・合約 ${stmtEsc(d.contractNo)}` : ''), amount: d.income - d.serviceFee };
         case 'lentShares': {
@@ -796,7 +857,7 @@
           const same = key ? stmtItems.filter(x => x.type === 'balance' && x.checked && stmtBalanceKey(x) === key) : [];
           const sum = same.length > 1 && it.checked ? stmtR(same.reduce((s, x) => s + (Number(x.data.value) || 0), 0)) : null;
           return {
-            tag: '餘額', title: `${stmtEsc(it.res.label)} ${stmtEsc(it.acc.accountNo)} ${it.acc.currency === 'USD' ? 'US$' : '$'}${stmtFmt(d.value, it.acc.currency === 'USD' ? 2 : 0)}`,
+            tag: '餘額', title: `${stmtEsc(it.res.label)} ${stmtEsc(it.acc.accountNo)} ${it.acc.currency === 'USD' ? 'US$' : (it.acc.currency && it.acc.currency !== 'TWD' ? stmtEsc(it.acc.currency) + ' ' : '$')}${stmtFmt(d.value, it.acc.currency && it.acc.currency !== 'TWD' ? 2 : 0)}`,
             detail: item ? `財務總覽「${stmtEsc(item.name)}」${stmtEsc(state.dates[col] || '')}：${old === '' || old == null ? '空白' : stmtFmt(Number(old) || 0, 2)} → ${stmtFmt(sum != null ? sum : d.value, 2)}`
               + (sum != null ? `（${same.length} 個帳戶加總：${same.map(x => stmtEsc(String(x.acc.accountNo).slice(-4)) + ' $' + stmtFmt(x.data.value, 0)).join(' ＋ ')}）` : '') : '還沒設定對應'
           };
@@ -839,10 +900,11 @@
     }
 
     // 每一區裡面照種類排：買進 → 賣出 → 當沖 → 配股 → 現金股利 → 借卷收入 → 出借張數 → 庫存 → 銀行
-    const STMT_KINDS = ['buy', 'sell', 'daytrade', 'stockDiv', 'cashDiv', 'lendIncome', 'lentShares', 'holding', 'balance', 'bankref', 'other'];
-    const STMT_KIND_LABEL = { buy: '買進', sell: '賣出', daytrade: '當沖', stockDiv: '配股', cashDiv: '現金股利', lendIncome: '借卷收入', lentShares: '出借張數', holding: '庫存', balance: '銀行餘額', bankref: '銀行入帳核對', other: '其他' };
+    const STMT_KINDS = ['buy', 'sell', 'daytrade', 'stockDiv', 'cashDiv', 'lendIncome', 'lentShares', 'holding', 'yf', 'balance', 'bankref', 'other'];
+    const STMT_KIND_LABEL = { buy: '買進', sell: '賣出', daytrade: '當沖', stockDiv: '配股', cashDiv: '現金股利', lendIncome: '借卷收入', lentShares: '出借張數', holding: '庫存', yf: '媽的永豐', balance: '銀行餘額', bankref: '銀行入帳核對', other: '其他' };
     function stmtKindOf(it) {
       if (it.type === 'holdingFix') return 'holding';
+      if (it.type === 'yfBuy' || it.type === 'yfAppCost' || it.yf) return 'yf';
       if (it.type !== 'info') return STMT_KINDS.includes(it.type) ? it.type : 'other';
       const t = String(it.title || '');
       if (t.startsWith('庫存')) return 'holding';
@@ -995,8 +1057,15 @@
             h.dividendHistory.push({ year: Number(String(d.date).slice(0, 4)), cashDate: '', cash: 0, stockDate: d.date, stockShares: d.shares, source: it.sid });
             stmtRecalcDividends(h);
             bump('配股');
+          } else if (it.type === 'yfBuy') {
+            yfDetail.push({ date: d.date, shares: Number(d.shares) || 0, price: Number(d.price) || 0, cost: Number(d.cost) || 0, source: it.sid });
+            yfAutoSortByDate(yfDetail, 'date');
+            bump('媽的永豐買進');
+          } else if (it.type === 'yfAppCost') {
+            yfOverview.appCost = Number(d.value) || 0;
+            bump('媽的永豐 APP 成本');
           } else if (it.type === 'cashDiv') {
-            const h = stocks.find(s => String(s.id) === String(it.holdingId)) || stmtMatchHolding(d.name, '', it.account).h;
+            const h = stocks.find(s => String(s.id) === String(it.holdingId)) || stmtMatchHolding(d.name, d.code || '', it.account).h;
             if (!h) { problems.push(`現金股利 ${d.name} 找不到持股`); return; }
             h.dividendHistory = h.dividendHistory || [];
             h.dividendHistory.push({ year: Number(String(d.date).slice(0, 4)), cashDate: d.date, cash: d.amount, stockDate: '', stockShares: 0, source: it.sid });
