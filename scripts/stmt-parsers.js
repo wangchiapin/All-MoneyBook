@@ -4,7 +4,7 @@
    - 不用 AI、不連網：PDF 在使用者自己的裝置上打開（之後自動流程則在 GitHub 私人倉庫的臨時電腦上跑）
    - 同一份程式可以在瀏覽器（網頁的「📥 匯入對帳單」）和 Node（自動流程、測試）使用
 
-   目前支援：國泰證券、富邦證券、台北富邦銀行、國泰世華銀行
+   目前支援：國泰證券、富邦證券、台北富邦銀行、國泰世華銀行、第一銀行
    （富邦信用卡認得出來，但先不處理）
 
    每份對帳單讀完會得到同一種格式的結果（見 emptyResult），
@@ -123,6 +123,7 @@
     if (t.includes('現貨對帳單') && t.includes('富邦證券')) return 'fubon_sec';
     if (t.includes('資產持有明細') && t.includes('taipeifubon')) return 'fubon_bank';
     if (t.includes('本期應繳總額') && t.includes('信用卡')) return 'fubon_card';
+    if (t.includes('綜合業務對帳單') && (t.includes('第一銀行') || t.includes('firstbank'))) return 'first_bank';
     return '';
   }
 
@@ -463,16 +464,52 @@
     return res;
   }
 
+  /* ================= 第一銀行（綜合業務對帳單／餘額核對單） =================
+     只有「活期性存款餘額」：每個帳戶的月底餘額；後面的「電子銀行轉帳交易清單」只列轉出，不讀。
+     對帳單沒有印總計，自我檢查改成：看起來像帳戶的每一列，都要讀到帳號、幣別和餘額。 */
+  function parseFirstBank(pages) {
+    const res = emptyResult('first_bank', '第一銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/資料基準日期(\d{2,3})\/(\d{2})\/\d{2}/);
+    if (pm) res.period = `${Number(pm[1]) + 1911}-${pm[2]}`;
+
+    let section = false, seen = 0;
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (j === '活期性存款餘額') { section = true; return; }
+      if (!section) return;
+      if (/^說明|轉帳交易清單/.test(j)) { section = false; return; }
+      const accIdx = c.findIndex(x => /^[\d*]+(-[\d*]+)+$/.test(x) && /\d{3,}$/.test(x));
+      if (accIdx < 0) return;
+      seen++;
+      const curRaw = c.slice(accIdx + 1).find(x => /^[A-Z]{3}$/.test(x));
+      const bal = c.slice(accIdx + 1).reverse().find(x => isNum(x));
+      if (!curRaw || bal === undefined) return;
+      const currency = curRaw === 'NTD' ? 'TWD' : curRaw;
+      res.bankAccounts.push({ accountNo: c[accIdx], type: c.slice(0, accIdx).join(''), currency, balance: num(bal) });
+    });
+    check(res, '帳戶列都讀到餘額', seen, res.bankAccounts.length);
+    if (!res.bankAccounts.length) res.warnings.push('沒有讀到任何帳戶餘額');
+    if (!res.period) res.warnings.push('沒有讀到對帳單月份');
+    res.account = res.bankAccounts.map(a => a.accountNo).join(',');
+    res.statementId = `first_bank|${res.account}|${res.period}`;
+    return res;
+  }
+
   /* ---------------- 總入口 ---------------- */
   const PARSERS = {
     cathay_sec: parseCathaySec,
     fubon_sec: parseFubonSec,
     fubon_bank: parseFubonBank,
-    cathay_bank: parseCathayBank
+    cathay_bank: parseCathayBank,
+    first_bank: parseFirstBank
   };
   const LABELS = {
     cathay_sec: '國泰證券', fubon_sec: '富邦證券', fubon_bank: '台北富邦銀行',
-    cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡'
+    cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡', first_bank: '第一銀行'
   };
 
   // 讀一份 PDF：回傳結果（或 {unsupported:true}）
