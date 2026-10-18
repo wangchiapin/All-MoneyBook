@@ -246,7 +246,10 @@
       }
     }
 
-    function stmtGoReview() {
+    // 重新處理（補漏）：這次要當成新的重讀一次的、已經匯入過的對帳單編號
+    let stmtReprocess = new Set();
+    function stmtGoReview(reprocessSids) {
+      stmtReprocess = new Set(Array.isArray(reprocessSids) ? reprocessSids : []);
       stmtStep = 'review';
       stmtBuildItems();
       stmtRender();
@@ -344,11 +347,15 @@
       results.forEach(res => {
         const sid = res.statementId;
         const failed = !res.allChecksOk;
-        if (imported.has(sid)) {
-          stmtItems.push(stmtItem({ type: 'info', group: 'skip', checked: false, title: `${res.label} ${res.period}`, detail: '這份對帳單之前已經匯入過，整份略過' }));
+        const reprocess = imported.has(sid) && stmtReprocess.has(sid);
+        if (imported.has(sid) && !reprocess) {
+          stmtItems.push(stmtItem({ type: 'info', group: 'skip', checked: false, reprocessSid: sid, title: `${res.label} ${res.period}`, detail: '這份對帳單之前已經匯入過，整份略過' }));
           return;
         }
-        const base = { sid, src: res.label, failed };
+        if (reprocess) {
+          stmtItems.push(stmtItem({ type: 'info', group: 'review', checked: false, title: `🔁 重新處理（補漏）：${res.label} ${res.period}`, detail: '這份之前匯入過。App 裡已經有的會標「App 裡已有」、不勾；買進、賣出、銀行餘額在 App 裡沒找到的，要補的請自己勾。不會再多記一筆「已匯入」。' }));
+        }
+        const base = { sid, src: res.label, failed, reprocess };
 
         if (res.kind === 'securities' && stmtUseYf(res)) {
           stmtBuildYfItems(res, base);
@@ -586,7 +593,21 @@
         if (it.type === 'lentShares') {
           if (it.old !== null && Math.abs(it.old - stmtLentDisplay(it.data.shares)) < 0.001) { it.group = 'skip'; it.checked = false; it.note = '出借張數一樣'; }
         }
+        // 重新處理（補漏）：App 裡沒找到的買進／賣出／當沖／銀行餘額不預設勾，由你決定要不要補
+        if (it.reprocess && ['buy', 'sell', 'daytrade', 'balance'].includes(it.type) && it.group !== 'skip') {
+          const extra = it.type === 'balance' ? '重新處理：這份之前匯入過，餘額可能已經記過，要覆蓋請自己勾' : '重新處理：App 裡沒找到一樣的，要補請自己勾';
+          it.checked = false;
+          if (it.group === 'add' || it.group === 'update') it.group = 'review';
+          it.note = it.note ? `${extra}；${it.note}` : extra;
+        }
       });
+    }
+
+    // 已匯入過的那一行按「重新處理這份」：把這份當新的重讀一次
+    function stmtDoReprocess(sid) {
+      stmtReprocess.add(sid);
+      stmtBuildItems();
+      stmtRefreshKeepScroll();
     }
 
     // 這筆銀行餘額要寫到財務總覽的哪一格（沒設定或略過就是 null）
@@ -651,7 +672,7 @@
       const imported = new Set((stmtImported || []).map(x => x.statementId));
       const out = { sec: [], bank: [], names: [], lendUnit: false, financeCol: false };
       const seenNames = new Set();
-      results.filter(r => !imported.has(r.statementId)).forEach(r => {
+      results.filter(r => !imported.has(r.statementId) || stmtReprocess.has(r.statementId)).forEach(r => {
         if (r.kind === 'securities' && !stmtUseYf(r)) {
           out.sec.push(r);
           if ((r.lendings || []).length) out.lendUnit = true;
@@ -888,6 +909,7 @@
             <div class="stmt-item-detail">${ds.detail || ''}</div>
             ${it.note ? `<div class="stmt-item-note">${stmtEsc(it.note)}</div>` : ''}
             ${it.dupWith ? `<div class="stmt-item-dupwith">App 裡已有：${stmtEsc(it.dupWith)}</div>` : ''}
+            ${it.reprocessSid ? `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtDoReprocess('${stmtEsc(it.reprocessSid)}')">🔁 重新處理這份（補漏）</button></div>` : ''}
             ${fixHtml}
             ${editHtml}
             ${it.flag ? `<div class="stmt-flag-row">⚠️ 待修改，原因（可不填）：<input type="text" value="${stmtEsc(it.flagNote || '')}" placeholder="例如：成本不對" onchange="stmtSetFlagNote(${it.id}, this.value)" /></div>` : ''}
@@ -1109,6 +1131,7 @@
       const sids = new Set(list.map(it => it.sid).filter(Boolean));
       stmtResults().forEach(r => {
         if (!sids.has(r.statementId)) return;
+        if (stmtImported.some(x => x.statementId === r.statementId)) return; // 重新處理的不重複記
         stmtImported.push({ statementId: r.statementId, label: r.label, period: r.period, importedAt: new Date().toISOString() });
       });
 

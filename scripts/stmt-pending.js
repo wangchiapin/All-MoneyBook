@@ -129,8 +129,9 @@
         tag = `<span class="stmt-tag bad">讀取失敗：${stmtEsc(p.error || '不明原因')}</span>`;
       }
       const title = r && p.status === 'ok' ? `${stmtEsc(r.label || p.label)} ${stmtEsc(r.period || p.period || '')}` : stmtEsc(p.label || p.fileName || '對帳單');
-      const hint = p.status === 'needpw' || p.status === 'error'
+      let hint = p.status === 'needpw' || p.status === 'error'
         ? '<div class="stmt-set-tip">可以到 Gmail 下載這份 PDF，用「📥 匯入對帳單」自己匯入，再按「丟掉」。</div>' : '';
+      if (done && p.status === 'ok' && r) hint = `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtPendingReprocess('${p.id}')">🔁 重新處理這份（補漏）</button></div>`;
       return `
         <div class="stmt-item ${p.status === 'ok' && stmtPendingPicked[p.id] ? 'on' : ''}">
           ${cb}
@@ -190,7 +191,16 @@
     }
 
     /* ---------------- 送進原本的確認畫面 ---------------- */
-    function stmtPendingGoReview() {
+    // 已匯入過的那一行按「重新處理這份」：勾起它，直接進確認畫面當新的重讀一次
+    function stmtPendingReprocess(id) {
+      const p = stmtPendingList.find(x => x.id === id);
+      const r = p && stmtPendingResult(p);
+      if (!r) return;
+      stmtPendingPicked[id] = true;
+      stmtPendingGoReview([r.statementId]);
+    }
+
+    function stmtPendingGoReview(reprocessSids) {
       const seen = new Set();
       const chosen = stmtPendingList.filter(p => {
         if (!(stmtPendingPicked[p.id] && p.status === 'ok' && stmtPendingResult(p))) return false;
@@ -205,7 +215,7 @@
         return { id: stmtFileSeq++, name: p.fileName || (r.label + '.pdf'), status: r.unsupported ? 'unsupported' : 'ok', result: r, file: { size: 0 }, pendingId: p.id };
       });
       stmtPendingActive = chosen;
-      stmtGoReview();
+      stmtGoReview(Array.isArray(reprocessSids) ? reprocessSids : []);
     }
 
     // stmtApply 寫完後呼叫：把這次用掉的從待確認拿掉
