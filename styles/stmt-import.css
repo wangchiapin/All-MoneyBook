@@ -64,6 +64,7 @@ body.stmt-open { overflow: hidden; }
 .stmt-badge.t-sell, .stmt-badge.t-daytrade { background: #eef0e6; color: #3f6b4c; }
 .stmt-badge.t-cashDiv, .stmt-badge.t-stockDiv { background: #f4ecd4; color: #6e5439; }
 .stmt-badge.t-balance { background: #eaeef0; color: #3d5566; }
+.stmt-badge.t-holdingNew { background: #e4eef0; color: #2f5a63; }
 .stmt-edit-btn { flex: none; background: #fff; border: 1px solid #ddd5c4; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; }
 .stmt-edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 10px; margin-top: 8px; padding: 8px; background: #faf7f0; border-radius: 6px; }
 .stmt-edit label { display: flex; flex-direction: column; font-size: 0.72rem; color: #766c5a; gap: 2px; }

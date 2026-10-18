@@ -148,8 +148,32 @@
 
     let totals = null, buyTotal = null, sellTotal = null, dayPnl = null, mktTotal = null;
     let inHoldings = false;
+    let inLend = false, lendNet = null, lendNetSum = 0, lendRows = 0;
     lines.forEach((l, i) => {
       const c = l.cells.map(x => x.t);
+      // 有價證券借貸對帳單：序號（出借日期-流水號）｜出借／還券｜名稱代號｜張數｜費率%｜出借收入｜手續費｜代扣稅款
+      // 出借收入只在「還券」那一行；對帳單沒有寫還券日期
+      if (c.join('').includes('有價證券借貸對帳單')) { inLend = true; return; }
+      if (inLend) {
+        if (c[0] === '淨收金額') { lendNet = num(c[c.length - 1]); return; }
+        if (/^\d{8}-\d{4}$/.test(c[0]) && (c[1] === '出借' || c[1] === '還券') && c.length >= 8) {
+          const nm = String(c[2]).match(/^(.+?)(\d{4,6}[A-Z]?)$/);
+          const lots = num(c[3]), income = num(c[5]), service = num(c[6]), tax = num(c[7]);
+          lendRows++;
+          lendNetSum += income - service - tax;
+          if (c[1] === '還券' && income > 0) {
+            res.lendings.push({
+              name: cleanName(nm ? nm[1] : c[2]), code: nm ? nm[2] : '',
+              lendDate: `${c[0].slice(0, 4)}-${c[0].slice(4, 6)}-${c[0].slice(6, 8)}`, contractNo: c[0],
+              shares: lots * 1000, rate: parseFloat(c[4]) || 0, dueDate: '',
+              fee: income, tax, serviceFee: service, net: round2(income - service - tax),
+              noLentSync: true,   // 只有當月出借／還券的合約才會列出來，不能拿來算「目前出借張數」
+              payUnknown: true    // 對帳單沒寫還券日期，入款日要自己確認
+            });
+          }
+          return;
+        }
+      }
       // 交易列：日期｜商品｜類別｜股數｜單價｜金額｜手續費｜交易稅｜…｜委託書號
       if (isDate(c[0]) && c.length >= 9 && /^(集|沖|普|零|盤)?(買|賣)$|買$|賣$/.test(c[2])) {
         const prev = lines[i - 1] ? lines[i - 1].cells.map(x => x.t) : [];
@@ -197,6 +221,8 @@
       check(res, '現沖損益', dayPnl, res.trades.filter(t => t.mode === 'daytrade').reduce((s, t) => s + (t.net || 0), 0));
     }
     if (mktTotal !== null) check(res, '集保市值總計', mktTotal, res.holdings.reduce((s, h) => s + h.marketValue, 0));
+    if (lendNet !== null) check(res, '借券淨收金額', lendNet, lendNetSum);
+    else if (lendRows > 0) res.warnings.push('借貸對帳單找不到「淨收金額」，沒辦法核對');
     res.statementId = `cathay_sec|${res.account}|${res.period}`;
     return res;
   }
