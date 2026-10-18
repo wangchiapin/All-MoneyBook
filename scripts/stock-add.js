@@ -34,6 +34,60 @@
       alert(`已成功新增證券帳戶【${name}】！`);
     }
 
+    function renameStockAccount(oldName, newName) {
+      const n = { stocks: 0, buys: 0, sales: 0, snapshots: 0, stmt: 0 };
+      customAccounts = customAccounts.map(a => (a === oldName ? newName : a));
+      stocks.forEach(s => { if (s.account === oldName) { s.account = newName; n.stocks++; } });
+      (stockBuys || []).forEach(b => { if (b.account === oldName) { b.account = newName; n.buys++; } });
+      (stockSales || []).forEach(r => { if (r.fifo && r.fifo.account === oldName) { r.fifo.account = newName; n.sales++; } });
+      try {
+        const snaps = JSON.parse(localStorage.getItem('ASSET_SNAPSHOTS_V1') || '[]');
+        let changed = false;
+        (Array.isArray(snaps) ? snaps : []).forEach(sp => (sp.items || []).forEach(it => {
+          if (it.account === oldName) { it.account = newName; n.snapshots++; changed = true; }
+        }));
+        if (changed) localStorage.setItem('ASSET_SNAPSHOTS_V1', JSON.stringify(snaps));
+      } catch (e) { console.warn('歷史快照改名失敗', e); }
+      const map = (stmtSettings && stmtSettings.accountMap) || {};
+      Object.keys(map).forEach(k => { if (map[k] && map[k].stockAccount === oldName) { map[k].stockAccount = newName; n.stmt++; } });
+      if (currentFilter === oldName) currentFilter = newName;
+      return n;
+    }
+
+    function openRenameAccountModal() {
+      const list = customAccounts.slice();
+      if (!list.length) { alert('目前沒有可以改名的證券帳戶。（「美股複委託」不能改名）'); return; }
+      const sel = document.getElementById('renameAccountOld');
+      sel.innerHTML = list.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+      if (list.includes(currentFilter)) sel.value = currentFilter;
+      document.getElementById('renameAccountNew').value = '';
+      document.getElementById('renameAccountModal').classList.add('open');
+    }
+
+    function closeRenameAccountModal() {
+      document.getElementById('renameAccountModal').classList.remove('open');
+    }
+
+    function submitRenameAccount() {
+      const oldName = document.getElementById('renameAccountOld').value;
+      const name = document.getElementById('renameAccountNew').value.trim();
+      if (!oldName) return;
+      if (!name) { alert('請填新名字。'); return; }
+      if (name === oldName) { alert('新名字跟原本一樣，沒有要改。'); return; }
+      if (name === '美股複委託' || name.includes('+')) { alert('這個名字不能用（不能是「美股複委託」，也不能有「+」）。'); return; }
+      if (getAllAccounts().includes(name)) {
+        alert(`已經有名叫【${name}】的證券帳戶。為了避免兩個帳戶的資料混在一起，不會自動合併，請換一個名字。`);
+        return;
+      }
+      recordSnapshot();   // 改錯了可以按 Ctrl+Z 復原
+      const n = renameStockAccount(oldName, name);
+      saveToStorage();
+      renderTabs();
+      renderTable();
+      closeRenameAccountModal();
+      if (typeof showToast === 'function') showToast(`已把【${oldName}】改名成【${name}】（持股 ${n.stocks} 筆、買進 ${n.buys} 筆）`, 'success');
+    }
+
     function deleteCustomAccount(event, accName) {
       event.stopPropagation();
       const hasStocks = stocks.some(s => s.account === accName);

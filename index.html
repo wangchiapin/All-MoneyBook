@@ -180,6 +180,7 @@
         <button class="btn btn-setting" onclick="toggleSettingDropdown(event)">⚙️ 設定 ▾</button>
         <div class="dropdown-content">
           <button onclick="openAddAccountModal()">🏛️ 新增證券帳戶</button>
+          <button onclick="openRenameAccountModal()">✏️ 證券帳戶改名</button>
           <button onclick="exportStockData()">💾 匯出備份 (JSON - 僅股票管理)</button>
           <button onclick="exportAllDataToExcel()">📊 匯出全部資料 (Excel)</button>
           <label style="cursor:pointer;">
@@ -412,6 +413,32 @@
       <span>💡 <strong>操作指南：</strong></span>
       <span>• 點擊上方 <strong>「⚙️ 設定」</strong> 可進行新增證券、匯出與匯入備份；在表格內可直接輸入新資料、使用 <strong>方向鍵/Enter鍵</strong> 移動、選取複製多格、或使用 <strong>Ctrl + Z</strong> 復原！美股帳戶與股利預設以美金計算，總計時以匯率 29 折算台幣。</span>
     </div>
+
+  <!-- 證券帳戶改名彈窗 -->
+  <div class="modal-overlay" id="renameAccountModal">
+    <div class="modal-card" style="width: 420px;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">✏️ 證券帳戶改名</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeRenameAccountModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">要改名的帳戶</label>
+            <select id="renameAccountOld" class="form-control"></select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">新名字 <span style="color:#b6533c;">*</span></label>
+            <input type="text" id="renameAccountNew" class="form-control" placeholder="例：國泰證券" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeRenameAccountModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitRenameAccount()">確認改名</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 新增證券帳戶彈窗 -->
   <div class="modal-overlay" id="addAccountModal">
