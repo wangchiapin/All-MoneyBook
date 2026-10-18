@@ -54,6 +54,18 @@ function savingDivPerShare(c) {
   }
   return { div: 0, note: '' };
 }
+// 日期轉 yyyymmdd 整數（民國年/西元都可以）；解析不出來回傳 99999999。自己帶一份，兩個網站都能用
+function savingParseDateInt(val) {
+  if (typeof parseRocDateInt === 'function') return parseRocDateInt(val);
+  if (!val) return 99999999;
+  const str = String(val).trim();
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return parseInt(m[1] + m[2] + m[3], 10);
+  const n = str.replace(/[^0-9]/g, '');
+  if (n.length >= 8 && n.startsWith('20')) return parseInt(n.substring(0, 8), 10);
+  if (n.length === 7 || n.length === 6) { const c = n.length - 4; return parseInt((parseInt(n.substring(0, c), 10) + 1911) + n.substring(c), 10); }
+  return 99999999;
+}
 // 單一持股最近一年實際領到的現金股利（同 retirement.js 的算法，只算這一檔，原幣別）
 function savingActualCash(h) {
   const now = new Date();
@@ -63,7 +75,7 @@ function savingActualCash(h) {
   (h.dividendHistory || []).forEach(dh => {
     const v = Number(dh.cash) || 0;
     if (!v) return;
-    const di = (typeof parseRocDateInt === 'function') ? parseRocDateInt(dh.cashDate) : 99999999;
+    const di = savingParseDateInt(dh.cashDate);
     if (di !== 99999999) { dated++; if (di >= cutoffInt && di <= todayInt) cash += v; }
     else undated.push({ year: parseInt(dh.year, 10), v });
   });
