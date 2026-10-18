@@ -171,6 +171,7 @@
       <!-- 股票分析圖按鈕 (位於新增股票與計算機中間) -->
       <button class="btn btn-outline" id="btnUpdatePrices" onclick="updateStockPrices()" title="用每天收盤後自動抓的收盤價，更新有填股票代號的台股、美股，以及媽的永豐現值">🔄 更新股價</button>
       <button class="btn btn-outline" id="btnStockAnalysis" onclick="openStockAnalysisModal()">📊 股票分析圖</button>
+      <button class="btn btn-outline" id="btnSavingCalc" onclick="openSavingCalcModal()" title="試算每月投入、股息再投入之後，幾年後有多少股、每月領多少股息">🌱 存股試算</button>
 
       <!-- 計算機按鈕 (位於設定左邊) -->
       <button class="btn btn-calc" onclick="toggleCalculator()">🧮 計算機</button>
@@ -500,6 +501,47 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" onclick="closeLockSettingsModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存股試算彈窗 -->
+  <div class="modal-overlay" id="savingCalcModal">
+    <div class="modal-card" style="width: 820px; max-width: 96vw; max-height: 90vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3 style="font-size:1.05rem; font-weight:700;">🌱 存股試算</h3>
+        <button class="btn-del" style="font-size:1.2rem;" onclick="closeSavingCalcModal()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+        <div id="savingSummary" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;"></div>
+        <div style="position:relative; height:240px; margin-bottom:16px;"><canvas id="savingChartCanvas"></canvas></div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
+          <div class="form-group"><label class="form-label">存幾年</label>
+            <input type="number" id="savingYears" class="form-control" style="width:90px;" min="1" max="60" oninput="savingSetGlobal('years', this.value)" /></div>
+          <div class="form-group"><label class="form-label">買進手續費（%）</label>
+            <input type="number" id="savingFee" class="form-control" style="width:110px;" step="any" oninput="savingSetGlobal('feePct', this.value)" /></div>
+          <label style="display:flex; gap:6px; align-items:center; padding-bottom:8px;">
+            <input type="checkbox" id="savingReinvest" onchange="savingSetGlobal('reinvest', this.checked)" /> 股息領了再買進</label>
+        </div>
+        <div id="savingCalcCards"></div>
+        <button class="btn btn-outline" onclick="savingAdd()">＋ 再加一檔</button>
+        <div style="border:1px solid #e0d8c8; border-radius:10px; padding:12px; margin-top:16px;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+            <strong>🎯 目標反推</strong>
+            <label class="form-label" style="margin:0;">我想每月領股息（元）</label>
+            <input type="number" id="savingGoal" class="form-control" style="width:130px;" min="0" step="any" oninput="savingSetGoal(this.value)" />
+          </div>
+          <div id="savingGoalResult" style="font-size:0.9rem; line-height:1.7;"></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin:18px 0 8px;">
+          <strong>逐年結果</strong>
+          <select id="savingView" class="form-control" style="max-width:200px;" onchange="savingSetView(this.value)"></select>
+        </div>
+        <div id="savingTable" style="overflow-x:auto;"></div>
+        <p style="font-size:0.78rem; color:#93897a; margin-top:12px; line-height:1.6;">
+          試算說明：每月月初投入固定金額；股息每年年底發一次，以年底持股計算；有勾「再買進」就用年底股價買股。
+          沒有扣稅金和二代健保補充保費，也不保證未來配息，數字只是估算參考。這裡填的資料只存在這台瀏覽器，不會改到你真正的持股。
+        </p>
       </div>
     </div>
   </div>
@@ -1064,6 +1106,7 @@
   <script src="scripts/stock-modals.js"></script>
   <script src="scripts/stock-price.js"></script>
   <script src="scripts/stock-analysis.js"></script>
+  <script src="scripts/saving-calc.js"></script>
   <script src="scripts/insurance.js"></script>
   <script src="scripts/overview.js"></script>
   <script src="scripts/export-excel.js"></script>
