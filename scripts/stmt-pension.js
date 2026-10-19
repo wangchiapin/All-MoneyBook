@@ -1,5 +1,5 @@
 /* ====================================================================
-   公教退撫儲金對帳單 → 退休試算的專戶餘額、財務總覽的一個項目
+   公教／私校退撫儲金對帳單 → 退休試算的專戶餘額、財務總覽的一個項目
    讀對帳單（圖片型，用 OCR）在共用的 stmt-parsers.js；這個檔案只管「確認畫面怎麼顯示、寫到哪裡」。
    接在 stmt-import.js 的確認畫面裡：
      stmtPensionBuildItems(results, imported) ← stmtBuildItems 呼叫
@@ -7,7 +7,7 @@
      stmtPensionSettingsRows(results)         ← 「對應設定」多兩列
      stmtPensionApply(it, bump, problems)     ← stmtApply 寫入
    寫到哪裡由你在「對應設定」選（記住之後不用再選）：
-     ‧ 退休試算：把某個專戶的「目前餘額」改成帳戶價值（萬元）；也可以新增一個「公教退撫儲金」專戶
+     ‧ 退休試算：把某個專戶的「目前餘額」改成帳戶價值（萬元）；也可以新增一個專戶（名稱就是對帳單的名稱）
      ‧ 財務總覽：把帳戶價值寫進某個項目的目前日期欄
    兩個都可以選、也可以只選一個。累積提存、單位數、淨值、本月提存只顯示、不寫入。
    需要 stmt-import.js；退休試算（retirement.js）有的話才寫專戶餘額，沒有就只寫財務總覽（All-MoneyBook 沒有退休試算）
@@ -25,7 +25,10 @@ function stmtPenRetAccountId(res) {
   const m = stmtPenMap(res);
   if (m.retAccountId !== undefined) return m.retAccountId;
   if (typeof retirementSettings === 'undefined') return '';
-  const a = (retirementSettings.accounts || []).find(x => /公教|退撫/.test(x.name || ''));
+  const accs = retirementSettings.accounts || [];
+  // 私校的先找名字有「私校」的，公教的先找「公教」；都沒有再找「退撫」（兩份對帳單不要猜到同一個專戶）
+  const first = res.source === 'pension_private' ? /私校/ : /公教/;
+  const a = accs.find(x => first.test(x.name || '')) || accs.find(x => /退撫/.test(x.name || '') && !(res.source === 'pension_private' ? /公教/ : /私校/).test(x.name || ''));
   return a ? a.id : '';
 }
 // 財務總覽的項目：'bank:12' 這種格式
@@ -69,10 +72,11 @@ function stmtPensionDescribe(it) {
   const rate = d.contributed ? ((d.pnl / d.contributed) * 100).toFixed(2) + '%' : '';
   const bits = [`累積提存 $${stmtFmt(d.contributed)}`, `損益 ${d.pnl >= 0 ? '+' : ''}${stmtFmt(d.pnl)}${rate ? `（${rate}）` : ''}`];
   if (d.units) bits.push(`單位數 ${stmtFmt(d.units, 4)}、淨值 ${d.nav}`);
+  (p.portfolios || []).forEach(x => bits.push(`${stmtEsc(x.name)} 現值 $${stmtFmt(x.value)}（${stmtFmt(x.units, 4)} 單位 × ${x.nav}）`));
   if (p.month) bits.push(`本月提存${p.month.date ? ' ' + stmtEsc(stmtRoc(p.month.date)) : ''}：個人 ${stmtFmt(p.month.own)}＋政府 ${stmtFmt(p.month.gov)}${p.month.other ? '＋其他 ' + stmtFmt(p.month.other) : ''}＝${stmtFmt(p.month.total)}`);
   const lines = [];
   const accId = stmtPenRetAccountId(it.res);
-  if (accId === STMT_PEN_NEW) lines.push(`退休試算：新增專戶「公教退撫儲金」，餘額 ${stmtFmt(d.value / 10000, 4)} 萬`);
+  if (accId === STMT_PEN_NEW) lines.push(`退休試算：新增專戶「${stmtEsc(it.res.label)}」，餘額 ${stmtFmt(d.value / 10000, 4)} 萬`);
   else if (accId) {
     const a = (retirementSettings.accounts || []).find(x => x.id === accId);
     if (a) lines.push(`退休試算「${stmtEsc(a.name || '（未命名）')}」餘額：${stmtFmt(Number(a.balance) || 0, 4)} → ${stmtFmt(d.value / 10000, 4)} 萬`);
@@ -103,7 +107,7 @@ function stmtPensionSettingsRows(results) {
         <select onchange="stmtPenSet('${stmtEsc(key)}', 'retAccountId', this.value)">
           <option value="" ${accId ? '' : 'selected'}>不寫入退休試算</option>
           ${accs.map(a => `<option value="${stmtEsc(a.id)}" ${a.id === accId ? 'selected' : ''}>${stmtEsc(a.name || '（未命名）')}</option>`).join('')}
-          <option value="${STMT_PEN_NEW}" ${accId === STMT_PEN_NEW ? 'selected' : ''}>＋新增一個「公教退撫儲金」專戶</option>
+          <option value="${STMT_PEN_NEW}" ${accId === STMT_PEN_NEW ? 'selected' : ''}>＋新增一個「${stmtEsc(res.label)}」專戶</option>
         </select></div>`);
     }
     rows.push(`<div class="stmt-set-row"><span>${stmtEsc(res.label)} → 財務總覽的項目</span>
@@ -121,7 +125,8 @@ function stmtPenSet(key, field, value) {
   // 第一次改其中一個時，另一個先固定成現在畫面上看到的（不然「自動猜的」會跟著變）
   if (cur.retAccountId === undefined) { const r = stmtResults().find(x => stmtPenKey(x) === key); cur.retAccountId = r ? stmtPenRetAccountId(r) : ''; }
   cur[field] = value;
-  s.accountMap[key] = Object.assign({}, cur, { label: '公教退撫儲金' });
+  const r0 = stmtResults().find(x => stmtPenKey(x) === key);
+  s.accountMap[key] = Object.assign({}, cur, { label: r0 ? r0.label : '退撫儲金' });
   stmtAfterSetting();
 }
 
@@ -134,10 +139,10 @@ function stmtPensionApply(it, bump, problems) {
   if (accId && typeof retirementSettings !== 'undefined') {
     let acc = accId === STMT_PEN_NEW ? null : (retirementSettings.accounts || []).find(x => x.id === accId);
     if (accId === STMT_PEN_NEW || !acc) {
-      acc = retNewAccount({ name: '公教退撫儲金', balance: 0, rate: 4 });
+      acc = retNewAccount({ name: it.res.label || '退撫儲金', balance: 0, rate: 4 });
       retirementSettings.accounts.push(acc);
       const s = stmtSettingsObj();
-      s.accountMap[stmtPenKey(it.res)] = Object.assign({}, s.accountMap[stmtPenKey(it.res)] || {}, { retAccountId: acc.id, label: '公教退撫儲金' });
+      s.accountMap[stmtPenKey(it.res)] = Object.assign({}, s.accountMap[stmtPenKey(it.res)] || {}, { retAccountId: acc.id, label: it.res.label || '退撫儲金' });
     }
     acc.balance = Math.round(value / 10000 * 10000) / 10000;
     retirementSettings.touched = true;

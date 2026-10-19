@@ -6,7 +6,7 @@
 
    目前支援：國泰證券、富邦證券、永豐金證券、台北富邦銀行、國泰世華銀行、第一銀行、
              永豐銀行、台新銀行、將來銀行、華南銀行、中國信託
-   （富邦信用卡認得出來，但先不處理）
+   信用卡：國泰世華、台北富邦（富邦還沒有真實帳單驗證過，結果要自己核對）
 
    每份對帳單讀完會得到同一種格式的結果（見 emptyResult），
    並附上 checks：用對帳單自己印的總計／餘額來核對，全部 ok 才代表讀對了。
@@ -51,6 +51,8 @@
       bankAccounts: [],           // 銀行帳戶月底餘額：{accountNo, type, currency, balance}
       bankTx: [],                 // 銀行交易明細：{accountNo, date, desc, amount(存入為正、提出為負), balance, category}
       refs: [],                   // 只用來核對、不會記帳的資料：{type:'compensation'|'lendingFee', date, amount, desc}
+      card: null,                 // 信用卡帳單的總覽：{closingDate, dueDate, creditLimit, totalDue, minDue}
+      cardTx: [],                 // 信用卡消費明細：{date, postDate, desc, amount(消費為正、退款為負), last4, currency, foreignAmount, country}
       checks: [],                 // 自我檢查：{label, expected, actual, ok}
       warnings: []
     };
@@ -124,7 +126,8 @@
     if (t.includes('有價證券買賣對帳單') && t.includes('集保市值總計')) return 'cathay_sec';
     if (t.includes('現貨對帳單') && t.includes('富邦證券')) return 'fubon_sec';
     if (t.includes('資產持有明細') && t.includes('taipeifubon')) return 'fubon_bank';
-    if (t.includes('本期應繳總額') && t.includes('信用卡')) return 'fubon_card';
+    if (t.includes('信用卡帳單') && t.includes('國泰世華')) return 'cathay_card';
+    if (t.includes('本期應繳總額') && t.includes('信用卡') && (t.includes('富邦') || /fubon/i.test(t))) return 'fubon_card';
     if (t.includes('綜合業務對帳單') && (t.includes('第一銀行') || t.includes('firstbank'))) return 'first_bank';
     if (t.includes('證券電子對帳單') && t.includes('sinotrade')) return 'sinopac_sec';
     if (t.includes('綜合對帳單') && t.includes('永豐銀行')) return 'sinopac_bank';
@@ -134,8 +137,12 @@
     if (t.includes('ctbcbank.com')) return 'ctbc_bank';
     if (t.includes('存款電子對帳單') && (t.includes('bot.com.tw') || t.includes('台灣銀行'))) return 'bot_bank';
     // 圖片型（OCR 讀出來的字會有些錯，所以認的是比較不容易認錯的字）
+    if (t.includes('私校') && t.includes('儲金')) return 'pension_private';   // 公教那份也有「投資組合績效概況」，所以不能用它來分
     if (/PublicServicePensionFund/i.test(t) || (t.includes('退撫') && t.includes('儲金'))) return 'pension_fund';
     if (/bok\.?com/i.test(t) || t.includes('高雄銀行') || /BANKOFKAOHSIUNG/i.test(t)) return 'kaohsiung_bank';
+    // 玉山：只看第 1 頁最上面幾行（別家對帳單的明細裡也可能出現「玉山銀行」四個字）
+    const head = (pages[0] || []).slice(0, 5).map(lineText).join('').replace(/\s+/g, '');
+    if (/玉山銀行|esunbank/i.test(head) || t.includes('玉山客服中心')) return 'esun_bank';
     return '';
   }
 
@@ -1163,6 +1170,292 @@
     return res;
   }
 
+
+  /* ================= 玉山銀行（綜合對帳單；圖片型，用 OCR） ================= */
+  const ESUN_CODES = ['TWD', 'USD', 'CNY', 'AUD', 'ZAR', 'NZD', 'EUR', 'HKD', 'JPY', 'MXN', 'CAD', 'CHF', 'GBP', 'SEK', 'SGD', 'THB'];
+  function editDist(a, b) {
+    const d = [];
+    for (let i = 0; i <= a.length; i++) { d[i] = [i]; }
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  // OCR 常把幣別認錯一個字（USD → UspD），找最像的那一個
+  function guessCurrency(s) {
+    const u = String(s || '').toUpperCase().replace(/[^A-Z]/g, '');
+    if (ESUN_CODES.includes(u)) return u;
+    const best = ESUN_CODES.map(c => ({ c, d: editDist(u, c) })).sort((a, b) => a.d - b.d)[0];
+    return best && best.d <= 1 && u.length >= 3 ? best.c : '';
+  }
+  const MONEY2 = /^\d{1,3}(,\d{3})*\.\d{2}$/;
+  function parseEsunBank(pages) {
+    const res = emptyResult('esun_bank', '玉山銀行');
+    res.kind = 'bank';
+    res.viaOcr = true;
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/(\d{4})年(\d{1,2})月/);
+    if (pm) res.period = `${pm[1]}-${String(pm[2]).padStart(2, '0')}`;
+    let stage = '', total = null, counter = { 活存: 0, 定存: 0, 外幣活存: 0, 外幣定存: 0 }, txAcc = '', outMid = null, rows = [], fxTx = 0;
+    const accs = [];
+    const flush = () => {
+      if (txAcc && rows.length) {
+        let prev = null;
+        rows.forEach(r => {
+          let out = r.isOut;
+          if (out === null || out === undefined) out = prev !== null ? Math.abs(round2(prev + r.amountAbs) - r.balance) > 0.005 : true;
+          r.out = out ? r.amountAbs : 0;
+          r.in = out ? 0 : r.amountAbs;
+          prev = r.balance;
+        });
+        const last = bankColTx(res, txAcc, rows, 'TWD');
+        checkLastBalance(res, txAcc, last, 'TWD');
+      }
+      rows = [];
+    };
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (l.page === 1 && total === null && /^.{0,2}合計$/.test(c[0] || '') && isNum(c[1])) total = num(c[1]);   // 第 1 頁「資產合計」
+      if (/^存款/.test(j) && /資料日期/.test(j)) { stage = 'acc'; return; }
+      if (j.includes('臺幣活存交易明細') || j.includes('臺幣定存交易明細')) { flush(); stage = 'tx'; return; }
+      if (/外幣.{0,2}交易明細/.test(j)) { flush(); stage = 'fx'; return; }
+      if (stage === 'acc' && /^(臺|台)?(幣|敝)?(活存|定存)|^外(幣|敝)(活存|定存)/.test(c[0] || '') && c.length >= 3) {
+        const fx = /^外/.test(c[0]);
+        const isTime = /定存/.test(c[0]);
+        const bal = [...c].reverse().find(x => MONEY2.test(x));
+        if (bal === undefined) return;
+        const ci = c.findIndex((x, i) => i > 0 && /^[A-Za-z]{3,4}$/.test(x));
+        const cur = fx ? (guessCurrency(ci >= 0 ? c[ci] : '') || 'USD') : 'TWD';
+        const type = (fx ? '外幣' : '') + (isTime ? '定存' : '活存');
+        counter[type]++;
+        // 帳號被遮掉一半、OCR 又容易認錯，所以用「活存1」這種編號當帳號
+        const acc = { accountNo: `${type}${counter[type]}`, type: isTime ? '定存' : '活存', currency: cur, balance: num(bal), maskedNo: (c[1] || '').replace(/[^\d*]/g, '') };
+        res.bankAccounts.push(acc);
+        accs.push(acc);
+        return;
+      }
+      if (stage === 'tx' || stage === 'fx') {
+        if (/銀行帳號/.test(j)) { txAcc = stage === 'tx' ? (accs.find(a => a.currency === 'TWD' && a.type === '活存') || {}).accountNo || '活存1' : ''; return; }
+        if (/提款/.test(j) && /餘額/.test(j)) {
+          const o = l.cells.find(x => x.t === '提款');
+          const d = l.cells.find(x => /^存款/.test(x.t));
+          outMid = o && d ? (o.x1 + d.x0) / 2 : null;
+          return;
+        }
+        const dm = /^(\d{3})\/(\d{2})\/(\d{2})(.*)$/.exec(c[0] || '');
+        if (dm) {
+          if (stage === 'fx') { fxTx++; return; }
+          const money = l.cells.filter(x => MONEY2.test(x.t));
+          if (money.length < 2) { res.warnings.push(`${c[0]}：這一行認不出金額和餘額`); return; }
+          const amt = money[0], bal = money[money.length - 1];
+          const desc = (dm[4].replace(/^[^一-鿿A-Za-z0-9]+/, '') + (dm[4].trim() ? '' : (c[1] || ''))).trim();
+          const isOut = outMid !== null ? amt.x1 < outMid : null;
+          rows.push({ date: isoDate(`${dm[1]}/${dm[2]}/${dm[3]}`), desc: desc || (c[1] || ''), amountAbs: num(amt.t), isOut, balance: num(bal.t) });
+        }
+      }
+    });
+    flush();
+    if (fxTx) res.warnings.push(`外幣帳戶的明細有 ${fxTx} 筆，這份還沒有讀（記帳只記台幣）`);
+    if (total !== null) {
+      // 外幣沒有折合臺幣欄，只能在外幣都是 0 的時候核對
+      const fxBal = accs.filter(a => a.currency !== 'TWD' && a.balance).length;
+      if (!fxBal) check(res, '資產合計（第 1 頁）＝各存款帳戶餘額加總', total, accs.reduce((s, a) => s + a.balance, 0));
+      else res.warnings.push('有外幣餘額，資產合計（折合臺幣）沒辦法自動核對');
+    } else res.warnings.push('沒有認到第 1 頁的資產合計，無法自我檢查（OCR 可能認錯）');
+    if (!accs.length) res.warnings.push('沒有認到任何帳戶');
+    collectBankRefs(res);
+    res.account = accs.map(a => a.accountNo).join(',');
+    res.statementId = `esun_bank|${res.account}|${res.period}`;
+    if (!res.period) res.warnings.push('沒有讀到對帳單月份');
+    res.warnings.push('這份是圖片型對帳單，用 OCR 認字讀的，請核對一下數字');
+    return res;
+  }
+
+  /* ================= 私校退撫儲金（專戶對帳單；圖片型，用 OCR） =================
+     跟公教那份版面不同：三種儲金類別（學校／教職員／主管機關）加上兩個投資組合。結果同樣放在 res.pension */
+  const DEC4 = /^\d{1,3}(,\d{3})*\.\d{4}$/;
+  const INTC = /^\d{1,3}(,\d{3})*$/;
+  // 四位小數（單位數、淨值）。OCR 有時把小數點認成逗號（27,5195），也收進來
+  function dec4(t) {
+    if (DEC4.test(t)) return num(t);
+    const m = /^(\d{1,3}),(\d{4})$/.exec(t);
+    return m ? Number(m[1] + '.' + m[2]) : null;
+  }
+  // OCR 偶爾把「淨值」其中一個數字認錯（5 看成 9）：單位數×淨值要等於現值，不等就試著改一個數字，改了剛好吻合才採用
+  function repairNav(units, nav, value) {
+    if (Math.abs(units * nav - value) <= 1) return { nav, fixed: false };
+    const s = nav.toFixed(4);
+    const alt = { '0': '86', '1': '7', '3': '85', '5': '963', '6': '58', '7': '1', '8': '036', '9': '5' };
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '.') continue;
+      for (const ch of (alt[s[i]] || '')) {
+        const n = Number(s.slice(0, i) + ch + s.slice(i + 1));
+        if (Math.abs(units * n - value) <= 0.5) return { nav: n, fixed: true, from: nav };
+      }
+    }
+    return { nav, fixed: false };
+  }
+  function parsePensionPrivate(pages) {
+    const res = emptyResult('pension_private', '私校退撫儲金');
+    res.kind = 'pension';
+    res.viaOcr = true;
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/(\d{4})\D{0,2}\/(\d{2})\/(\d{2})[~～－-](\d{4})\D{0,2}\/(\d{2})\/(\d{2})/);
+    let endDate = '';
+    if (pm) { res.period = `${pm[4]}-${pm[5]}`; endDate = `${pm[4]}-${pm[5]}-${pm[6]}`; }
+    let stage = '';
+    const cats = [], ports = [];
+    let catSub = null, portSub = null;
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (j.includes('儲金帳戶概況')) { stage = 'cat'; return; }
+      if (j.includes('投資組合績效概況')) { stage = 'port'; return; }
+      if (j.includes('交易明細')) { stage = 'tx'; return; }
+      if (stage === 'cat') {
+        const ints = c.slice(1).filter(x => INTC.test(x)).map(num);
+        if (/^小計/.test(c[0] || '') && ints.length >= 3) catSub = ints;
+        else if (ints.length >= 3 && c[0]) cats.push({ name: c[0], contributed: ints[0], value: ints[1], pnl: ints[2] });
+      } else if (stage === 'port') {
+        const ints = c.slice(1).filter(x => INTC.test(x)).map(num);
+        const dec = c.slice(1).map(dec4).filter(x => x !== null);
+        if (/^小計/.test(c[0] || '') && ints.length >= 3) portSub = ints;
+        else if (/組合/.test(c[0] || '') && dec.length >= 2 && ints.length >= 3) ports.push({ name: c[0].replace(/投資標的組合$/, ''), contributed: ints[0], value: ints[1], pnl: ints[2], units: dec[0], nav: dec[1] });
+      }
+    });
+    const prevM = text.match(/前期累積提存金額[:：]?([\d,]+)/);
+    const pen = { value: null, contributed: null, pnl: null, units: null, nav: null, date: endDate, month: null, prevContributed: prevM ? num(prevM[1]) : null, portfolios: ports, categories: cats };
+    if (catSub) { pen.contributed = catSub[0]; pen.value = catSub[1]; pen.pnl = catSub[2]; }
+    res.pension = pen;
+    res.account = '私校退撫專戶';
+    res.statementId = `pension_private|${res.period}`;
+    if (!catSub) res.warnings.push('沒有認到「儲金帳戶概況」的小計（OCR 可能認錯）');
+    else {
+      check(res, '累積提存金額＋投資損益＝帳戶價值', pen.contributed + pen.pnl, pen.value);
+      if (cats.length) {
+        check(res, `${cats.length} 種儲金的累積提存加總＝小計`, cats.reduce((s, x) => s + x.contributed, 0), pen.contributed);
+        check(res, `${cats.length} 種儲金的帳戶價值加總＝小計`, cats.reduce((s, x) => s + x.value, 0), pen.value);
+        cats.forEach(x => check(res, `${x.name}：累積提存＋損益＝帳戶價值`, x.contributed + x.pnl, x.value));
+      } else res.warnings.push('沒有認到各種儲金類別的明細');
+    }
+    if (ports.length) {
+      ports.forEach(p => {
+        const r = repairNav(p.units, p.nav, p.value);
+        if (r.fixed) { p.navOcr = p.nav; p.nav = r.nav; }
+        check(res, `${p.name}：單位數×淨值≈現值（差 1 元內）${r.fixed ? `（OCR 把淨值 ${r.from} 認錯了一個數字，已改成 ${r.nav}）` : ''}`, p.value, Math.abs(p.units * p.nav - p.value) <= 1 ? p.value : p.units * p.nav);
+      });
+      if (catSub) check(res, '各投資組合現值加總＝帳戶價值', pen.value, ports.reduce((s, x) => s + x.value, 0));
+      if (portSub) check(res, '投資組合小計的現值＝各組合加總', portSub[1], ports.reduce((s, x) => s + x.value, 0));
+    } else res.warnings.push('沒有認到投資組合');
+    // 本期有沒有新增提存：前期累積提存和這期一樣就是沒有
+    if (pen.prevContributed !== null && pen.contributed !== null && pen.prevContributed !== pen.contributed) {
+      pen.month = { own: 0, gov: 0, other: 0, total: pen.contributed - pen.prevContributed, derived: true };
+    }
+    if (!res.period) res.warnings.push('沒有讀到對帳單月份');
+    res.warnings.push('這份是圖片型對帳單，用 OCR 認字讀的，請核對一下數字');
+    return res;
+  }
+
+  /* ================= 信用卡帳單 =================
+     結果：res.kind 'card'；res.card 總覽；res.cardTx 每一筆消費（消費為正、退款為負） */
+  function cardYear(mm, closing) {   // 消費日只有月/日：比結帳日的月份大，就是前一年
+    const cy = Number(closing.slice(0, 4)), cm = Number(closing.slice(5, 7));
+    return Number(mm) > cm ? cy - 1 : cy;
+  }
+  function cardRow(c, closing) {
+    // 前兩格是日期（消費日、入帳起息日）
+    if (!/^\d{2}\/\d{2}$/.test(c[0] || '') || !/^\d{2}\/\d{2}$/.test(c[1] || '')) return null;
+    const ai = c.findIndex((x, i) => i >= 2 && isNum(x));
+    if (ai < 0) return null;
+    const date = d => { const [m, dd] = d.split('/'); return `${cardYear(m, closing)}-${m}-${dd}`; };
+    const rest = c.slice(ai + 1);
+    const last4 = rest.filter(x => /^\d{4}$/.test(x));
+    const tail = rest.filter(x => !/^\d{4}$/.test(x));
+    const cur = tail.find(x => /^[A-Z]{3}$/.test(x)) || '';
+    const country = tail.find(x => /^[A-Z]{2}$/.test(x)) || '';
+    const fa = tail.find(x => isNum(x));
+    return {
+      date: date(c[0]), postDate: date(c[1]), desc: c.slice(2, ai).join(' '), amount: num(c[ai]),
+      last4: last4[0] || '', currency: cur && cur !== 'TWD' ? cur : 'TWD', country, foreignAmount: fa !== undefined ? num(fa) : null
+    };
+  }
+  function parseCathayCard(pages) {
+    const res = emptyResult('cathay_card', '國泰世華信用卡');
+    res.kind = 'card';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/信用卡帳單(\d{2,3})年(\d{1,2})月/);
+    if (pm) res.period = `${Number(pm[1]) + 1911}-${String(pm[2]).padStart(2, '0')}`;
+    const card = { closingDate: '', dueDate: '', creditLimit: null, totalDue: null, minDue: null };
+    // 第 1 頁：結帳日是第一個日期、旁邊是信用額度（標題是圖片，沒有文字，所以靠位置）
+    const p1 = lines.filter(l => l.page === 1);
+    const dl = p1.find(l => l.cells.some(x => /^\d{3}\/\d{2}\/\d{2}$/.test(x.t)));
+    if (dl) {
+      card.closingDate = isoDate(dl.cells.find(x => /^\d{3}\/\d{2}\/\d{2}$/.test(x.t)).t);
+      const lim = dl.cells.find(x => /^\d{1,3}(,\d{3})+$/.test(x.t));
+      if (lim) card.creditLimit = num(lim.t);
+    }
+    const ext = text.match(/順延[^。，]{0,20}至(\d{3}\/\d{2}\/\d{2})/);
+    if (ext) card.dueDate = isoDate(ext[1]);
+    const closing = card.closingDate || (res.period ? res.period + '-28' : '');
+    let subtotal = null, totalDueLine = null, summary = null;
+    lines.filter(l => l.page >= 2).forEach(l => {
+      const c = l.cells.map(x => x.t);
+      if (/^新臺幣TWD$/.test(c[0] || '') && c.filter(isNum).length >= 5) { summary = c.filter(isNum).map(num); return; }
+      if (/^(正卡|附卡)?本期消費$/.test(c[0] || '') && isNum(c[1])) { subtotal = (subtotal || 0) + num(c[1]); return; }
+      if (c[0] === '本期應繳總額' && isNum(c[1])) { totalDueLine = num(c[1]); return; }
+      const r = closing ? cardRow(c, closing) : null;
+      if (r) res.cardTx.push(r);
+    });
+    const mm = text.match(/新臺幣最低應繳\$([\d,]+)元/), tm = text.match(/新臺幣應繳總額\$([\d,]+)元/);
+    if (mm) card.minDue = num(mm[1]);
+    if (tm) card.totalDue = num(tm[1]);
+    res.card = card;
+    // 繳款條碼的代碼尾數（每個人不一樣，用來分辨不同持卡人的帳單）
+    const code = text.match(/(\d{4})-(\d{4})-(\d{4})-(\d{4})/);
+    res.account = code ? code[4] : '';
+    res.statementId = `cathay_card|${res.account}|${res.period}`;
+    if (!res.period) res.warnings.push('沒有讀到帳單月份');
+    if (!card.closingDate) res.warnings.push('沒有讀到帳單結帳日');
+    // 自我檢查：用帳單自己印的總數互相核對
+    if (subtotal !== null) check(res, '消費明細加總＝正卡本期消費', subtotal, res.cardTx.reduce((s, x) => s + (x.currency === 'TWD' ? x.amount : 0), 0));
+    if (totalDueLine !== null && card.totalDue !== null) check(res, '本期應繳總額（明細頁）＝繳款條碼上的應繳總額', totalDueLine, card.totalDue);
+    if (summary && totalDueLine !== null) check(res, '本期應繳總額（明細頁）＝總覽表最後一格', totalDueLine, summary[summary.length - 1]);
+    if (!res.checks.length) res.warnings.push('沒有讀到可以自我核對的總數');
+    return res;
+  }
+  // 台北富邦信用卡：還沒有真實帳單可以對照，先用通用規則讀，結果一律要你自己核對
+  function parseFubonCard(pages) {
+    const res = emptyResult('fubon_card', '台北富邦信用卡');
+    res.kind = 'card';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const card = { closingDate: '', dueDate: '', creditLimit: null, totalDue: null, minDue: null };
+    const cm = text.match(/(?:帳單結帳日|結帳日|帳單日)[:：]?(\d{2,4}\/\d{1,2}\/\d{1,2})/);
+    if (cm) card.closingDate = isoDate(cm[1]);
+    const dm = text.match(/繳款截止日[:：]?(\d{2,4}\/\d{1,2}\/\d{1,2})/);
+    if (dm) card.dueDate = isoDate(dm[1]);
+    const tm = text.match(/本期應繳總額[:：]?\$?([\d,]+)/);
+    if (tm) card.totalDue = num(tm[1]);
+    const mm = text.match(/最低應繳金額[:：]?\$?([\d,]+)/);
+    if (mm) card.minDue = num(mm[1]);
+    if (card.closingDate) res.period = card.closingDate.slice(0, 7);
+    const closing = card.closingDate;
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const r = closing ? cardRow(c, closing) : null;
+      if (r) res.cardTx.push(r);
+    });
+    res.card = card;
+    res.account = '';
+    res.statementId = `fubon_card||${res.period}`;
+    if (!closing) res.warnings.push('沒有讀到帳單結帳日');
+    res.warnings.push('台北富邦信用卡的版面還沒有用真實帳單驗證過，請逐筆核對');
+    return res;
+  }
+
   /* ---------------- 總入口 ---------------- */
   const PARSERS = {
     cathay_sec: parseCathaySec,
@@ -1178,12 +1471,16 @@
     bot_bank: parseBotBank,
     kaohsiung_bank: parseKaohsiungBank,
     pension_fund: parsePensionFund,
+    pension_private: parsePensionPrivate,
+    esun_bank: parseEsunBank,
+    cathay_card: parseCathayCard,
+    fubon_card: parseFubonCard,
     sinopac_sec: parseSinopacSec
   };
   const LABELS = {
     cathay_sec: '國泰證券', fubon_sec: '富邦證券', fubon_bank: '台北富邦銀行',
     cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡', first_bank: '第一銀行',
-    sinopac_bank: '永豐銀行', taishin_bank: '台新銀行', next_bank: '將來銀行', hncb_bank: '華南銀行', ctbc_bank: '中國信託', bot_bank: '台灣銀行', kaohsiung_bank: '高雄銀行', pension_fund: '公教退撫儲金',
+    sinopac_bank: '永豐銀行', taishin_bank: '台新銀行', next_bank: '將來銀行', hncb_bank: '華南銀行', ctbc_bank: '中國信託', bot_bank: '台灣銀行', kaohsiung_bank: '高雄銀行', pension_fund: '公教退撫儲金', pension_private: '私校退撫儲金', esun_bank: '玉山銀行', cathay_card: '國泰世華信用卡',
     sinopac_sec: '永豐金證券'
   };
 

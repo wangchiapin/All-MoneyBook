@@ -592,6 +592,12 @@
       });
 
       if (typeof stmtPensionBuildItems === 'function') stmtPensionBuildItems(results, imported);
+      // 信用卡帳單：要有記帳功能才能處理（這個網站沒有的話，只提醒一下）
+      if (typeof stmtLgBuildItems !== 'function') {
+        results.filter(r => r.kind === 'card' && !imported.has(r.statementId)).forEach(r => {
+          stmtItems.push(stmtItem({ type: 'info', group: 'skip', checked: false, title: `${r.label} ${r.period || ''}`, detail: '信用卡帳單：這個網站沒有記帳功能，所以不會匯入' }));
+        });
+      }
 
       // 分組：可能已輸入 → 略過；有問題 → 需要你看
       stmtItems.forEach(it => {
@@ -795,7 +801,7 @@
       const items = (typeof state !== 'undefined' && state.bankItems) ? state.bankItems : [];
       const secRows = [], bankRows = [], nameRows = [];
       Object.keys(s.accountMap).forEach(key => {
-        if (key.startsWith('pension_fund|')) return;   // 退撫儲金的對應在匯入畫面上直接改
+        if (key.startsWith('pension_')) return;   // 退撫儲金的對應在匯入畫面上直接改
         const v = s.accountMap[key] || {};
         const del = `<button type="button" class="stmt-del-btn" onclick="stmtDelSetting('acc', '${stmtEsc(key)}')">刪除</button>`;
         if (v.stockAccount !== undefined) {
