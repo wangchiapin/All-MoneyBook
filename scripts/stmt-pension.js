@@ -114,11 +114,25 @@ function stmtPensionSettingsRows(results) {
       <select onchange="stmtPenSet('${stmtEsc(key)}', 'financeKey', this.value)">
         <option value="" ${fk ? '' : 'selected'}>不寫入財務總覽</option>
         ${fitems.map(x => `<option value="${stmtEsc(x.key)}" ${x.key === fk ? 'selected' : ''}>${stmtEsc(x.name)}（${x.group}）</option>`).join('')}
+        <option value="__newfin">➕ 新增成新項目：${stmtEsc(res.label)}（銀行）</option>
       </select></div>`);
   });
   return rows;
 }
 function stmtPenSet(key, field, value) {
+  if (field === 'financeKey' && value === '__newfin') {   // 在財務總覽的銀行類新增一個項目（同名沒封存的直接用）
+    const r = stmtResults().find(x => stmtPenKey(x) === key);
+    const name = r ? r.label : '退撫儲金';
+    let it = (state.bankItems || []).find(b => !b.archived && b.name === name);
+    if (!it) {
+      it = { id: 'b_' + Date.now() + '_' + Math.floor(Math.random() * 1000), name, isUSD: false, isForeign: false };
+      state.bankItems.push(it);
+      saveState();
+      if (typeof render === 'function') render();
+      showToast('已在財務總覽新增「' + name + '」');
+    }
+    value = 'bank:' + it.id;
+  }
   const s = stmtSettingsObj();
   const old = s.accountMap[key] || {};
   const cur = { retAccountId: old.retAccountId, financeKey: old.financeKey };
