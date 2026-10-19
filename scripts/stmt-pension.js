@@ -4,9 +4,9 @@
    接在 stmt-import.js 的確認畫面裡：
      stmtPensionBuildItems(results, imported) ← stmtBuildItems 呼叫
      stmtPensionDescribe(it)                  ← 確認畫面顯示
-     stmtPensionSettingsRows(results)         ← 「對應設定」多兩列
+     stmtPensionSettingsRows(results)         ← 「這份要放到哪裡」多兩列
      stmtPensionApply(it, bump, problems)     ← stmtApply 寫入
-   寫到哪裡由你在「對應設定」選（記住之後不用再選）：
+   寫到哪裡由你在「這份要放到哪裡」選（記住之後不用再選）：
      ‧ 退休試算：把某個專戶的「目前餘額」改成帳戶價值（萬元）；也可以新增一個專戶（名稱就是對帳單的名稱）
      ‧ 財務總覽：把帳戶價值寫進某個項目的目前日期欄
    兩個都可以選、也可以只選一個。累積提存、單位數、淨值、本月提存只顯示、不寫入。
@@ -61,8 +61,8 @@ function stmtPensionBuildItems(results, imported) {
       edit: [['value', '帳戶價值（元）']]
     });
     const hasTarget = !!stmtPenRetAccountId(res) || !!stmtPenFinanceItem(res);
-    if (!hasTarget) { it.group = 'review'; it.checked = false; it.note = '請在上面「對應設定」選要寫到退休試算的哪個專戶、或財務總覽的哪個項目'; }
-    else if (reprocess) { it.group = 'review'; it.checked = false; it.note = '重新處理：這份之前匯入過，要覆蓋請自己勾'; }
+    if (!hasTarget) { it.group = 'review'; it.checked = false; it.note = '請在上面「這份要放到哪裡」選要寫到退休試算的哪個專戶、或財務總覽的哪個項目'; }
+    else if (reprocess) { it.group = 'review'; it.checked = false; it.note = '再讀一次：這份之前匯入過，要覆蓋請自己勾'; }
     stmtItems.push(it);
   });
 }

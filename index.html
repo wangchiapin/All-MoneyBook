@@ -33,14 +33,14 @@
       <button class="app-tab-btn active" id="tabBtnFinance" onclick="switchAppView('finance')"><span class="tab-ic">📋</span> <span class="tab-lb">財務總覽</span></button>
       <button class="app-tab-btn" id="tabBtnStock" onclick="switchAppView('stock')"><span class="tab-ic">📈</span> <span class="tab-lb">股票管理</span></button>
       <button class="app-tab-btn" id="tabBtnInsurance" onclick="switchAppView('insurance')"><span class="tab-ic">🛡️</span> <span class="tab-lb">保險總覽</span></button>
-      <button class="app-tab-btn" id="tabBtnOverview" onclick="switchAppView('overview')"><span class="tab-ic">📊</span> <span class="tab-lb">資產總覽</span></button>
+      <button class="app-tab-btn" id="tabBtnOverview" onclick="switchAppView('overview')"><span class="tab-ic">📊</span> <span class="tab-lb">全部資產一覽</span></button>
     </div>
     <div class="app-header-cloud">
       <label class="usd-rate-box" title="股票管理換算美股台幣用的預設美元匯率（財務總覽每期另有自己的匯率）">💵 美元匯率
         <input type="number" id="usdRateInput" step="0.01" min="0" inputmode="decimal" onchange="onUsdRateInputChange(this)">
       </label>
       <button class="btn btn-outline stmt-open-btn" id="stmtImportBtn" onclick="openStmtImport()">📥 匯入對帳單</button>
-      <button class="btn stmt-pending-btn" id="stmtPendingBtn" onclick="openStmtPending()" style="display:none;">📬 待確認</button>
+      <button class="btn stmt-pending-btn" id="stmtPendingBtn" onclick="openStmtPending()" style="display:none;">📬 自動收到的對帳單</button>
       <span id="syncStatus">☁️ 未連線</span>
       <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
       <button class="btn btn-outline" id="logoutBtn" style="display:none;" onclick="firebaseSignOut()">登出</button>
@@ -110,7 +110,7 @@
 
     <!-- Dashboards Area -->
     <div class="dashboards-wrapper">
-      <!-- 1. 全資產總覽看板 -->
+      <!-- 1. 全部資產一覽看板 -->
       <div class="dashboard">
         <div class="stat-card">
           <div class="stat-title">全體總投入成本</div>
@@ -932,7 +932,7 @@
   </div>
   <!-- /#stockView -->
 
-  <!-- 📊 資產總覽：內容由 scripts/overview.js 產生（只看不改） -->
+  <!-- 📊 全部資產一覽：內容由 scripts/overview.js 產生（只看不改） -->
   <div id="overviewView" style="display:none;">
     <div id="overviewContent"></div>
   </div>

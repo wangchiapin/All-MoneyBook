@@ -53,7 +53,7 @@
       refs: [],                   // 只用來核對、不會記帳的資料：{type:'compensation'|'lendingFee', date, amount, desc}
       card: null,                 // 信用卡帳單的總覽：{closingDate, dueDate, creditLimit, totalDue, minDue}
       cardTx: [],                 // 信用卡消費明細：{date, postDate, desc, amount(消費為正、退款為負), last4, currency, foreignAmount, country}
-      checks: [],                 // 自我檢查：{label, expected, actual, ok}
+      checks: [],                 // 數字核對：{label, expected, actual, ok}
       warnings: []
     };
   }
@@ -528,7 +528,7 @@
 
   /* ================= 第一銀行（綜合業務對帳單／餘額核對單） =================
      只有「活期性存款餘額」：每個帳戶的月底餘額；後面的「電子銀行轉帳交易清單」只列轉出，不讀。
-     對帳單沒有印總計，自我檢查改成：看起來像帳戶的每一列，都要讀到帳號、幣別和餘額。 */
+     對帳單沒有印總計，數字核對改成：看起來像帳戶的每一列，都要讀到帳號、幣別和餘額。 */
   function parseFirstBank(pages) {
     const res = emptyResult('first_bank', '第一銀行');
     res.kind = 'bank';
@@ -804,7 +804,7 @@
     Object.keys(sums).forEach(cur => {
       check(res, `${cur} 存款合計（活期＋定期）`, round2(sums[cur].cur + sums[cur].fix), res.bankAccounts.filter(a => a.currency === cur).reduce((s, a) => s + a.balance, 0));
     });
-    if (!Object.keys(sums).length) res.warnings.push('沒有讀到對帳單下方的合計，沒辦法自我檢查');
+    if (!Object.keys(sums).length) res.warnings.push('沒有讀到對帳單下方的合計，沒辦法數字核對');
     return finishBank(res, 'bot_bank');
   }
 
@@ -969,7 +969,7 @@
      有些對帳單（例如高雄銀行、公教退撫儲金）整份是圖片，PDF 裡沒有文字。
      這時候把每一頁畫成圖、用 tesseract.js 認字，再整理成跟一般 PDF 一樣的「一行一行的格子」，後面的解析程式就能共用。
      只有遇到圖片型 PDF 才會載入 OCR（第一次要下載辨識程式和中文資料，約 6 MB，之後瀏覽器會記住）。
-     OCR 的數字大多準、中文字比較容易錯，所以用 OCR 讀的對帳單一定要通過自我檢查才算過。 */
+     OCR 的數字大多準、中文字比較容易錯，所以用 OCR 讀的對帳單一定要通過數字核對才算過。 */
   const OCR_DEFAULTS = {
     scriptUrl: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
     langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/chi_tra/4.0.0_best_int',
@@ -1067,7 +1067,7 @@
     lines.forEach(l => {
       const c = l.cells.map(x => x.t);
       const j = c.join('');
-      const tm = l.page === 1 ? j.match(/(?:產|資產)?合計([\d,]+)元/) : null;   // OCR 常把「資」認成別的字，所以只認「合計」   // 第 1 頁「資產合計」（有買基金、外股的月份，這個數字會比存款多，自我檢查就會不過、請你自己看）
+      const tm = l.page === 1 ? j.match(/(?:產|資產)?合計([\d,]+)元/) : null;   // OCR 常把「資」認成別的字，所以只認「合計」   // 第 1 頁「資產合計」（有買基金、外股的月份，這個數字會比存款多，數字核對就會不過、請你自己看）
       if (tm && total === null) total = num(tm[1]);
       if (j.includes('存款種類(台幣)')) { stage = 'twd'; return; }
       if (j.includes('存款種類(外幣)')) { stage = 'fx'; return; }
@@ -1107,7 +1107,7 @@
       }
     });
     if (total !== null) check(res, '資產合計（第 1 頁）＝各存款帳戶餘額加總', total, equivSum);
-    else res.warnings.push('沒有認到第 1 頁的資產合計，無法自我檢查（OCR 可能認錯）');
+    else res.warnings.push('沒有認到第 1 頁的資產合計，無法數字核對（OCR 可能認錯）');
     if (!res.bankAccounts.length) res.warnings.push('沒有認到任何帳戶');
     collectBankRefs(res);
     res.account = res.bankAccounts.map(a => a.accountNo).join(',');
@@ -1262,7 +1262,7 @@
       const fxBal = accs.filter(a => a.currency !== 'TWD' && a.balance).length;
       if (!fxBal) check(res, '資產合計（第 1 頁）＝各存款帳戶餘額加總', total, accs.reduce((s, a) => s + a.balance, 0));
       else res.warnings.push('有外幣餘額，資產合計（折合臺幣）沒辦法自動核對');
-    } else res.warnings.push('沒有認到第 1 頁的資產合計，無法自我檢查（OCR 可能認錯）');
+    } else res.warnings.push('沒有認到第 1 頁的資產合計，無法數字核對（OCR 可能認錯）');
     if (!accs.length) res.warnings.push('沒有認到任何帳戶');
     collectBankRefs(res);
     res.account = accs.map(a => a.accountNo).join(',');
@@ -1419,7 +1419,7 @@
     res.statementId = `cathay_card|${res.account}|${res.period}`;
     if (!res.period) res.warnings.push('沒有讀到帳單月份');
     if (!card.closingDate) res.warnings.push('沒有讀到帳單結帳日');
-    // 自我檢查：用帳單自己印的總數互相核對
+    // 數字核對：用帳單自己印的總數互相核對
     if (subtotal !== null) check(res, '消費明細加總＝正卡本期消費', subtotal, res.cardTx.reduce((s, x) => s + (x.currency === 'TWD' ? x.amount : 0), 0));
     if (totalDueLine !== null && card.totalDue !== null) check(res, '本期應繳總額（明細頁）＝繳款條碼上的應繳總額', totalDueLine, card.totalDue);
     if (summary && totalDueLine !== null) check(res, '本期應繳總額（明細頁）＝總覽表最後一格', totalDueLine, summary[summary.length - 1]);
@@ -1498,7 +1498,7 @@
     if (!source) return { unsupported: true, imageOnly: viaOcr, label: viaOcr ? '圖片型對帳單，認不出是哪一家' : '認不出是哪一家的對帳單' };
     if (!PARSERS[source]) return { unsupported: true, source, label: LABELS[source] + '（目前先不處理）' };
     const res = PARSERS[source](pages);
-    // 用 OCR 讀的：一定要有自我檢查、而且全部通過，才算通過（提醒文字不算）
+    // 用 OCR 讀的：一定要有數字核對、而且全部通過，才算通過（提醒文字不算）
     const realWarn = res.warnings.filter(w => !/OCR 認字讀的/.test(w));
     res.allChecksOk = res.checks.length > 0 && res.checks.every(c => c.ok) && realWarn.length === 0;
     return res;

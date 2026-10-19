@@ -2,7 +2,7 @@
    對帳單匯入（第 3 步）：總入口 ＋ 確認畫面 ＋ 寫入
    - 標題列「📥 匯入對帳單」（手機在 ⋯ 選單裡）打開全螢幕視窗
    - 選檔 → 密碼（可記在這台裝置）→ 在自己的裝置上用 PDF.js 讀（stmt-parsers.js）
-   - 確認畫面：新增／更新／需要你看／略過，每筆可勾選、可修改
+   - 確認畫面：新增／更新／請你確認／略過，每筆可勾選、可修改
    - 寫入：股票買進、股票賣出（先買先賣）、當沖、配股、現金股利、借卷收入、出借張數、
            庫存核對、財務總覽銀行餘額；寫完可「復原這次匯入」
    需要 stock.js、stock-buys.js、stock-sales.js、stock-lending.js、finance.js、stmt-parsers.js
@@ -151,7 +151,7 @@
         else if (f.status === 'ok') {
           const r = f.result;
           const ok = r.allChecksOk;
-          status = `<span class="stmt-tag ${ok ? 'ok' : 'bad'}">${stmtEsc(r.label)}・${stmtEsc(r.period || '')}・${ok ? '自我檢查通過' : '自我檢查沒通過'}</span>`;
+          status = `<span class="stmt-tag ${ok ? 'ok' : 'bad'}">${stmtEsc(r.label)}・${stmtEsc(r.period || '')}・${ok ? '數字核對 OK' : '數字對不上'}</span>`;
         } else if (f.status === 'unsupported') status = `<span class="stmt-tag warn">${stmtEsc(f.result.label)}</span>`;
         else if (f.status === 'error') status = `<span class="stmt-tag bad">讀取失敗：${stmtEsc(f.error)}</span>`;
         return `
@@ -255,7 +255,7 @@
       }
     }
 
-    // 重新處理（補漏）：這次要當成新的重讀一次的、已經匯入過的對帳單編號
+    // 再讀一次（補漏）：這次要當成新的重讀一次的、已經匯入過的對帳單編號
     let stmtReprocess = new Set();
     function stmtGoReview(reprocessSids) {
       stmtReprocess = new Set(Array.isArray(reprocessSids) ? reprocessSids : []);
@@ -362,7 +362,7 @@
           return;
         }
         if (reprocess) {
-          stmtItems.push(stmtItem({ type: 'info', group: 'review', checked: false, title: `🔁 重新處理（補漏）：${res.label} ${res.period}`, detail: '這份之前匯入過。App 裡已經有的會標「App 裡已有」、不勾；買進、賣出、銀行餘額在 App 裡沒找到的，要補的請自己勾。不會再多記一筆「已匯入」。' }));
+          stmtItems.push(stmtItem({ type: 'info', group: 'review', checked: false, title: `🔁 再讀一次（補漏）：${res.label} ${res.period}`, detail: '這份之前匯入過。App 裡已經有的會標「App 裡已有」、不勾；買進、賣出、銀行餘額在 App 裡沒找到的，要補的請自己勾。不會再多記一筆「已匯入」。' }));
         }
         const base = { sid, src: res.label, failed, reprocess };
 
@@ -599,14 +599,14 @@
         });
       }
 
-      // 分組：可能已輸入 → 略過；有問題 → 需要你看
+      // 分組：可能已輸入 → 略過；有問題 → 請你確認
       stmtItems.forEach(it => {
         if (it.type === 'info') return;
         if (['sell', 'stockDiv', 'cashDiv', 'holdingFix', 'holdingNew', 'lentShares'].includes(it.type) && stmtIsGone(it.data.name)) {
           it.group = 'skip'; it.checked = false; it.note = '設定成「已經沒有這檔，不用問」'; return;
         }
         if (it.dup) { it.group = 'skip'; it.checked = false; it.note = '可能已經輸入過了'; return; }
-        if (it.failed) { it.group = 'review'; it.checked = false; it.note = '這份對帳單自我檢查沒通過，請先確認'; return; }
+        if (it.failed) { it.group = 'review'; it.checked = false; it.note = '這份對帳單數字對不上，請先確認'; return; }
         if ((it.type === 'sell') && it.noHolding) { it.group = 'review'; it.note = '持股裡找不到這檔，只會記賣出、不會扣持股（成本要自己填）'; }
         if (it.type === 'sell' && it.est && it.est.short > 0) { it.group = 'review'; it.note = `持股不夠，少 ${stmtFmt(it.est.short)} 股`; }
         if (it.type === 'stockDiv' && it.noHolding) { it.group = 'review'; it.checked = false; it.note = '持股裡找不到這檔'; }
@@ -621,9 +621,9 @@
         if (it.type === 'lentShares') {
           if (it.old !== null && Math.abs(it.old - stmtLentDisplay(it.data.shares)) < 0.001) { it.group = 'skip'; it.checked = false; it.note = '出借張數一樣'; }
         }
-        // 重新處理（補漏）：App 裡沒找到的買進／賣出／當沖／銀行餘額不預設勾，由你決定要不要補
+        // 再讀一次（補漏）：App 裡沒找到的買進／賣出／當沖／銀行餘額不預設勾，由你決定要不要補
         if (it.reprocess && ['buy', 'sell', 'daytrade', 'balance'].includes(it.type) && it.group !== 'skip') {
-          const extra = it.type === 'balance' ? '重新處理：這份之前匯入過，餘額可能已經記過，要覆蓋請自己勾' : '重新處理：App 裡沒找到一樣的，要補請自己勾';
+          const extra = it.type === 'balance' ? '再讀一次：這份之前匯入過，餘額可能已經記過，要覆蓋請自己勾' : '再讀一次：App 裡沒找到一樣的，要補請自己勾';
           it.checked = false;
           if (it.group === 'add' || it.group === 'update') it.group = 'review';
           it.note = it.note ? `${extra}；${it.note}` : extra;
@@ -631,7 +631,7 @@
       });
     }
 
-    // 已匯入過的那一行按「重新處理這份」：把這份當新的重讀一次
+    // 已匯入過的那一行按「再讀一次這份」：把這份當新的重讀一次
     function stmtDoReprocess(sid) {
       stmtReprocess.add(sid);
       stmtBuildItems();
@@ -772,7 +772,7 @@
       });
       const manage = stmtManageHtml();
       if (!rows.length && !manage) return '';
-      return `<div class="stmt-settings"><div class="stmt-sec-title">⚙️ 對應設定（設一次之後會記住）</div>${rows.join('')}${manage}</div>`;
+      return `<div class="stmt-settings"><div class="stmt-sec-title">⚙️ 這份要放到哪裡（設一次之後會記住）</div>${rows.join('')}${manage}</div>`;
     }
     function stmtNameSelect(n, cur, account) {
       const pool = stocks.filter(st => !account || st.account === account);
@@ -787,7 +787,7 @@
           </select>`;
     }
 
-    // 管理所有記住的設定（這次沒用到的也能改、能刪）
+    // 我學會的設定（這次沒用到的也能改、能刪）
     let stmtManageOpen = false;
     function stmtKeyLabel(key, v) {
       if (v && v.label) return v.label;
@@ -827,7 +827,7 @@
       if (!secRows.length && !bankRows.length && !nameRows.length) return '';
       const sec = (t, r) => r.length ? `<div class="stmt-manage-sub">${t}</div>${r.join('')}` : '';
       return `<details class="stmt-manage" ${stmtManageOpen ? 'open' : ''} ontoggle="stmtManageOpen = this.open">
-        <summary>🗂️ 管理所有記住的設定（${secRows.length + bankRows.length + nameRows.length}）</summary>
+        <summary>🗂️ 我學會的設定（${secRows.length + bankRows.length + nameRows.length}）</summary>
         <div class="stmt-set-tip">這裡會列出以前設過的全部對應，這次沒用到的也可以改或刪掉。</div>
         ${sec('證券帳戶', secRows)}${sec('銀行帳戶', bankRows)}${sec('股票名稱', nameRows)}
       </details>`;
@@ -945,7 +945,7 @@
             <div class="stmt-item-detail">${ds.detail || ''}</div>
             ${it.note ? `<div class="stmt-item-note">${stmtEsc(it.note)}</div>` : ''}
             ${it.dupWith ? `<div class="stmt-item-dupwith">App 裡已有：${stmtEsc(it.dupWith)}</div>` : ''}
-            ${it.reprocessSid ? `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtDoReprocess('${stmtEsc(it.reprocessSid)}')">🔁 重新處理這份（補漏）</button></div>` : ''}
+            ${it.reprocessSid ? `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtDoReprocess('${stmtEsc(it.reprocessSid)}')">🔁 再讀一次這份（補漏）</button></div>` : ''}
             ${fixHtml}
             ${editHtml}
             ${it.flag ? `<div class="stmt-flag-row">⚠️ 待修改，原因（可不填）：<input type="text" value="${stmtEsc(it.flagNote || '')}" placeholder="例如：成本不對" onchange="stmtSetFlagNote(${it.id}, this.value)" /></div>` : ''}
@@ -975,15 +975,15 @@
         if (f.status === 'ok') {
           const r = f.result;
           const okCnt = r.checks.filter(c => c.ok).length;
-          return `<div class="stmt-card ${r.allChecksOk ? '' : 'bad'}"><b>${stmtEsc(r.label)}</b> ${stmtEsc(r.period)}<span>${r.allChecksOk ? `✅ 自我檢查 ${okCnt} 項全部通過` : `⚠️ 自我檢查 ${okCnt}/${r.checks.length} 通過${r.warnings.length ? '，有 ' + r.warnings.length + ' 個提醒' : ''}`}</span></div>`;
+          return `<div class="stmt-card ${r.allChecksOk ? '' : 'bad'}"><b>${stmtEsc(r.label)}</b> ${stmtEsc(r.period)}<span>${r.allChecksOk ? `✅ 數字核對 ${okCnt} 項全部 OK` : `⚠️ 數字核對 ${okCnt}/${r.checks.length} 項 OK${r.warnings.length ? '，有 ' + r.warnings.length + ' 個提醒' : ''}`}</span></div>`;
         }
         return `<div class="stmt-card muted"><b>${stmtEsc(f.name)}</b><span>${stmtEsc(f.status === 'error' ? '讀取失敗' : (f.result ? f.result.label : ''))}</span></div>`;
       }).join('');
       const groups = [
         ['add', '➕ 新增', '會寫進 App 的新紀錄'],
         ['update', '🔄 更新', '會改掉 App 裡現在的數字'],
-        ['review', '👀 需要你看', '有地方對不上，或需要你決定'],
-        ['skip', '⏭️ 略過', '已經有了、只核對，或不需要寫入。這區預設不寫入，勾了就會寫入']
+        ['review', '👀 請你確認', '有地方對不上，或需要你決定'],
+        ['skip', '⏭️ 不會寫入', '已經有了、只核對，或不需要寫入。這區預設不寫入，勾了就會寫入']
       ];
       const gHtml = groups.map(([g, title, tip]) => {
         const list = stmtItems.filter(it => it.group === g);
@@ -1183,7 +1183,7 @@
       const sids = new Set(list.map(it => it.sid).filter(Boolean));
       stmtResults().forEach(r => {
         if (!sids.has(r.statementId)) return;
-        if (stmtImported.some(x => x.statementId === r.statementId)) return; // 重新處理的不重複記
+        if (stmtImported.some(x => x.statementId === r.statementId)) return; // 再讀一次的不重複記
         stmtImported.push({ statementId: r.statementId, label: r.label, period: r.period, importedAt: new Date().toISOString() });
       });
 
@@ -1196,7 +1196,7 @@
       stmtStep = 'done';
       stmtItems = [];
       stmtRender();
-      // 從「📬 待確認」來的：寫好了就從待確認拿掉
+      // 從「📬 自動收到的對帳單」來的：寫好了就從自動收到的對帳單拿掉
       if (typeof stmtPendingAfterApply === 'function') stmtPendingAfterApply();
     }
 

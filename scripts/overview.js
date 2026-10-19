@@ -1,5 +1,5 @@
 /* ====================================================================
-   📊 資產總覽 (overviewView) —— 只看不改，把三個分頁的資料合成「現在」的整體資產：
+   📊 全部資產一覽 (overviewView) —— 只看不改，把三個分頁的資料合成「現在」的整體資產：
      - 現金（台幣／美元）、呆帳：財務總覽「最新一欄」
      - 股票（現值／成本，依證券帳戶）：股票管理（現價 × 股數，美股 × 💵 美元匯率），
        媽的永豐算一個帳戶（現值、APP 顯示成本）
@@ -288,7 +288,7 @@ async function ovLoadFromCloud() {
     ovCloudLoaded = true;
     await ovPushToCloud();
   } catch (e) {
-    console.warn('讀取資產總覽每月紀錄失敗', e);
+    console.warn('讀取全部資產一覽每月紀錄失敗', e);
   }
 }
 async function ovPushToCloud() {
@@ -301,9 +301,9 @@ async function ovPushToCloud() {
     ovSaveMonthlyLocal(merged);
     await ref.set({ months: merged.months, updatedAt: new Date().toISOString() });
   } catch (e) {
-    console.warn('資產總覽每月紀錄同步失敗', e);
+    console.warn('全部資產一覽每月紀錄同步失敗', e);
     const hint = (e && e.code === 'permission-denied') ? '（Firebase 規則尚未開放 overviewMonthly）' : '';
-    if (typeof showToast === 'function') showToast('⚠️ 資產總覽每月紀錄雲端同步失敗' + hint + '，本機已儲存', 'error');
+    if (typeof showToast === 'function') showToast('⚠️ 全部資產一覽每月紀錄雲端同步失敗' + hint + '，本機已儲存', 'error');
   }
 }
 function ovScheduleCloudSave() {
@@ -396,7 +396,7 @@ function renderOverview() {
   root.innerHTML = `
     <div class="ov-head">
       <div>
-        <div class="ov-title">📊 資產總覽</div>
+        <div class="ov-title">📊 全部資產一覽</div>
         <div class="ov-sub">最後更新 ${stamp}・美元匯率 ${calc.rate}${calc.financeDate ? `・現金取自財務總覽「${ovEsc(calc.financeDate)}」欄` : ''}</div>
       </div>
       <div class="ov-actions">
@@ -513,7 +513,7 @@ async function refreshOverview() {
     }
     await ovFinalizePastMonths();
     renderOverview();
-    if (typeof showToast === 'function') showToast('📊 資產總覽已更新', 'success');
+    if (typeof showToast === 'function') showToast('📊 全部資產一覽已更新', 'success');
   } finally {
     const b = document.getElementById('ovRefreshBtn');
     if (b) { b.disabled = false; b.textContent = '🔄 更新'; }

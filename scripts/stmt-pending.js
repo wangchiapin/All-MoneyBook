@@ -1,10 +1,10 @@
 /* ====================================================================
-   對帳單「📬 待確認」（第 6 步，App 這邊）
+   對帳單「📬 自動收到的對帳單」（第 6 步，App 這邊）
    - 自動程式（GitHub 私人倉庫，每週一凌晨 3 點）從 Gmail 拿對帳單 PDF、讀好，
      放進 Firestore：stmtPending/{使用者}/items/{一份一筆}
-   - 這裡負責：標題列按鈕（有待確認才出現、顯示數字）、待確認清單、
-     選好的幾份一起送進原本的確認畫面；寫入後從待確認拿掉，「復原這次匯入」會放回去
-   - 自動程式只會「放進待確認」，一定要在這裡按寫入才會改到帳
+   - 這裡負責：標題列按鈕（有自動收到的對帳單才出現、顯示數字）、自動收到的對帳單清單、
+     選好的幾份一起送進原本的確認畫面；寫入後從自動收到的對帳單拿掉，「復原這次匯入」會放回去
+   - 自動程式只會「放進自動收到的對帳單」，一定要在這裡按寫入才會改到帳
 
    每一筆的資料：
      { createdAt, mailDate, mailSubject, mailFrom, fileName,
@@ -14,7 +14,7 @@
    ==================================================================== */
 
     const STMT_PENDING_COLLECTION = 'stmtPending';
-    let stmtPendingList = [];      // 從雲端讀來的待確認 [{ id, ...資料 }]
+    let stmtPendingList = [];      // 從雲端讀來的自動收到的對帳單 [{ id, ...資料 }]
     let stmtPendingPicked = {};    // 清單上勾了哪幾份 { id: true }
     let stmtPendingActive = [];    // 這次送進確認畫面的那幾份（寫入後要刪掉、復原時放回去）
     let stmtPendingRemoved = [];   // 上一次寫入時拿掉的（復原用）
@@ -56,7 +56,7 @@
         list.sort((a, b) => String(b.mailDate || b.createdAt || '').localeCompare(String(a.mailDate || a.createdAt || '')));
         stmtPendingList = list;
       } catch (e) {
-        console.warn('讀取待確認失敗', e);
+        console.warn('讀取自動收到的對帳單失敗', e);
       } finally {
         stmtPendingLoading = false;
       }
@@ -70,8 +70,8 @@
       // 「不是對帳單、已略過」的不算數字，也不會單獨讓按鈕出現
       const n = stmtPendingList.filter(p => p.status !== 'unsupported').length;
       btn.style.display = n ? '' : 'none';
-      btn.innerHTML = `📬 待確認 <span class="stmt-pending-num">${n}</span>`;
-      // 手機的 ⋯ 按鈕上也點一個紅點，提醒裡面有待確認
+      btn.innerHTML = `📬 自動收到的對帳單 <span class="stmt-pending-num">${n}</span>`;
+      // 手機的 ⋯ 按鈕上也點一個紅點，提醒裡面有自動收到的對帳單
       document.getElementById('mbHeaderMore')?.classList.toggle('has-pending', n > 0);
     }
 
@@ -90,13 +90,13 @@
 
     /* ---------------- 清單畫面 ---------------- */
     function openStmtPending() {
-      if (!stmtPendingCol()) { showToast('要先登入雲端同步，才看得到待確認的對帳單', 'error'); return; }
+      if (!stmtPendingCol()) { showToast('要先登入雲端同步，才看得到自動收到的對帳單', 'error'); return; }
       openStmtImport();
       stmtStep = 'pending';
       stmtPendingPicked = {};
       stmtPendingList.forEach(p => { if (p.status === 'ok' && !stmtPendingIsImported(p) && !stmtPendingDupOf(p)) stmtPendingPicked[p.id] = true; });
       const t = document.querySelector('#stmtOverlay .stmt-title');
-      if (t) t.textContent = '📬 待確認的對帳單';
+      if (t) t.textContent = '📬 自動收到的對帳單';
       stmtRender();
       stmtPendingRefresh().then(() => {
         // 重新讀到的新項目，可以讀的也預設勾起來
@@ -121,7 +121,7 @@
         tag = done
           ? '<span class="stmt-tag">之前已經匯入過</span>'
           : stmtPendingDupOf(p) ? '<span class="stmt-tag">跟上面那份是同一份對帳單（另一個信箱收到的），可以丟掉</span>'
-          : `<span class="stmt-tag ${p.allChecksOk ? 'ok' : 'bad'}">${p.allChecksOk ? '自我檢查通過' : '自我檢查沒通過，要仔細看'}</span>`;
+          : `<span class="stmt-tag ${p.allChecksOk ? 'ok' : 'bad'}">${p.allChecksOk ? '數字核對 OK' : '數字對不上，要仔細看'}</span>`;
         cb = `<input type="checkbox" class="stmt-cb" ${stmtPendingPicked[p.id] ? 'checked' : ''} onchange="stmtPendingPick('${p.id}', this.checked)">`;
       } else if (p.status === 'needpw') {
         tag = '<span class="stmt-tag bad">打不開：存好的密碼都不對</span>';
@@ -131,7 +131,7 @@
       const title = r && p.status === 'ok' ? `${stmtEsc(r.label || p.label)} ${stmtEsc(r.period || p.period || '')}` : stmtEsc(p.label || p.fileName || '對帳單');
       let hint = p.status === 'needpw' || p.status === 'error'
         ? '<div class="stmt-set-tip">可以到 Gmail 下載這份 PDF，用「📥 匯入對帳單」自己匯入，再按「丟掉」。</div>' : '';
-      if (done && p.status === 'ok' && r) hint = `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtPendingReprocess('${p.id}')">🔁 重新處理這份（補漏）</button></div>`;
+      if (done && p.status === 'ok' && r) hint = `<div style="margin-top:6px;"><button class="stmt-edit-btn" onclick="stmtPendingReprocess('${p.id}')">🔁 再讀一次這份（補漏）</button></div>`;
       return `
         <div class="stmt-item ${p.status === 'ok' && stmtPendingPicked[p.id] ? 'on' : ''}">
           ${cb}
@@ -151,7 +151,7 @@
       const loading = stmtPendingLoading && !stmtPendingList.length ? '<div class="stmt-empty">讀取中…</div>' : '';
       const mainHtml = main.length
         ? `<div class="stmt-group g-add"><div class="stmt-pending-head"><span class="stmt-sec-title">收到的對帳單（${main.length}）</span><span class="stmt-group-tip">勾起來的會一起進確認畫面</span></div>${main.map(stmtPendingRowHtml).join('')}</div>`
-        : (loading || '<div class="stmt-empty">沒有待確認的對帳單 🎉</div>');
+        : (loading || '<div class="stmt-empty">沒有自動收到的對帳單 🎉</div>');
       const skipHtml = skipped.length ? `
         <div class="stmt-pending-skip">
           <div>信裡另外有 ${skipped.length} 個不是對帳單的 PDF，已經略過：</div>
@@ -176,7 +176,7 @@
       const p = stmtPendingList.find(x => x.id === id);
       if (!p) return;
       const name = stmtPendingResult(p) ? `${stmtPendingResult(p).label} ${stmtPendingResult(p).period || ''}` : (p.fileName || '這份');
-      if (!confirm(`確定丟掉「${name}」嗎？\n只會從待確認拿掉，Gmail 的信不會動，你的帳也不會改。`)) return;
+      if (!confirm(`確定丟掉「${name}」嗎？\n只會從自動收到的對帳單拿掉，Gmail 的信不會動，你的帳也不會改。`)) return;
       try { await stmtPendingDelete(id); } catch (e) { showToast('丟掉失敗：' + e.message, 'error'); return; }
       delete stmtPendingPicked[id];
       stmtPendingUpdateBtn();
@@ -191,7 +191,7 @@
     }
 
     /* ---------------- 送進原本的確認畫面 ---------------- */
-    // 已匯入過的那一行按「重新處理這份」：勾起它，直接進確認畫面當新的重讀一次
+    // 已匯入過的那一行按「再讀一次這份」：勾起它，直接進確認畫面當新的重讀一次
     function stmtPendingReprocess(id) {
       const p = stmtPendingList.find(x => x.id === id);
       const r = p && stmtPendingResult(p);
@@ -218,7 +218,7 @@
       stmtGoReview(Array.isArray(reprocessSids) ? reprocessSids : []);
     }
 
-    // stmtApply 寫完後呼叫：把這次用掉的從待確認拿掉
+    // stmtApply 寫完後呼叫：把這次用掉的從自動收到的對帳單拿掉
     async function stmtPendingAfterApply() {
       if (!stmtPendingActive.length) { stmtPendingRemoved = []; return; }
       const used = stmtPendingActive;
@@ -226,12 +226,12 @@
       stmtPendingRemoved = [];
       for (const p of used) {
         try { await stmtPendingDelete(p.id); stmtPendingRemoved.push(p); }
-        catch (e) { console.warn('從待確認拿掉失敗', e); }
+        catch (e) { console.warn('從自動收到的對帳單拿掉失敗', e); }
       }
       stmtPendingUpdateBtn();
     }
 
-    // 「復原這次匯入」後呼叫：剛剛拿掉的放回待確認
+    // 「復原這次匯入」後呼叫：剛剛拿掉的放回自動收到的對帳單
     async function stmtPendingAfterUndo() {
       const back = stmtPendingRemoved;
       stmtPendingRemoved = [];
@@ -239,7 +239,7 @@
       const col = stmtPendingCol();
       if (!col) return;
       for (const p of back) {
-        try { await col.doc(p.id).set(stmtPendingClean(p)); } catch (e) { console.warn('放回待確認失敗', e); }
+        try { await col.doc(p.id).set(stmtPendingClean(p)); } catch (e) { console.warn('放回自動收到的對帳單失敗', e); }
       }
       await stmtPendingRefresh();
     }
