@@ -143,7 +143,7 @@
       const rows = stmtFiles.map(f => {
         let status = '';
         if (f.status === 'pending') status = '<span class="stmt-tag">等待讀取</span>';
-        else if (f.status === 'reading') status = '<span class="stmt-tag">讀取中…</span>';
+        else if (f.status === 'reading') status = `<span class="stmt-tag" id="stmtOcr_${f.id}">讀取中…${f.ocrMsg ? stmtEsc(f.ocrMsg) : ''}</span>`;
         else if (f.status === 'needpw') status = `
             <div class="stmt-pw">
               <input type="password" id="stmtPw_${f.id}" placeholder="${f.wrong ? '密碼不正確，請再輸入一次' : '這份需要密碼'}" autocomplete="off" value="" onkeydown="if(event.key==='Enter'){event.preventDefault();stmtReadAll();}" />
@@ -198,6 +198,15 @@
       stmtRender();
     }
 
+    // 圖片型 PDF 用 OCR 認字：第一次要下載辨識程式和中文資料，顯示進度讓你知道沒當掉
+    function stmtOcrNote(f, m, pr) {
+      const names = { 'loading tesseract core': '下載辨識程式', 'initializing tesseract': '準備辨識', 'loading language traineddata': '下載中文資料（只有第一次）', 'initializing api': '準備辨識', 'recognizing text': '認字' };
+      const label = names[m] || m;
+      f.ocrMsg = `（圖片型對帳單，${label}${typeof pr === 'number' ? ' ' + Math.round(pr * 100) + '%' : ''}）`;
+      const el = document.getElementById('stmtOcr_' + f.id);
+      if (el) el.textContent = '讀取中…' + f.ocrMsg;
+    }
+
     // 讀一份：先不用密碼，再試記住的密碼，最後才請使用者輸入
     async function stmtReadOne(f, pdfjs) {
       const buf = await f.file.arrayBuffer();
@@ -206,7 +215,7 @@
       f.status = 'reading';
       for (const pw of tries) {
         try {
-          const res = await StmtParsers.parsePdf(pdfjs, new Uint8Array(buf.slice(0)), pw, STMT_PDFJS_DOCOPTS);
+          const res = await StmtParsers.parsePdf(pdfjs, new Uint8Array(buf.slice(0)), pw, Object.assign({}, STMT_PDFJS_DOCOPTS, { onOcrProgress: (m, pr) => stmtOcrNote(f, m, pr) }));
           if (pw && typed) {
             const rem = document.getElementById('stmtRememberPw');
             if (!rem || rem.checked) stmtRememberPassword(pw);
@@ -582,6 +591,8 @@
         }
       });
 
+      if (typeof stmtPensionBuildItems === 'function') stmtPensionBuildItems(results, imported);
+
       // 分組：可能已輸入 → 略過；有問題 → 需要你看
       stmtItems.forEach(it => {
         if (it.type === 'info') return;
@@ -681,7 +692,7 @@
     function stmtNeededSettings() {
       const results = stmtResults();
       const imported = new Set((stmtImported || []).map(x => x.statementId));
-      const out = { sec: [], bank: [], names: [], lendUnit: false, financeCol: false };
+      const out = { sec: [], bank: [], names: [], lendUnit: false, financeCol: false, pension: [] };
       const seenNames = new Set();
       results.filter(r => !imported.has(r.statementId) || stmtReprocess.has(r.statementId)).forEach(r => {
         if (r.kind === 'securities' && !stmtUseYf(r)) {
@@ -689,6 +700,7 @@
           if ((r.lendings || []).length) out.lendUnit = true;
         }
         if (r.kind === 'bank') (r.bankAccounts || []).forEach(a => { out.bank.push({ res: r, acc: a }); out.financeCol = true; });
+        if (r.kind === 'pension') { out.pension.push(r); out.financeCol = true; }
       });
       stmtItems.forEach(it => {
         if ((it.type === 'cashDiv' && !it.holdingId) || ((it.type === 'sell' || it.type === 'stockDiv' || it.type === 'holdingFix') && it.noHolding)) {
@@ -728,10 +740,11 @@
             <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
           </select></div>`);
       });
+      if (need.pension.length && typeof stmtPensionSettingsRows === 'function') stmtPensionSettingsRows(need.pension).forEach(r => rows.push(r));
       if (need.financeCol) {
         const dates = (typeof state !== 'undefined' && state.dates) ? state.dates : [];
         if (s.financeCol == null || s.financeCol >= dates.length) s.financeCol = dates.length - 1;
-        const periods = stmtResults().filter(r => r.kind === 'bank').map(r => r.period).sort();
+        const periods = stmtResults().filter(r => r.kind === 'bank' || r.kind === 'pension').map(r => r.period).sort();
         rows.push(`<div class="stmt-set-row"><span>銀行餘額寫進財務總覽的日期欄</span>
           <select onchange="stmtSetCol(this.value)">
             ${dates.map((d, i) => `<option value="${i}" ${i === s.financeCol ? 'selected' : ''}>${stmtEsc(d)}</option>`).reverse().join('')}
@@ -782,6 +795,7 @@
       const items = (typeof state !== 'undefined' && state.bankItems) ? state.bankItems : [];
       const secRows = [], bankRows = [], nameRows = [];
       Object.keys(s.accountMap).forEach(key => {
+        if (key.startsWith('pension_fund|')) return;   // 退撫儲金的對應在匯入畫面上直接改
         const v = s.accountMap[key] || {};
         const del = `<button type="button" class="stmt-del-btn" onclick="stmtDelSetting('acc', '${stmtEsc(key)}')">刪除</button>`;
         if (v.stockAccount !== undefined) {
@@ -894,6 +908,7 @@
               + (sum != null ? `（${same.length} 個帳戶加總：${same.map(x => stmtEsc(String(x.acc.accountNo).slice(-4)) + ' $' + stmtFmt(x.data.value, 0)).join(' ＋ ')}）` : '') : '還沒設定對應'
           };
         }
+        case 'pension': return stmtPensionDescribe(it);
         case 'holdingNew': return {
           tag: '新增持股', title: `${stmtEsc(d.name)}${d.code ? `（${stmtEsc(d.code)}）` : ''}：對帳單 ${stmtFmt(d.shares)} 股，App 沒有這檔`,
           detail: `${stmtEsc(it.account)}・會新增這檔持股${typeof sbGuessCategory === 'function' ? `（${stmtEsc(sbGuessCategory(it.account, d.code))}）` : ''}・成本先填 0，請之後到持股表自己補`
@@ -937,8 +952,8 @@
     }
 
     // 每一區裡面照種類排：買進 → 賣出 → 當沖 → 配股 → 現金股利 → 借卷收入 → 出借張數 → 庫存 → 銀行
-    const STMT_KINDS = ['buy', 'sell', 'daytrade', 'stockDiv', 'cashDiv', 'lendIncome', 'lentShares', 'holding', 'yf', 'balance', 'bankref', 'other'];
-    const STMT_KIND_LABEL = { buy: '買進', sell: '賣出', daytrade: '當沖', stockDiv: '配股', cashDiv: '現金股利', lendIncome: '借卷收入', lentShares: '出借張數', holding: '庫存', yf: '媽的永豐', balance: '銀行餘額', bankref: '銀行入帳核對', other: '其他' };
+    const STMT_KINDS = ['buy', 'sell', 'daytrade', 'stockDiv', 'cashDiv', 'lendIncome', 'lentShares', 'holding', 'yf', 'balance', 'pension', 'bankref', 'other'];
+    const STMT_KIND_LABEL = { buy: '買進', sell: '賣出', daytrade: '當沖', stockDiv: '配股', cashDiv: '現金股利', lendIncome: '借卷收入', lentShares: '出借張數', holding: '庫存', yf: '媽的永豐', balance: '銀行餘額', pension: '退撫儲金', bankref: '銀行入帳核對', other: '其他' };
     function stmtKindOf(it) {
       if (it.type === 'holdingFix' || it.type === 'holdingNew') return 'holding';
       if (it.type === 'yfBuy' || it.type === 'yfAppCost' || it.yf) return 'yf';
@@ -1036,6 +1051,7 @@
 
       // 備份（復原用）：股票資料＋財務總覽
       const backup = { at: new Date().toISOString(), stock: JSON.parse(JSON.stringify(gatherAllData())), finance: JSON.parse(JSON.stringify(state)) };
+      if (typeof retirementSettings !== 'undefined') backup.ret = JSON.parse(JSON.stringify(retirementSettings));
       try { localStorage.setItem(STMT_BACKUP_KEY, JSON.stringify(backup)); } catch (e) { /* 太大就只留在記憶體 */ }
       window.__stmtLastBackup = backup;
       recordSnapshot();
@@ -1044,7 +1060,7 @@
       const bump = k => { counts[k] = (counts[k] || 0) + 1; };
       const problems = [];
       // 寫入順序：餘額 → 依日期的買賣／股利／借券（同一天買進、配股先，賣出後）→ 出借張數 → 庫存修正
-      const bucket = { balance: 0, lentShares: 2, holdingFix: 3 };
+      const bucket = { balance: 0, pension: 0, lentShares: 2, holdingFix: 3 };
       const order = { buy: 1, stockDiv: 2, sell: 3, daytrade: 4, cashDiv: 5, lendIncome: 6 };
       const list = chosen.slice().sort((a, b) => ((bucket[a.type] ?? 1) - (bucket[b.type] ?? 1))
         || String(a.date || '').localeCompare(String(b.date || '')) || ((order[a.type] || 0) - (order[b.type] || 0)));
@@ -1135,6 +1151,8 @@
             if (!h) return;
             sbAdjustHolding(h, d.shares - (Number(h.shares) || 0), 0);
             bump('庫存修正');
+          } else if (it.type === 'pension') {
+            stmtPensionApply(it, bump, problems);
           } else if (it.type === 'balance') {
             const t = stmtBankTarget(it.res, it.acc);
             const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
@@ -1203,6 +1221,7 @@
       if (!confirm('確定要復原嗎？股票管理和財務總覽會回到這次匯入前的樣子（匯入之後你自己改的也會一起不見）。')) return;
       applyAllData(backup.stock);
       saveToStorage();
+      if (backup.ret && typeof retirementSettings !== 'undefined') { retirementSettings = backup.ret; saveRetirementSettings(); }
       if (backup.finance) { state = backup.finance; saveState(); if (typeof render === 'function') render(); }
       window.__stmtLastBackup = null;
       try { localStorage.removeItem(STMT_BACKUP_KEY); } catch (e) { /* 略過 */ }
