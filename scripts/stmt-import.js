@@ -617,6 +617,10 @@
           const t = stmtBankTarget(it.res, it.acc);
           if (!t) { it.group = 'review'; it.checked = false; it.note = '請在上面設定要寫到財務總覽的哪一個項目'; }
           else if (t.skip) { it.group = 'skip'; it.checked = false; it.note = '設定成不匯入'; }
+          else {
+            const bi = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
+            if (bi && !stmtCurOk(it.acc.currency, bi)) { it.group = 'review'; it.checked = false; it.note = '幣別對不上：這個帳戶是 ' + (it.acc.currency || 'TWD') + '，但財務總覽的「' + bi.name + '」是' + (bi.isUSD ? '美元' : '台幣') + '項目，請在上面重選'; }
+          }
         }
         if (it.type === 'lentShares') {
           if (it.old !== null && Math.abs(it.old - stmtLentDisplay(it.data.shares)) < 0.001) { it.group = 'skip'; it.checked = false; it.note = '出借張數一樣'; }
@@ -743,11 +747,13 @@
         rows.push(`<div class="stmt-set-row ${t ? '' : 'need'}"><span>${stmtEsc(res.label)} ${stmtEsc(acc.type || '')} ${stmtEsc(acc.accountNo)}（${stmtEsc(acc.currency)}）→ 財務總覽</span>
           <select onchange="stmtSetBank('${stmtEsc(stmtAccKey(res, acc.accountNo, acc.currency))}', this.value)">
             ${val ? '' : '<option value="">請選擇</option>'}
-            ${items.map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === String(val) ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+            ${stmtBadMapOption(items, val, acc.currency)}
+            ${items.filter(b => stmtCurOk(acc.currency, b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === String(val) ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
             ${(acc.currency === 'TWD' || acc.currency === 'USD') ? `<option value="__new">➕ 新增成新項目：${stmtEsc(stmtBankItemName(res, acc))}</option>` : ''}
             <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
           </select></div>`);
       });
+      if (need.bank.some(({ acc }) => acc.currency && acc.currency !== 'TWD' && acc.currency !== 'USD')) rows.push('<div class="stmt-set-tip">財務總覽目前只有台幣和美元項目，其他外幣（日圓、歐元…）的帳戶請選「不匯入這個帳戶」。</div>');
       if (need.pension.length && typeof stmtPensionSettingsRows === 'function') stmtPensionSettingsRows(need.pension).forEach(r => rows.push(r));
       if (need.financeCol) {
         const dates = (typeof state !== 'undefined' && state.dates) ? state.dates : [];
@@ -755,9 +761,10 @@
         const periods = stmtResults().filter(r => r.kind === 'bank' || r.kind === 'pension').map(r => r.period).sort();
         rows.push(`<div class="stmt-set-row"><span>銀行餘額寫進財務總覽的日期欄</span>
           <select onchange="stmtSetCol(this.value)">
+            <option value="__newdate">➕ 新增日期欄…</option>
             ${dates.map((d, i) => `<option value="${i}" ${i === s.financeCol ? 'selected' : ''}>${stmtEsc(d)}</option>`).reverse().join('')}
           </select></div>
-          <div class="stmt-set-tip">對帳單月份：${stmtEsc(periods.join('、'))}。如果要寫到新的日期，請先到財務總覽「➕ 新增紀錄時間」。</div>`);
+          <div class="stmt-set-tip">對帳單月份：${stmtEsc(periods.join('、'))}。要寫到新的日期，選上面的「➕ 新增日期欄」。</div>`);
       }
       if (need.lendUnit) {
         rows.push(`<div class="stmt-set-row ${s.lendUnit ? '' : 'need'}"><span>「出借張數」你平常填的是</span>
@@ -816,7 +823,8 @@
           const val = v.skip ? '__skip' : String(v.financeItemId || '');
           bankRows.push(`<div class="stmt-set-row"><span>${stmtEsc(stmtKeyLabel(key, v))} → 財務總覽</span><span class="stmt-set-ctl">
             <select onchange="stmtSetBank('${stmtEsc(key)}', this.value)">
-              ${items.map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === val ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+              ${stmtBadMapOption(items, val, String(key).split('|')[2])}
+              ${items.filter(b => stmtCurOk(String(key).split('|')[2], b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === val ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
               <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
             </select>${del}</span></div>`);
         }
@@ -913,9 +921,51 @@
         }
       }
  const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign({ stockAccount: acc }, label ? { label } : {}); stmtAfterSetting(); }
+    // 幣別要對得上：美元帳戶只能對美元項目、台幣帳戶只能對台幣項目、其他外幣只能「不匯入」
+    function stmtCurOk(cur, item) { cur = cur || 'TWD'; return cur === 'USD' ? !!item.isUSD : (cur === 'TWD' ? !item.isUSD : false); }
+    function stmtBadMapOption(items, val, cur) {
+      const it = val && val !== '__skip' ? items.find(b => String(b.id) === String(val)) : null;
+      return it && !stmtCurOk(cur, it) ? `<option value="${stmtEsc(it.id)}" selected>${stmtEsc(it.name)}（幣別對不上，請重選）</option>` : '';
+    }
     function stmtSetBank(key, v) {
-      if (v === '__new') { const f = stmtFindResByKey(key, true); if (!f) return; v = stmtNewBankItem(f.res, f.acc).id; } const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign(v === '__skip' ? { skip: true } : { financeItemId: v }, label ? { label } : {}); stmtAfterSetting(); }
-    function stmtSetCol(v) { stmtSettingsObj().financeCol = Number(v); stmtAfterSetting(); }
+      if (v === '__new') { const f = stmtFindResByKey(key, true); if (!f) return; v = stmtNewBankItem(f.res, f.acc).id; }
+      if (v && v !== '__skip') {
+        const it = (state.bankItems || []).find(b => String(b.id) === String(v));
+        const cur = String(key).split('|')[2] || 'TWD';
+        if (it && !stmtCurOk(cur, it)) { showToast('幣別對不上：' + cur + ' 帳戶不能寫進「' + it.name + '」' + (it.isUSD ? '（美元項目）' : '（台幣項目）'), 'error'); stmtAfterSetting(); return; }
+      } const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign(v === '__skip' ? { skip: true } : { financeItemId: v }, label ? { label } : {}); stmtAfterSetting(); }
+    // 新增日期欄：預設用對帳單月份的月底，格式跟你現有的日期一樣（民國 7 碼、或 2026-09-30）
+    function stmtSuggestDate() {
+      const ps = stmtResults().filter(r => r.kind === 'bank' || r.kind === 'pension').map(r => r.period).filter(Boolean).sort();
+      const m = String(ps[ps.length - 1] || '').match(/^(\d{4})-(\d{2})/);
+      const now = new Date();
+      const y = m ? Number(m[1]) : now.getFullYear(), mo = m ? Number(m[2]) : now.getMonth() + 1;
+      const last = m ? new Date(y, mo, 0).getDate() : now.getDate();
+      const p2 = n => String(n).padStart(2, '0');
+      const prev = String(((state.dates || [])[(state.dates || []).length - 1]) || '');
+      if (/^\d{4}-\d{2}-\d{2}$/.test(prev)) return y + '-' + p2(mo) + '-' + p2(last);
+      if (/^\d{4}-\d{2}$/.test(prev)) return y + '-' + p2(mo);
+      return String(y - 1911) + p2(mo) + p2(last);
+    }
+    function stmtNewDateCol() {
+      const d = prompt('請輸入新增紀錄日期（例如 1150930）：', stmtSuggestDate());
+      if (!d || !d.trim()) { stmtAfterSetting(); return; }
+      const nd = d.trim();
+      if (!(state.dates || []).includes(nd)) {
+        state.dates.push(nd);
+        const lastRate = state.rates[state.rates.length - 1] || 31.5;
+        state.rates.push(lastRate);
+        state.colNotes.push('');
+        Object.keys(state.values).forEach(k => { state.values[k].push(0); });
+        if (typeof sortColumnsByDate === 'function') sortColumnsByDate();
+        saveState();
+        if (typeof render === 'function') render();
+        showToast('已在財務總覽新增日期「' + nd + '」');
+      }
+      stmtSettingsObj().financeCol = state.dates.indexOf(nd);
+      stmtAfterSetting();
+    }
+    function stmtSetCol(v) { if (v === '__newdate') { stmtNewDateCol(); return; } stmtSettingsObj().financeCol = Number(v); stmtAfterSetting(); }
     function stmtSetLendUnit(v) { stmtSettingsObj().lendUnit = v || undefined; stmtAfterSetting(); }
     function stmtSetName(n, v) { if (v) stmtSettingsObj().nameMap[n] = v; else delete stmtSettingsObj().nameMap[n]; stmtAfterSetting(); }
 
@@ -1108,9 +1158,10 @@
       if (!chosen.length) return;
       if (chosen.some(it => it.type === 'lentShares') && !stmtSettingsObj().lendUnit) { showToast('請先在上面選「出借張數」是張還是股', 'error'); return; }
       if (chosen.some(it => it.type === 'balance' && !stmtBankTarget(it.res, it.acc))) { showToast('有銀行帳戶還沒設定對應', 'error'); return; }
+      if (chosen.some(it => { if (it.type !== 'balance') return false; const t = stmtBankTarget(it.res, it.acc); const bi = t && !t.skip ? (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId)) : null; return bi && !stmtCurOk(it.acc.currency, bi); })) { showToast('有銀行帳戶的幣別和財務總覽項目對不上，請先重選', 'error'); return; }
       if (chosen.some(it => it.type === 'balance')) {
         const col = stmtSettingsObj().financeCol;
-        if (!(state.dates || []).length || col == null || col < 0 || col >= state.dates.length) { showToast('財務總覽還沒有日期欄，請先到財務總覽按「➕ 新增紀錄時間」，再回來匯入', 'error'); return; }
+        if (!(state.dates || []).length || col == null || col < 0 || col >= state.dates.length) { showToast('財務總覽還沒有日期欄，請先在上面的日期欄選「➕ 新增日期欄」', 'error'); return; }
       }
 
       // 備份（復原用）：股票資料＋財務總覽
