@@ -733,6 +733,7 @@
           <select onchange="stmtSetSec('${stmtEsc(stmtAccKey(r))}', this.value)">
             ${cur ? '' : '<option value="">請選擇</option>'}
             ${accs.map(a => `<option value="${stmtEsc(a)}" ${a === cur ? 'selected' : ''}>${stmtEsc(a)}</option>`).join('')}
+            <option value="__new">➕ 新增證券帳戶：${stmtEsc(stmtNewSecName(r))}</option>
           </select></div>`);
       });
       const items = (typeof state !== 'undefined' && state.bankItems) ? state.bankItems : [];
@@ -743,6 +744,7 @@
           <select onchange="stmtSetBank('${stmtEsc(stmtAccKey(res, acc.accountNo, acc.currency))}', this.value)">
             ${val ? '' : '<option value="">請選擇</option>'}
             ${items.map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === String(val) ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+            ${(acc.currency === 'TWD' || acc.currency === 'USD') ? `<option value="__new">➕ 新增成新項目：${stmtEsc(stmtBankItemName(res, acc))}</option>` : ''}
             <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
           </select></div>`);
       });
@@ -855,8 +857,64 @@
       stmtBuildItems();
       stmtRender();
     }
-    function stmtSetSec(key, acc) { const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign({ stockAccount: acc }, label ? { label } : {}); stmtAfterSetting(); }
-    function stmtSetBank(key, v) { const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign(v === '__skip' ? { skip: true } : { financeItemId: v }, label ? { label } : {}); stmtAfterSetting(); }
+    /* ===== 在選單裡直接「新增成新項目」 ===== */
+    // 銀行項目名稱：銀行名稱＋帳戶種類＋帳號末幾碼（例：將來銀行 活存 5857）
+    function stmtBankItemName(res, acc) {
+      let type = String(acc.type || '');
+      if (acc.currency === 'USD' && !/外幣/.test(type)) type = '外幣' + type;
+      let tail = String(acc.accountNo || '').replace(/^外幣/, '');
+      const plain = type.replace(/^外幣/, '');
+      if (plain && tail.startsWith(plain)) tail = tail.slice(plain.length);
+      tail = tail.replace(/^口袋/, '').split('*').pop();
+      if (/^\d{5,}$/.test(tail)) tail = tail.slice(-4);
+      return [res.label, type, tail].filter(Boolean).join(' ');
+    }
+    // 證券帳戶名稱：先用券商名稱；已經有了就加帳號末四碼
+    function stmtNewSecName(res) {
+      const accs = getAllAccounts();
+      if (!accs.includes(res.label)) return res.label;
+      const tail = String(res.account || '').replace(/\D/g, '').slice(-4);
+      let name = tail ? res.label + ' ' + tail : res.label + ' 2';
+      for (let i = 2; accs.includes(name); i++) name = res.label + ' ' + i;
+      return name;
+    }
+    function stmtFindResByKey(key, bank) {
+      for (const r of stmtResults()) {
+        if (bank && r.kind === 'bank') { const a = (r.bankAccounts || []).find(x => stmtAccKey(r, x.accountNo, x.currency) === key); if (a) return { res: r, acc: a }; }
+        if (!bank && r.kind !== 'bank' && stmtAccKey(r) === key) return { res: r };
+      }
+      return null;
+    }
+    // 回傳財務總覽的銀行項目（同名、沒封存的就直接用，沒有就新增）
+    function stmtNewBankItem(res, acc) {
+      const name = stmtBankItemName(res, acc);
+      let it = (state.bankItems || []).find(b => !b.archived && b.name === name);
+      if (!it) {
+        const isUSD = acc.currency === 'USD';
+        it = { id: 'b_' + Date.now() + '_' + Math.floor(Math.random() * 1000), name, isUSD, isForeign: isUSD };
+        state.bankItems.push(it);
+        saveState();
+        if (typeof render === 'function') render();
+        showToast('已在財務總覽新增「' + name + '」');
+      }
+      return it;
+    }
+    function stmtSetSec(key, acc) {
+      if (acc === '__new') {
+        const f = stmtFindResByKey(key, false);
+        if (!f) return;
+        acc = stmtNewSecName(f.res);
+        if (!getAllAccounts().includes(acc)) {
+          if (typeof recordSnapshot === 'function') recordSnapshot();
+          customAccounts.push(acc);
+          saveToStorage();
+          if (typeof renderTabs === 'function') renderTabs();
+          showToast('已新增證券帳戶「' + acc + '」');
+        }
+      }
+ const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign({ stockAccount: acc }, label ? { label } : {}); stmtAfterSetting(); }
+    function stmtSetBank(key, v) {
+      if (v === '__new') { const f = stmtFindResByKey(key, true); if (!f) return; v = stmtNewBankItem(f.res, f.acc).id; } const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign(v === '__skip' ? { skip: true } : { financeItemId: v }, label ? { label } : {}); stmtAfterSetting(); }
     function stmtSetCol(v) { stmtSettingsObj().financeCol = Number(v); stmtAfterSetting(); }
     function stmtSetLendUnit(v) { stmtSettingsObj().lendUnit = v || undefined; stmtAfterSetting(); }
     function stmtSetName(n, v) { if (v) stmtSettingsObj().nameMap[n] = v; else delete stmtSettingsObj().nameMap[n]; stmtAfterSetting(); }
