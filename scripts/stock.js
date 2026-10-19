@@ -1716,7 +1716,7 @@
             const c = Number(est.expCash) || 0;
             const stks = Number(est.expStock) || 0;
 
-            totalEstCash += c * shares;
+            totalEstCash += c * shares * fxRate;   // 美股的預估現金股利是美元，要乘匯率換成台幣才能跟台股加總
             totalEstStockVal += (stks * shares) * price;
           });
 
@@ -1902,7 +1902,7 @@
       const body = document.getElementById('deleteStockDividendBody');
       if (body) {
         body.innerHTML = `
-          <p style="margin-top:0;">「${esc(stock.name)}」持有期間領過現金股利，要不要把這些紀錄轉存到「股利 → 非持股歷史」？${isUS ? '<br/><span style="font-size:0.8rem; color:#766c5a;">（美股金額已依匯率 29 換算成台幣）</span>' : ''}</p>
+          <p style="margin-top:0;">「${esc(stock.name)}」持有期間領過現金股利，要不要把這些紀錄轉存到「股利 → 非持股歷史」？${isUS ? '<br/><span style="font-size:0.8rem; color:#766c5a;">（美股金額已依匯率 ' + getUsdRate() + ' 換算成台幣）</span>' : ''}</p>
           <table class="dividend-table">
             <thead><tr><th>年度</th><th>金額</th><th>筆數</th></tr></thead>
             <tbody>${rowsHtml}</tbody>

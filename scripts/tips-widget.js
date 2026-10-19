@@ -126,7 +126,7 @@ function tipsWidgetBuildDividendEstimate() {
     getUniqueEstimateStocks().forEach(us => {
       const key = us.code || us.name;
       const est = dividendEstimates[key];
-      if (est && est.expCash) totalEstCash += (Number(est.expCash) || 0) * (Number(us.shares) || 0);
+      if (est && est.expCash) totalEstCash += (Number(est.expCash) || 0) * (Number(us.shares) || 0) * (isUsStock(us) ? getUsdRate() : 1);   // 美股股利是美元，換成台幣再加總
     });
     if (totalEstCash <= 0) return [];
     return [{ icon: '💰', title: '股利預估', lines: [`依目前填寫的預估股利計算，全年現金股利約 ${tipsWidgetFmtMoney(totalEstCash)}`] }];
