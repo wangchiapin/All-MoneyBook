@@ -15,6 +15,7 @@ let insurancePolicies = [];
 try { insurancePolicies = JSON.parse(localStorage.getItem('INSURANCE_POLICIES_V1')) || []; } catch (e) { insurancePolicies = []; }
 
 function saveInsuranceToStorage() {
+  cloudMarkDirty('insurance'); // 記下「本機有還沒上傳的修改」
   saveInsuranceLocalOnly();
   scheduleInsuranceCloudSync();
 }
@@ -48,19 +49,30 @@ async function loadInsuranceFromCloud() {
     const snap = await ref.get();
     const cloudList = (snap.exists && Array.isArray(snap.data().policies)) ? snap.data().policies : null;
     if (cloudList && cloudList.length > 0) {
+      const cloudAt = snap.data().updatedAt || null;
+      // 本機有還沒上傳的修改時，不能直接被雲端蓋掉（見 cloud-guard.js）
+      if (cloudDecideOnLoad('insurance', '保險總覽', cloudAt) === 'local') {
+        lastKnownInsuranceCloudUpdatedAt = cloudAt;
+        insuranceCloudLoaded = true;
+        await pushInsuranceToCloud();
+        return;
+      }
       insurancePolicies = cloudList;
-      lastKnownInsuranceCloudUpdatedAt = snap.data().updatedAt || null;
+      lastKnownInsuranceCloudUpdatedAt = cloudAt;
       saveInsuranceLocalOnly();
       renderInsuranceTable();
       insuranceCloudLoaded = true;
+      cloudMarkSynced('insurance', cloudAt, Date.now());
     } else {
       // 雲端沒有資料或是空清單：把本機的保單傳上去
       lastKnownInsuranceCloudUpdatedAt = (snap.exists && snap.data().updatedAt) || null;
       insuranceCloudLoaded = true;
       await pushInsuranceToCloud();
     }
+    cloudStatusSet('insurance', '保險總覽', 'ok');
   } catch (e) {
     console.warn('讀取保險雲端資料失敗', e);
+    cloudStatusSet('insurance', '保險總覽', 'fail', cloudStatusErrText(e));
     if (typeof showToast === 'function') showToast('⚠️ 讀取保險雲端資料失敗，目前顯示的是本機資料', 'error');
   }
 }
@@ -68,6 +80,7 @@ async function loadInsuranceFromCloud() {
 async function pushInsuranceToCloud() {
   const ref = insuranceDocRef();
   if (!ref || !insuranceCloudLoaded) return;
+  const startedAt = Date.now();
   try {
     const snap = await ref.get();
     if (snap.exists) {
@@ -80,6 +93,7 @@ async function pushInsuranceToCloud() {
         );
         if (!proceed) {
           if (typeof showToast === 'function') showToast('已暫停同步：雲端有更新的保險資料，尚未覆蓋', 'error');
+          cloudStatusSet('insurance', '保險總覽', 'paused');
           return;
         }
       }
@@ -88,8 +102,11 @@ async function pushInsuranceToCloud() {
     // 整份覆蓋（不用 merge:true），避免刪除的保單又被合併回來
     await ref.set({ policies: insurancePolicies, updatedAt });
     lastKnownInsuranceCloudUpdatedAt = updatedAt;
+    cloudMarkSynced('insurance', updatedAt, startedAt);
+    cloudStatusSet('insurance', '保險總覽', 'ok');
   } catch (e) {
     console.warn('保險資料雲端同步失敗', e);
+    cloudStatusSet('insurance', '保險總覽', 'fail', cloudStatusErrText(e));
     const hint = (e && e.code === 'permission-denied') ? '（Firebase 規則尚未開放 insuranceAssets）' : '';
     if (typeof showToast === 'function') showToast('⚠️ 保險資料雲端同步失敗' + hint + '，本機已儲存', 'error');
   }

@@ -161,16 +161,20 @@
           loginBtn.style.display = 'none';
           logoutBtn.style.display = '';
           statusEl.textContent = '☁️ 已連線：' + user.email;
+          cloudStatusReset();
           await loadFromCloud();
         } else {
           loginBtn.style.display = '';
           logoutBtn.style.display = 'none';
+          cloudStatusReset();
+          statusEl.style.cursor = ''; statusEl.onclick = null;
           statusEl.textContent = '☁️ 未連線（僅本機儲存）';
         }
       });
     }
 
     let lastKnownCloudUpdatedAt = null; // 上次成功讀取/寫入雲端時，雲端文件的 updatedAt，用來偵測其他裝置的變更
+    let financeCloudLoaded = false;     // 雲端讀完之前不上傳，避免舊的本機資料先蓋掉雲端
 
     async function loadFromCloud() {
       const ref = fbDocRef();
@@ -178,34 +182,42 @@
       try {
         const snap = await ref.get();
         if (snap.exists) {
+          const cloudAt = snap.data().updatedAt || null;
+          // 本機有還沒上傳的修改時，不能直接被雲端蓋掉（見 cloud-guard.js）
+          if (cloudDecideOnLoad('finance', '財務總覽', cloudAt) === 'local') {
+            lastKnownCloudUpdatedAt = cloudAt;
+            financeCloudLoaded = true;
+            await saveToCloud();
+            return;
+          }
           state = snap.data().state || state;
-          lastKnownCloudUpdatedAt = snap.data().updatedAt || null;
+          lastKnownCloudUpdatedAt = cloudAt;
+          financeCloudLoaded = true;
+          cloudMarkSynced('finance', cloudAt, Date.now());
           migrateLegacyData();
           localStorage.setItem('finance_data_v6', JSON.stringify(state));
           render();
           saveToCloud(); // 把搬遷/補欄位後的結果同步回雲端，避免下次登入又讀到舊格式
         } else {
           // 雲端還沒有資料：把目前(本機)的狀態第一次推上去
+          const startedAt = Date.now();
           const nowIso = new Date().toISOString();
           await ref.set({ state, updatedAt: nowIso });
           lastKnownCloudUpdatedAt = nowIso;
+          financeCloudLoaded = true;
+          cloudMarkSynced('finance', nowIso, startedAt);
         }
-        document.getElementById('syncStatus').textContent = '☁️ 已同步';
+        cloudStatusSet('finance', '財務總覽', 'ok');
       } catch (e) {
         console.error("讀取雲端資料失敗：", e);
-        const el = document.getElementById('syncStatus');
-        if (el) {
-          el.textContent = '☁️ 同步失敗（點我看原因）';
-          el.style.cursor = 'pointer';
-          el.title = (e.code || '') + ' ' + (e.message || '');
-          el.onclick = () => alert('雲端同步失敗：\n\n' + (e.code || '') + '\n' + (e.message || e));
-        }
+        cloudStatusSet('finance', '財務總覽', 'fail', cloudStatusErrText(e));
       }
     }
 
     async function saveToCloud() {
       const ref = fbDocRef();
-      if (!ref) return;
+      if (!ref || !financeCloudLoaded) return;
+      const startedAt = Date.now();
       const el = document.getElementById('syncStatus');
       try {
         // 先偵測衝突：如果雲端文件的 updatedAt 跟我們上次讀到的不一樣，
@@ -220,7 +232,7 @@
               '按「取消」不會儲存，建議重新整理頁面，拉取雲端最新版本後再繼續編輯。'
             );
             if (!proceed) {
-              if (el) { el.textContent = '☁️ 已暫停同步（雲端有更新的版本）'; el.style.cursor = ''; el.title = ''; el.onclick = null; }
+              cloudStatusSet('finance', '財務總覽', 'paused');
               return;
             }
           }
@@ -229,19 +241,16 @@
         // 整份覆蓋（不用 merge:true），避免刪除的項目又被合併回來
         await ref.set({ state, updatedAt: nowIso });
         lastKnownCloudUpdatedAt = nowIso;
-        if (el) { el.textContent = '☁️ 已同步'; el.style.cursor = ''; el.title = ''; el.onclick = null; }
+        cloudMarkSynced('finance', nowIso, startedAt);
+        cloudStatusSet('finance', '財務總覽', 'ok');
       } catch (e) {
         console.error("寫入雲端失敗：", e);
-        if (el) {
-          el.textContent = '☁️ 同步失敗（點我看原因）';
-          el.style.cursor = 'pointer';
-          el.title = (e.code || '') + ' ' + (e.message || '');
-          el.onclick = () => alert('雲端同步失敗：\n\n' + (e.code || '') + '\n' + (e.message || e));
-        }
+        cloudStatusSet('finance', '財務總覽', 'fail', cloudStatusErrText(e));
       }
     }
 
     function saveState() {
+      cloudMarkDirty('finance'); // 記下「本機有還沒上傳的修改」
       try {
         localStorage.setItem('finance_data_v6', JSON.stringify(state));
       } catch (e) {
@@ -1301,12 +1310,75 @@
       reader.readAsText(file);
     }
 
-    function resetAll() {
-      if (confirm("確定要清空所有資料並恢復預設值嗎？建議先匯出備份！")) {
-        localStorage.removeItem('finance_data_v6');
-        state = JSON.parse(JSON.stringify(defaultData));
-        render();
+    /* ====== 清空重置 ======
+       以前只清了「財務總覽」的記憶體畫面，股票／保險／月度紀錄都還在，雲端也沒動，
+       重新整理後雲端的資料又整份讀回來，看起來像「沒清乾淨」。現在改成：
+       1. 先自動下載一份全部資料的備份
+       2. 清掉這個瀏覽器裡所有資料（匯率、鎖定、隱藏分頁、PDF 密碼這類「設定」保留）
+       3. 如果有登入，另外問要不要連雲端一起清（要輸入「清空雲端」才會動雲端） */
+    const RESET_DATA_KEYS = [
+      'finance_data_v6',
+      'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCKS', 'STOCK_INVESTMENT_EXCEL_PRO_V32_PAST',
+      'STOCK_INVESTMENT_EXCEL_PRO_V32_ACCOUNTS', 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_SALES',
+      'STOCK_INVESTMENT_EXCEL_PRO_V32_SALES_HISTORY', 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_LENDING',
+      'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME', 'STOCK_INVESTMENT_EXCEL_PRO_V32_LENDING_INCOME_YEARLY',
+      'STOCK_INVESTMENT_EXCEL_PRO_V32_DCA', 'STOCK_INVESTMENT_EXCEL_PRO_V32_STOCK_BUYS',
+      'STOCK_INVESTMENT_DIVIDEND_ESTIMATES_V1', 'STOCK_INVESTMENT_EXRIGHTS_INFO_V1',
+      'YONG_FENG_DETAIL_V1', 'YONG_FENG_ACCOUNT_V1', 'YONG_FENG_DIVIDEND_V1', 'YONG_FENG_OVERVIEW_V2',
+      'ASSET_SNAPSHOTS_V1', 'INSURANCE_POLICIES_V1', 'OVERVIEW_MONTHLY_V1',
+      'STMT_IMPORT_SETTINGS_V1', 'STMT_IMPORTED_V1', 'STMT_IMPORT_LAST_BACKUP_V1'
+    ];
+    const RESET_CLOUD_COLLECTIONS = ['financeAssets', 'stockAssets', 'insuranceAssets', 'overviewMonthly'];
+
+    async function resetAll() {
+      if (!confirm('確定要清空這個瀏覽器裡的所有資料嗎？\n\n會清掉：財務總覽、股票管理、保險、全部資產一覽的月度紀錄、對帳單匯入紀錄。\n不會清掉：匯率、鎖定、隱藏分頁、PDF 密碼這類設定。\n\n按「確定」後，會先自動下載一份全部資料的備份檔。')) return;
+
+      // 1) 先備份（備份下載失敗就不要繼續清）
+      try {
+        exportData();
+      } catch (e) {
+        alert('備份失敗，所以沒有清空任何資料：\n' + (e && e.message ? e.message : e));
+        return;
       }
+
+      // 取消還在排隊的自動上傳，避免清完之後舊資料又被傳回雲端
+      try { clearTimeout(cloudSaveTimer); } catch (e) {}
+      try { if (typeof stockCloudSyncTimer !== 'undefined') clearTimeout(stockCloudSyncTimer); } catch (e) {}
+      try { if (typeof insuranceCloudSyncTimer !== 'undefined') clearTimeout(insuranceCloudSyncTimer); } catch (e) {}
+      try { financeCloudLoaded = false; if (typeof stockCloudLoaded !== 'undefined') stockCloudLoaded = false; if (typeof insuranceCloudLoaded !== 'undefined') insuranceCloudLoaded = false; } catch (e) {}
+
+      // 2) 登入中：問要不要連雲端一起清
+      let clearCloud = false;
+      if (typeof fbUser !== 'undefined' && fbUser && typeof fbDb !== 'undefined' && fbDb) {
+        const typed = prompt(
+          '你目前有登入，雲端也存了一份資料。\n\n' +
+          '・只清這個瀏覽器：直接按「取消」。但下次登入時，雲端的資料會再讀回來，看起來就像沒清掉。\n' +
+          '・連雲端一起清：請輸入「清空雲端」四個字再按確定。雲端資料刪掉後沒辦法復原，其他裝置也會跟著變空。'
+        );
+        if (typed === '清空雲端') {
+          clearCloud = true;
+        } else if (typed !== null && typed.trim() !== '') {
+          alert('輸入的字不是「清空雲端」，所以雲端不會動，只清這個瀏覽器。');
+        }
+      }
+
+      if (clearCloud) {
+        try {
+          for (const col of RESET_CLOUD_COLLECTIONS) {
+            await fbDb.collection(col).doc(fbUser.uid).delete();
+          }
+        } catch (e) {
+          alert('清雲端資料時失敗，所以這個瀏覽器的資料也沒有清：\n' + (e && e.message ? e.message : e));
+          return;
+        }
+      }
+
+      // 3) 清這個瀏覽器
+      RESET_DATA_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* 略過 */ } });
+      if (typeof cloudMetaClearAll === 'function') cloudMetaClearAll();
+      alert(clearCloud ? '已清空這個瀏覽器和雲端的資料，網頁將重新載入。' : '已清空這個瀏覽器的資料，網頁將重新載入。' +
+        ((typeof fbUser !== 'undefined' && fbUser) ? '\n（雲端的資料還在，重新登入後會讀回來。）' : ''));
+      location.reload();
     }
 
     /* ====== Task 4: 財務總覽 底部固定水平捲軸 (與表格同步) + 自動捲到最新日期 ====== */

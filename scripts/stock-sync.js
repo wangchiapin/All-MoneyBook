@@ -154,6 +154,7 @@
     }
 
     let lastKnownStockCloudUpdatedAt = null; // 上次成功讀取/寫入雲端時的 updatedAt，用來偵測其他裝置的變更
+    let stockCloudLoaded = false;            // 雲端讀完之前不上傳，避免舊的本機資料先蓋掉雲端
 
     async function loadStockFromCloud() {
       const ref = stockDocRef();
@@ -161,22 +162,38 @@
       try {
         const snap = await ref.get();
         if (snap.exists) {
+          const cloudAt = (snap.data() && snap.data().updatedAt) || null;
+          // 本機有還沒上傳的修改時，不能直接被雲端蓋掉（見 cloud-guard.js）
+          if (cloudDecideOnLoad('stock', '股票管理', cloudAt) === 'local') {
+            lastKnownStockCloudUpdatedAt = cloudAt;
+            stockCloudLoaded = true;
+            await pushStockToCloud();
+            return;
+          }
           applyAllData(snap.data());
-          lastKnownStockCloudUpdatedAt = (snap.data() && snap.data().updatedAt) || null;
+          lastKnownStockCloudUpdatedAt = cloudAt;
+          stockCloudLoaded = true;
+          cloudMarkSynced('stock', cloudAt, Date.now());
         } else {
+          const startedAt = Date.now();
           const data = gatherAllData();
           await ref.set(data);
           lastKnownStockCloudUpdatedAt = data.updatedAt;
+          stockCloudLoaded = true;
+          cloudMarkSynced('stock', data.updatedAt, startedAt);
         }
+        cloudStatusSet('stock', '股票管理', 'ok');
       } catch (e) {
         console.warn('讀取股票雲端資料失敗', e);
+        cloudStatusSet('stock', '股票管理', 'fail', cloudStatusErrText(e));
         if (typeof showToast === 'function') showToast('⚠️ 讀取雲端資料失敗，目前顯示的是本機資料', 'error');
       }
     }
 
     async function pushStockToCloud() {
       const ref = stockDocRef();
-      if (!ref) return;
+      if (!ref || !stockCloudLoaded) return;
+      const startedAt = Date.now();
       try {
         // 先偵測衝突：雲端 updatedAt 跟上次讀到的不同，代表其他裝置在這之後也存過檔，
         // 直接整份覆蓋會蓋掉那邊的變更，先跟使用者確認。
@@ -191,6 +208,7 @@
             );
             if (!proceed) {
               if (typeof showToast === 'function') showToast('已暫停同步：雲端有更新的版本，尚未覆蓋', 'error');
+              cloudStatusSet('stock', '股票管理', 'paused');
               return;
             }
           }
@@ -198,13 +216,17 @@
         const data = gatherAllData();
         await ref.set(data);
         lastKnownStockCloudUpdatedAt = data.updatedAt;
+        cloudMarkSynced('stock', data.updatedAt, startedAt);
+        cloudStatusSet('stock', '股票管理', 'ok');
       } catch (err) {
         console.warn('股票資料自動同步失敗', err);
+        cloudStatusSet('stock', '股票管理', 'fail', cloudStatusErrText(err));
         if (typeof showToast === 'function') showToast('⚠️ 股票資料雲端同步失敗（本機已儲存）', 'error');
       }
     }
 
     function scheduleCloudSync() {
+      cloudMarkDirty('stock'); // 記下「本機有還沒上傳的修改」
       if (!fbUser) return;
       clearTimeout(stockCloudSyncTimer);
       stockCloudSyncTimer = setTimeout(() => {
@@ -215,6 +237,7 @@
     if (typeof fbAuth !== 'undefined' && fbAuth) {
       fbAuth.onAuthStateChanged((user) => {
         if (user) loadStockFromCloud();
+        else stockCloudLoaded = false;
       });
     }
 
