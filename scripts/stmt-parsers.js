@@ -5,7 +5,7 @@
    - 同一份程式可以在瀏覽器（網頁的「📥 匯入對帳單」）和 Node（自動流程、測試）使用
 
    目前支援：國泰證券、富邦證券、永豐金證券、台北富邦銀行、國泰世華銀行、第一銀行、
-             永豐銀行、台新銀行、將來銀行、華南銀行、中國信託
+             永豐銀行、台新銀行、將來銀行、華南銀行、中國信託、王道銀行
    信用卡：國泰世華、台北富邦（富邦還沒有真實帳單驗證過，結果要自己核對）
 
    每份對帳單讀完會得到同一種格式的結果（見 emptyResult），
@@ -122,6 +122,8 @@
   /* ---------------- 認出是哪一家 ---------------- */
   function detect(pages) {
     const t = allText(pages).replace(/\s+/g, '');
+    // 王道：標題和 LOGO 都是圖片，只能靠權益通知裡的字和網址認；明細裡會出現別家銀行的名字（例如「華南銀行」），所以要排在最前面
+    if (t.includes('王道銀行提醒您') || /obank\.tw|o-bank\.com/i.test(t)) return 'obank';
     if (t.includes('國泰世華銀行綜合月對帳單')) return 'cathay_bank';
     if (t.includes('有價證券買賣對帳單') && t.includes('集保市值總計')) return 'cathay_sec';
     if (t.includes('現貨對帳單') && t.includes('富邦證券')) return 'fubon_sec';
@@ -1457,6 +1459,140 @@
   }
 
   /* ---------------- 總入口 ---------------- */
+  /* ================= 王道銀行 =================
+     綜合對帳單：第 1 頁是總覽（臺幣存款、外幣存款、總資產），第 2 頁起是臺幣活期存款明細，
+     接著外幣活期存款、外幣定期存款（每一筆定存各一張小表）。
+     ⚠️ 臺幣明細每筆只有「+收入／-支出」，沒有逐筆餘額，所以沒辦法用「上一筆餘額＋這筆＝這筆餘額」核對有沒有漏讀。
+     我們用「期末餘額往回推」補上每筆餘額（只是讓每筆有獨立編號，避免重複匯入）。
+     一筆明細可能分成幾行：「轉入／轉出」一行、日期＋金額一行、對方帳號一行、備註再一行；
+     也有「日期＋摘要＋金額」全在同一行的（跨行提款、利息）。 */
+  const OBANK_CUR = { 美元: 'USD', 美金: 'USD', 日圓: 'JPY', 日幣: 'JPY', 歐元: 'EUR', 港幣: 'HKD', 人民幣: 'CNY', 澳幣: 'AUD', 英鎊: 'GBP', 加幣: 'CAD', 紐幣: 'NZD', 新加坡幣: 'SGD', 瑞士法郎: 'CHF' };
+  function parseOBank(pages) {
+    const res = emptyResult('obank', '王道銀行');
+    res.kind = 'bank';
+    const lines = flatLines(pages);
+    const text = allText(pages).replace(/\s+/g, '');
+    const pm = text.match(/帳務資訊(\d{4})年(\d{1,2})月/);
+    if (pm) res.period = `${pm[1]}-${String(pm[2]).padStart(2, '0')}`;
+    const yuan = t => num(String(t).replace(/元$/, ''));
+    const sec = { none: 0, twd: 1, fxDemand: 2, fxTime: 3 };
+    let stage = sec.none;
+    let twdAcc = '', twdTotal = null, twdBal = null, fxAcc = '';
+    let overview = { total: null, twd: null, fx: null, invest: null, insurance: [] };
+    let fxDemandTotal = null, fxTimeTotal = null;
+    const demand = [];           // 外幣活存：{cur, bal}
+    const summary = [];          // 外幣定存摘要：{cur, n, total}
+    const deposits = [];         // 外幣定存每一筆：{accountNo, amount}
+    let pendingType = '', cur = null, depAcc = '';
+    const txs = [];              // 臺幣明細：{date, amount, parts}
+    let fxTxSeen = 0;
+
+    lines.forEach(l => {
+      const c = l.cells.map(x => x.t);
+      const j = c.join('');
+      if (/^page\d+of\d+$/.test(j)) return;
+      // ---- 第 1 頁總覽 ----
+      if (stage === sec.none) {
+        const v = c.find(x => /^[\d,]+元$/.test(x));
+        if (j.startsWith('總資產') && v) overview.total = yuan(v);
+        else if (j.startsWith('臺幣存款') && v) overview.twd = yuan(v);
+        else if (j.startsWith('外幣存款') && v) overview.fx = yuan(v);
+        else if (/^投資（/.test(j) && v) overview.invest = yuan(v);
+        else if (/^(人身保險|投資型保險|財產保險)/.test(j) && v) overview.insurance.push(yuan(v));
+      }
+      // ---- 區段切換 ----
+      if (j === '臺幣活期存款') { stage = sec.twd; return; }
+      if (j === '外幣活期存款') { stage = sec.fxDemand; cur = null; return; }
+      if (j === '外幣定期存款') { stage = sec.fxTime; cur = null; return; }
+      if (j === '權益通知') { stage = 99; return; }
+      if (stage === sec.twd) {
+        if (j.startsWith('臺幣活期存款總餘額')) { const v = c.find(x => /^[\d,]+元$/.test(x)); if (v) twdTotal = yuan(v); return; }
+        const am = j.match(/^帳號：([\d*]+)(?:餘額([\d,]+(?:\.\d+)?)元)?$/);
+        if (am) { twdAcc = am[1]; if (am[2]) twdBal = num(am[2]); return; }
+        const bm = c.find(x => /^餘額[\d,]+(\.\d+)?元$/.test(x));
+        if (bm) { twdBal = num(bm.replace(/^餘額/, '').replace(/元$/, '')); }
+        if (c.includes('交易日期')) { pendingType = ''; cur = null; return; }
+        if (c.length === 1 && /^轉[入出]$/.test(c[0])) { pendingType = c[0]; cur = null; return; }
+        if (isDate(c[0])) {
+          const amtIdx = c.length - 1;
+          if (c.length < 2 || !/^[+-][\d,]+(\.\d+)?$/.test(c[amtIdx])) { res.warnings.push(`${c[0]} 這行讀不到金額：${j}`); cur = null; return; }
+          cur = { date: isoDate(c[0]), amount: num(c[amtIdx]), parts: [] };
+          if (pendingType) cur.parts.push(pendingType);
+          c.slice(1, amtIdx).forEach(x => cur.parts.push(x));
+          pendingType = '';
+          txs.push(cur);
+          return;
+        }
+        if (cur) cur.parts.push(c.join(' '));      // 對方帳號、備註（接在同一筆後面）
+        return;
+      }
+      if (stage === sec.fxDemand) {
+        if (j.startsWith('外幣活期存款總餘額')) { const v = c.find(x => /^[\d,]+元$/.test(x)); if (v) fxDemandTotal = yuan(v); return; }
+        const am = j.match(/^帳號：([\d*]+)$/);
+        if (am) { fxAcc = am[1]; return; }
+        const bm = j.match(/^(.+?)：餘額([\d,]+(?:\.\d+)?)元?$/);
+        if (bm) { demand.push({ cur: bm[1], bal: num(bm[2]) }); return; }
+        if (isDate(c[0])) fxTxSeen++;
+        return;
+      }
+      if (stage === sec.fxTime) {
+        if (j.startsWith('定期存款(約等值臺幣)')) { const v = c.find(x => /^[\d,]+元$/.test(x)); if (v) fxTimeTotal = yuan(v); return; }
+        // 摘要列：幣別、筆數、總金額、即將到期筆數、即將到期總金額
+        if (c.length >= 3 && OBANK_CUR[c[0]] && /^\d+筆$/.test(c[1]) && /^[\d,.]+元$/.test(c[2])) { summary.push({ cur: OBANK_CUR[c[0]], n: parseInt(c[1], 10), total: yuan(c[2]) }); return; }
+        if (c.length && /^[\d*]+$/.test(c[0]) && c.includes('到期日')) { depAcc = c[0]; return; }
+        if (depAcc && /^[\d,]+(\.\d+)?元$/.test(c[0])) { deposits.push({ accountNo: depAcc, amount: yuan(c[0]) }); depAcc = ''; return; }
+      }
+    });
+
+    // ---- 臺幣活存：帳戶與明細 ----
+    if (twdAcc) {
+      const bal = twdBal !== null ? twdBal : twdTotal;
+      if (bal === null) res.warnings.push('沒有讀到臺幣活存餘額');
+      else res.bankAccounts.push({ accountNo: twdAcc, type: '臺幣活期存款', currency: 'TWD', balance: bal });
+      if (twdTotal !== null && twdBal !== null) check(res, '臺幣活存總餘額＝帳號餘額', twdTotal, twdBal);
+      if (bal !== null) {
+        const net = round2(txs.reduce((s, t) => s + t.amount, 0));
+        let run = round2(bal - net);       // 往回推的期初餘額
+        txs.forEach(t => {
+          run = round2(run + t.amount);
+          const desc = t.parts.join(' ').replace(/－$/, '').replace(/\s+/g, ' ').trim();
+          res.bankTx.push({ accountNo: twdAcc, date: t.date, desc, amount: t.amount, balance: run, currency: 'TWD', category: categorizeBankTx(desc) });
+        });
+        if (txs.length) res.warnings.push('王道的明細沒有印逐筆餘額，餘額是用期末餘額往回推的；沒辦法自動核對有沒有漏讀，請對照對帳單看筆數（這份共 ' + txs.length + ' 筆）');
+      }
+    } else if (txs.length) res.warnings.push('讀到臺幣明細，但沒讀到帳號');
+
+    // ---- 外幣活存 ----
+    demand.forEach(d => {
+      const code = OBANK_CUR[d.cur];
+      if (!code) { res.warnings.push(`外幣活存的幣別「${d.cur}」認不得，這個帳戶沒有讀進來`); return; }
+      res.bankAccounts.push({ accountNo: fxAcc || twdAcc, type: '外幣活期存款', currency: code, balance: d.bal });
+    });
+    if (fxTxSeen) res.warnings.push(`外幣活存有 ${fxTxSeen} 筆交易明細，這一版還沒有讀（手上沒有樣本），請自己對照`);
+
+    // ---- 外幣定存：每一筆各算一個帳戶（幣別照摘要列的順序分配）----
+    let di = 0;
+    summary.forEach(s => {
+      const mine = deposits.slice(di, di + s.n);
+      di += s.n;
+      mine.forEach(d => res.bankAccounts.push({ accountNo: d.accountNo, type: '外幣定期存款', currency: s.cur, balance: d.amount }));
+      check(res, `${s.cur} 定存筆數`, s.n, mine.length);
+      check(res, `${s.cur} 定存各筆加總＝定存總金額`, s.total, mine.reduce((a, d) => a + d.amount, 0));
+    });
+    if (deposits.length > di) res.warnings.push(`有 ${deposits.length - di} 筆定存對不到摘要列的幣別，沒有讀進來`);
+    if (!summary.length && deposits.length) res.warnings.push('讀到定存但沒讀到摘要列，沒有讀進來');
+
+    // ---- 總覽核對 ----
+    if (overview.twd !== null && twdBal !== null) check(res, '總覽的臺幣存款＝活存餘額', overview.twd, twdBal);
+    if (overview.fx !== null && (fxDemandTotal !== null || fxTimeTotal !== null)) check(res, '總覽的外幣存款＝外幣活存＋外幣定存', overview.fx, (fxDemandTotal || 0) + (fxTimeTotal || 0));
+    if (overview.total !== null && overview.twd !== null && overview.fx !== null) {
+      const other = (overview.invest || 0) + overview.insurance.reduce((a, b) => a + b, 0);
+      if (other === 0) check(res, '總資產＝臺幣存款＋外幣存款', overview.total, overview.twd + overview.fx);
+      else res.warnings.push('這份對帳單有投資或保險金額，這一版只核對存款部分');
+    }
+    return finishBank(res, 'obank');
+  }
+
   const PARSERS = {
     cathay_sec: parseCathaySec,
     fubon_sec: parseFubonSec,
@@ -1473,6 +1609,7 @@
     pension_fund: parsePensionFund,
     pension_private: parsePensionPrivate,
     esun_bank: parseEsunBank,
+    obank: parseOBank,
     cathay_card: parseCathayCard,
     fubon_card: parseFubonCard,
     sinopac_sec: parseSinopacSec
@@ -1480,7 +1617,7 @@
   const LABELS = {
     cathay_sec: '國泰證券', fubon_sec: '富邦證券', fubon_bank: '台北富邦銀行',
     cathay_bank: '國泰世華銀行', fubon_card: '台北富邦信用卡', first_bank: '第一銀行',
-    sinopac_bank: '永豐銀行', taishin_bank: '台新銀行', next_bank: '將來銀行', hncb_bank: '華南銀行', ctbc_bank: '中國信託', bot_bank: '台灣銀行', kaohsiung_bank: '高雄銀行', pension_fund: '公教退撫儲金', pension_private: '私校退撫儲金', esun_bank: '玉山銀行', cathay_card: '國泰世華信用卡',
+    sinopac_bank: '永豐銀行', taishin_bank: '台新銀行', next_bank: '將來銀行', hncb_bank: '華南銀行', ctbc_bank: '中國信託', bot_bank: '台灣銀行', kaohsiung_bank: '高雄銀行', pension_fund: '公教退撫儲金', pension_private: '私校退撫儲金', esun_bank: '玉山銀行', obank: '王道銀行', cathay_card: '國泰世華信用卡',
     sinopac_sec: '永豐金證券'
   };
 
