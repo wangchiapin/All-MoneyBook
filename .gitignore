@@ -1,0 +1,7 @@
+# Python 自動產生的暫存檔
+__pycache__/
+*.pyc
+
+# 系統暫存檔
+.DS_Store
+Thumbs.db

@@ -15,5 +15,5 @@
 - 上方數字取自 Firestore `overviewMonthly`（打開「全部資產一覽」分頁時自動記錄），信上會註明更新時間，超過一週沒更新會警告；「股票配置（依證券帳戶）」與「每年被動收入」另外讀 `stockAssets`（持股、歷史股利、借券、媽的永豐）。
 - 圖表用 Apps Script 內建 Charts 服務畫成圖片嵌入信件；任何一張畫失敗只會少那一張。
 - 先執行 `previewWeeklyReport` 試寄，再執行 `installWeeklyReportTrigger` 設定排程；`removeWeeklyReportTrigger` 取消。
-- 收件人預設寫在檔案最上面，也可用指令碼屬性 `REPORT_EMAIL` 覆蓋。
+- 收件人一定要先到「專案設定 → 指令碼屬性」新增 `REPORT_EMAIL`（值填收件信箱），沒設會停下來提醒；信箱不寫在程式碼裡（倉庫是公開的）。重新貼新版程式不會清掉屬性。
 - 若改動 `overviewMonthly` 或 `stockAssets`（stocks、pastColumns、lendingIncomeRows…）的欄位，記得同步修改這支。

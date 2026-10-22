@@ -8,11 +8,10 @@
  *   1. 先執行 previewWeeklyReport：馬上寄一封【試寄】給自己，確認長相。
  *   2. 沒問題再執行 installWeeklyReportTrigger：從此每週日晚上 8 點（台北時間）自動寄。
  *   3. 想停止：執行 removeWeeklyReportTrigger。
- * 收件人預設 a2224907@gmail.com；想改，到「專案設定 → 指令碼屬性」新增 REPORT_EMAIL。
+ * 收件人：到「專案設定 → 指令碼屬性」新增 REPORT_EMAIL，值填收件信箱（必填；沒設會停下來提醒，信箱不寫在程式碼裡，因為這個倉庫是公開的）。
  * 提醒：專案時區要是 Asia/Taipei（專案設定 → 時區），不然「晚上 8 點」會差幾小時。
  */
 const WR_APP_NAME = 'All-MoneyBook';
-const WR_DEFAULT_EMAIL = 'a2224907@gmail.com';
 
 function wrLoadMonths_() {
   const doc = fetchFirestoreDoc('overviewMonthly');
@@ -336,7 +335,9 @@ function wrBuild_(months, stockDoc, appName) {
 
 // ===== 寄信、試寄、排程 =====
 function wrRecipient_() {
-  return (PropertiesService.getScriptProperties().getProperty('REPORT_EMAIL') || WR_DEFAULT_EMAIL).trim();
+  const to = (PropertiesService.getScriptProperties().getProperty('REPORT_EMAIL') || '').trim();
+  if (!to) throw new Error('還沒設定收件人：請到「專案設定 → 指令碼屬性」新增 REPORT_EMAIL，值填收件信箱。');
+  return to;
 }
 
 // 每週日 20:00 自動執行的就是這個
