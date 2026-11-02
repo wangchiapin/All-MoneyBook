@@ -825,7 +825,9 @@ function mbBuildGroups(box, headers, trs, key) {
   if (!shown && !topLines.length) box.appendChild(mbDiv('mb-empty', '目前沒有資料'));
 }
 
-/* columns：第一欄是項目名稱、每檔股票一欄的表 → 一檔一張卡片 */
+const mbColOpen = new Set();   // 年度預估股利：目前展開的股票
+
+/* columns：第一欄是項目名稱、每檔股票一欄的表 → 一檔一張卡片（預設收合，點標題展開） */
 function mbBuildColumns(box, table, key) {
   const trs = Array.from(table.tBodies[0] ? table.tBodies[0].rows : []);
   const headRow = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
@@ -836,15 +838,42 @@ function mbBuildColumns(box, table, key) {
     return;
   }
   const grid = mbGridOf(trs);
+  // 這幾列任何一列有內容，就算「有資料」，股票名稱旁會出現綠點
+  const DATA_LABELS = ['預估除息', '預估除權', '除息時間', '除權時間'];
+  const hasDataAt = (c) => trs.some((tr, r) => {
+    const lab = grid[r][0], cell = grid[r][c];
+    if (!lab || !cell || cell.colPart) return false;
+    if (!DATA_LABELS.includes(mbNorm(mbCellText(lab.td)))) return false;
+    const v = mbCellText(cell.td);
+    if (mbEmptyVal(v) || v === '尚無資料') return false;
+    const n = Number(v);
+    return !(isFinite(n) && n === 0);
+  });
   for (let c = 1; c < heads.length; c++) {
     const card = document.createElement('div');
     card.className = 'mb-tcard mb-colcard';
     const head = document.createElement('div');
-    head.className = 'mb-tc-head';
-    head.innerHTML = `<span class="mb-tc-title">${heads[c].innerHTML}</span>`;
+    head.className = 'mb-tc-head mb-col-toggle';
+    const stockKey = key + '|' + heads[c].textContent.replace(/\s+/g, ' ').trim();
+    head.innerHTML = `<span class="mb-tc-title">${heads[c].innerHTML}</span>` +
+      (hasDataAt(c) ? '<span class="mb-data-dot" title="已有預估資料"></span>' : '') +
+      '<span class="mb-tc-arrow">▸</span>';
     card.appendChild(head);
     const kvs = document.createElement('div');
     kvs.className = 'mb-kvs mb-kvs-1';
+    // 預設收合；展開的股票記在 mbColOpen，資料改了重畫也不會自己收起來
+    const setOpen = (on) => {
+      card.classList.toggle('mb-col-open', on);
+      kvs.hidden = !on;
+      const ar = head.querySelector('.mb-tc-arrow');
+      if (ar) ar.textContent = on ? '▾' : '▸';
+    };
+    head.addEventListener('click', () => {
+      const on = !mbColOpen.has(stockKey);
+      if (on) mbColOpen.add(stockKey); else mbColOpen.delete(stockKey);
+      setOpen(on);
+    });
+    setOpen(mbColOpen.has(stockKey));
     trs.forEach((tr, r) => {
       const lab = grid[r][0], cell = grid[r][c];
       if (!lab || !cell || cell.colPart) return;

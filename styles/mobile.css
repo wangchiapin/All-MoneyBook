@@ -254,6 +254,10 @@
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 0.78rem; min-width: 0; }
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv > span { color: #93897a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv > b { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-col-toggle { cursor: pointer; align-items: center; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-col-toggle .mb-tc-title { flex: 0 1 auto; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-data-dot { width: 9px; height: 9px; border-radius: 50%; background: #4f9a63; flex: none; align-self: center; }
+  :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-colcard .mb-kvs[hidden] { display: none; }
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-colcard .mb-kv { padding: 3px 0; border-bottom: 1px dotted #e8e1d3; }
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-colcard .mb-kv:last-child { border-bottom: none; }
   :is(#stockView, #insuranceView, #mbSheetOverlay) .mb-kv .mb-cell-clone { max-width: 55%; }
