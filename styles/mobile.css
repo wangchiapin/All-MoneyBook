@@ -12,6 +12,14 @@
   .mb-only { display: block; }
   body { padding: 6px 6px calc(70px + env(safe-area-inset-bottom)) !important; }
 
+  /* 加到主畫面（html.standalone-app，由 index.html 開頭的小程式判斷）：
+     讓 body 自己捲動、網頁本身不捲，底部分頁列才會穩穩固定在畫面最下面 */
+  html.standalone-app, html.standalone-app body { height: 100%; overflow: hidden; }
+  html.standalone-app body {
+    height: 100dvh; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-y: none;
+  }
+
   /* ---------- 標題列：只留一行 ---------- */
   .app-header {
     position: relative;

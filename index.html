@@ -2,7 +2,27 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="資產總覽">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>
+  /* 加到主畫面（獨立 app 模式）時：iPhone 會讓底部固定的分頁列跟著頁面滑動、甚至被切掉一半。
+     只在這個模式讓 body 自己捲動、網頁本身不捲（樣式在 mobile.css 的 html.standalone-app），其他開法維持原樣。 */
+  (function(){
+    var standalone = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (!standalone) return;
+    document.documentElement.classList.add('standalone-app');
+    var origScrollTo = window.scrollTo.bind(window);
+    window.scrollTo = function(x, y){
+      if (typeof x === 'object' && x){ y = x.top || 0; x = x.left || 0; }
+      if (window.matchMedia('(max-width: 760px)').matches) { document.body.scrollTo(x || 0, y || 0); }
+      else { origScrollTo(x || 0, y || 0); }
+    };
+  })();
+  </script>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:type" content="website">
