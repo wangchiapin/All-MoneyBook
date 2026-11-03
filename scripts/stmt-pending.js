@@ -1,6 +1,6 @@
 /* ====================================================================
    對帳單「📬 自動收到的對帳單」（第 6 步，App 這邊）
-   - 自動程式（GitHub 私人倉庫，每週一凌晨 3 點）從 Gmail 拿對帳單 PDF、讀好，
+   - 自動程式（GitHub 私人倉庫，每天凌晨 3 點）從 Gmail 拿對帳單 PDF、讀好，
      放進 Firestore：stmtPending/{使用者}/items/{一份一筆}
    - 這裡負責：標題列按鈕（有自動收到的對帳單才出現、顯示數字）、自動收到的對帳單清單、
      選好的幾份一起送進原本的確認畫面；寫入後從自動收到的對帳單拿掉，「復原這次匯入」會放回去
@@ -159,7 +159,7 @@
           <button class="stmt-edit-btn" style="margin-top:6px;" onclick="stmtPendingClearSkipped()">清掉這幾行</button>
         </div>` : '';
       return `
-        <div class="stmt-step-hint">每週一凌晨 3 點，會自動從 Gmail 有「對帳單」標籤的信拿 PDF 來讀，放在這裡等你確認。<br>還沒按「確認寫入」之前，你的帳都不會被改。</div>
+        <div class="stmt-step-hint">每天凌晨 3 點，會自動從 Gmail 有「對帳單」標籤的信拿 PDF 來讀，放在這裡等你確認。<br>還沒按「確認寫入」之前，你的帳都不會被改。</div>
         ${mainHtml}${skipHtml}`;
     }
 
