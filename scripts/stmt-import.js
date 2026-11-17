@@ -749,12 +749,12 @@
           <select onchange="stmtSetBank('${stmtEsc(stmtAccKey(res, acc.accountNo, acc.currency))}', this.value)">
             ${val ? '' : '<option value="">請選擇</option>'}
             ${stmtBadMapOption(items, val, acc.currency)}
-            ${items.filter(b => stmtCurOk(acc.currency, b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === String(val) ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+            ${items.filter(b => stmtCurOk(acc.currency, b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === String(val) ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : (acc.currency === 'USD' ? '（台幣項目，用匯率換算）' : '')}</option>`).join('')}
             ${(acc.currency === 'TWD' || acc.currency === 'USD') ? `<option value="__new">➕ 新增成新項目：${stmtEsc(stmtBankItemName(res, acc))}</option>` : ''}
             <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
           </select></div>`);
       });
-      if (need.bank.some(({ acc }) => acc.currency && acc.currency !== 'TWD' && acc.currency !== 'USD')) rows.push('<div class="stmt-set-tip">財務總覽目前只有台幣和美元項目，其他外幣（日圓、歐元…）的帳戶請選「不匯入這個帳戶」。</div>');
+      if (need.bank.some(({ acc }) => acc.currency && acc.currency !== 'TWD' && acc.currency !== 'USD')) rows.push('<div class="stmt-set-tip">美元帳戶可以選美元項目，也可以選台幣項目（會用該日期欄的美金匯率換成台幣，四捨五入到整數）。其他外幣（日圓、歐元…）目前還不能匯入，請選「不匯入這個帳戶」。</div>');
       if (need.pension.length && typeof stmtPensionSettingsRows === 'function') stmtPensionSettingsRows(need.pension).forEach(r => rows.push(r));
       if (need.financeCol) {
         const dates = (typeof state !== 'undefined' && state.dates) ? state.dates : [];
@@ -829,7 +829,7 @@
           bankRows.push(`<div class="stmt-set-row"><span>${stmtEsc(stmtKeyLabel(key, v))} → 財務總覽</span><span class="stmt-set-ctl">
             <select onchange="stmtSetBank('${stmtEsc(key)}', this.value)">
               ${stmtBadMapOption(items, val, String(key).split('|')[2])}
-              ${items.filter(b => stmtCurOk(String(key).split('|')[2], b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === val ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : ''}</option>`).join('')}
+              ${items.filter(b => stmtCurOk(String(key).split('|')[2], b)).map(b => `<option value="${stmtEsc(b.id)}" ${String(b.id) === val ? 'selected' : ''}>${stmtEsc(b.name)}${b.isUSD ? '（美元）' : (String(key).split('|')[2] === 'USD' ? '（台幣項目，用匯率換算）' : '')}</option>`).join('')}
               <option value="__skip" ${val === '__skip' ? 'selected' : ''}>不匯入這個帳戶</option>
             </select>${del}</span></div>`);
         }
@@ -927,7 +927,26 @@
       }
  const label = stmtLabelFor(key); stmtSettingsObj().accountMap[key] = Object.assign({ stockAccount: acc }, label ? { label } : {}); stmtAfterSetting(); }
     // 幣別要對得上：美元帳戶只能對美元項目、台幣帳戶只能對台幣項目、其他外幣只能「不匯入」
-    function stmtCurOk(cur, item) { cur = cur || 'TWD'; return cur === 'USD' ? !!item.isUSD : (cur === 'TWD' ? !item.isUSD : false); }
+    // （美元帳戶也可以寫進台幣項目：匯入時用該日期欄的「美金匯率」乘起來、四捨五入成整數的台幣）
+    function stmtCurOk(cur, item) { cur = cur || 'TWD'; return cur === 'USD' ? true : (cur === 'TWD' ? !item.isUSD : false); }
+    // 這個日期欄的美金匯率；那一欄沒填就用預設美金匯率
+    function stmtUsdRateAt(col) {
+      const r = resolveCellNumber((state.rates || [])[col]);
+      if (r > 0) return { rate: r, fallback: false };
+      return { rate: (typeof getUsdRate === 'function' ? Number(getUsdRate()) : 0) || 31, fallback: true };
+    }
+    // 這筆銀行餘額實際要寫進去的數字：美元帳戶對到台幣項目 → 乘匯率換成整數台幣
+    function stmtBalConv(it, item) {
+      const raw = Number(it.data.value) || 0;
+      if (!item || it.acc.currency !== 'USD' || item.isUSD) return { conv: false, value: raw };
+      const col = stmtSettingsObj().financeCol;
+      const fx = stmtUsdRateAt(col);
+      return { conv: true, raw, rate: fx.rate, fallback: fx.fallback, value: Math.round(raw * fx.rate) };
+    }
+    function stmtBalItemOf(it) {
+      const t = stmtBankTarget(it.res, it.acc);
+      return t && !t.skip ? (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId)) : null;
+    }
     function stmtBadMapOption(items, val, cur) {
       const it = val && val !== '__skip' ? items.find(b => String(b.id) === String(val)) : null;
       return it && !stmtCurOk(cur, it) ? `<option value="${stmtEsc(it.id)}" selected>${stmtEsc(it.name)}（幣別對不上，請重選）</option>` : '';
@@ -1020,11 +1039,13 @@
           const old = key && state.values[key] ? state.values[key][col] : '';
           // 好幾個銀行帳戶對到財務總覽同一個項目：有勾的加在一起寫進去
           const same = key ? stmtItems.filter(x => x.type === 'balance' && x.checked && stmtBalanceKey(x) === key) : [];
-          const sum = same.length > 1 && it.checked ? stmtR(same.reduce((s, x) => s + (Number(x.data.value) || 0), 0)) : null;
+          const cv = stmtBalConv(it, item);
+          const sum = same.length > 1 && it.checked ? stmtR(same.reduce((s, x) => s + stmtBalConv(x, stmtBalItemOf(x)).value, 0)) : null;
           return {
             tag: '餘額', title: `${stmtEsc(it.res.label)} ${stmtEsc(it.acc.accountNo)} ${it.acc.currency === 'USD' ? 'US$' : (it.acc.currency && it.acc.currency !== 'TWD' ? stmtEsc(it.acc.currency) + ' ' : '$')}${stmtFmt(d.value, it.acc.currency && it.acc.currency !== 'TWD' ? 2 : 0)}`,
-            detail: item ? `財務總覽「${stmtEsc(item.name)}」${stmtEsc(state.dates[col] || '')}：${old === '' || old == null ? '空白' : stmtFmt(Number(old) || 0, 2)} → ${stmtFmt(sum != null ? sum : d.value, 2)}`
-              + (sum != null ? `（${same.length} 個帳戶加總：${same.map(x => stmtEsc(String(x.acc.accountNo).slice(-4)) + ' $' + stmtFmt(x.data.value, 0)).join(' ＋ ')}）` : '') : '還沒設定對應'
+            detail: item ? `財務總覽「${stmtEsc(item.name)}」${stmtEsc(state.dates[col] || '')}：${old === '' || old == null ? '空白' : stmtFmt(Number(old) || 0, 2)} → ${stmtFmt(sum != null ? sum : cv.value, cv.conv ? 0 : 2)}`
+              + (cv.conv ? `（US$ ${stmtFmt(cv.raw, 2)} × 匯率 ${cv.rate}${cv.fallback ? '（這一欄沒填匯率，暫用預設）' : ''} = 台幣 ${stmtFmt(cv.value, 0)}）` : '')
+              + (sum != null ? `（${same.length} 個帳戶加總：${same.map(x => stmtEsc(String(x.acc.accountNo).slice(-4)) + ' $' + stmtFmt(stmtBalConv(x, stmtBalItemOf(x)).value, 0)).join(' ＋ ')}）` : '') : '還沒設定對應'
           };
         }
         case 'pension': return stmtPensionDescribe(it);
@@ -1336,7 +1357,7 @@
             const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
             if (!item) { prob(`財務總覽找不到帳戶 ${it.acc.accountNo} 對應的項目`); return; }
             const bKey = item.isUSD ? item.id + '_usd' : item.id;
-            balanceSum[bKey] = stmtR((balanceSum[bKey] || 0) + (Number(d.value) || 0));
+            balanceSum[bKey] = stmtR((balanceSum[bKey] || 0) + stmtBalConv(it, item).value);
             setRawVal(bKey, stmtSettingsObj().financeCol, balanceSum[bKey]);
             financeChanged = true;
             bump('銀行餘額');
