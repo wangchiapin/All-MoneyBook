@@ -69,7 +69,6 @@
         <input type="number" id="usdRateInput" step="0.01" min="0" inputmode="decimal" onchange="onUsdRateInputChange(this)">
       </label>
       <button class="btn btn-outline stmt-open-btn" id="stmtImportBtn" onclick="openStmtImport()">📥 匯入對帳單</button>
-      <button class="btn btn-outline stmt-log-btn" id="stmtLogBtn" onclick="openStmtLog()">🧾 匯入紀錄</button>
       <button class="btn stmt-pending-btn" id="stmtPendingBtn" onclick="openStmtPending()" style="display:none;">📬 自動收到的對帳單</button>
       <span id="syncStatus">☁️ 未連線</span>
       <button class="btn btn-outline" id="loginBtn" onclick="handleLoginClick()">🔑 登入雲端同步</button>
@@ -92,6 +91,7 @@
         <button class="settings-menu-item" onclick="addItem('baddebt'); closeSettingsMenu();">➕ 新增呆帳項目</button>
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item" onclick="openArchiveManager();">🗄️ 封存管理</button>
+        <button class="settings-menu-item" id="stmtLogBtn" onclick="closeSettingsMenu(); openStmtLog();">🧾 對帳單匯入紀錄</button>
         <div class="settings-menu-divider"></div>
         <button class="settings-menu-item" onclick="openLockSettingsModal(); closeSettingsMenu();">🔒 密碼鎖定功能</button>
         <button class="settings-menu-item" onclick="exportData(); closeSettingsMenu();">💾 匯出備份 (JSON - 全部資料)</button>
@@ -219,6 +219,7 @@
             <input type="file" onchange="importStockData(event)" accept=".json" style="display:none;" />
           </label>
           <button onclick="triggerExcelImport()">🗂️ 匯入備份 (Excel)</button>
+          <button onclick="openStmtLog()">🧾 對帳單匯入紀錄</button>
           <input type="file" id="excelImportFileInput" onchange="handleExcelImportFile(event)" accept=".xlsx" style="display:none;" />
           <button onclick="openLockSettingsModal()">🔒 密碼鎖定功能</button>
         </div>
