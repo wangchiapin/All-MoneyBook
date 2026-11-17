@@ -980,7 +980,7 @@
         const lastRate = state.rates[state.rates.length - 1] || 31.5;
         state.rates.push(lastRate);
         state.colNotes.push('');
-        Object.keys(state.values).forEach(k => { state.values[k].push(0); });
+        Object.keys(state.values).forEach(k => { state.values[k].push(typeof newColumnStartValue === 'function' ? newColumnStartValue(k) : 0); });
         if (typeof sortColumnsByDate === 'function') sortColumnsByDate();
         saveState();
         if (typeof render === 'function') render();
