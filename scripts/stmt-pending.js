@@ -36,6 +36,11 @@
       return !!(r && (stmtImported || []).some(x => x.statementId === r.statementId));
     }
 
+    function stmtPendingRec(p) {
+      const r = stmtPendingResult(p);
+      return (r && (stmtImported || []).find(x => x.statementId === r.statementId)) || null;
+    }
+
     // 同一份對帳單（例如兩個信箱都收到）在清單裡排在前面的那一份；沒有重複回傳 null
     function stmtPendingDupOf(p) {
       const r = stmtPendingResult(p);
@@ -118,8 +123,11 @@
       const mail = [p.mailDate ? `${stmtPendingDateText(p.mailDate)} 收到` : '', p.fileName || ''].filter(Boolean).map(stmtEsc).join('・');
       let tag = '', cb = '<span class="stmt-cb-space"></span>';
       if (p.status === 'ok' && r) {
+        const rec = done ? stmtPendingRec(p) : null;
         tag = done
-          ? '<span class="stmt-tag">之前已經匯入過</span>'
+          ? (rec && rec.partial
+              ? `<span class="stmt-tag bad">只匯入一部分${rec.left ? '：還有 ' + rec.left + ' 筆沒處理' : ''}${rec.failed ? '、' + rec.failed + ' 筆沒寫進去' : ''}</span>`
+              : '<span class="stmt-tag">之前已經匯入過</span>')
           : stmtPendingDupOf(p) ? '<span class="stmt-tag">跟上面那份是同一份對帳單（另一個信箱收到的），可以丟掉</span>'
           : `<span class="stmt-tag ${p.allChecksOk ? 'ok' : 'bad'}">${p.allChecksOk ? '數字核對 OK' : '數字對不上，要仔細看'}</span>`;
         cb = `<input type="checkbox" class="stmt-cb" ${stmtPendingPicked[p.id] ? 'checked' : ''} onchange="stmtPendingPick('${p.id}', this.checked)">`;
@@ -224,7 +232,12 @@
       const used = stmtPendingActive;
       stmtPendingActive = [];
       stmtPendingRemoved = [];
+      const info = (typeof stmtDoneInfo !== 'undefined' && stmtDoneInfo && stmtDoneInfo.stmts) || {};
       for (const p of used) {
+        // 這份只處理了一部分（有沒勾的、或有沒寫進去的）→ 留在清單裡，不刪
+        const r = stmtPendingResult(p);
+        const st = r && info[r.statementId];
+        if (st && !st.complete) continue;
         try { await stmtPendingDelete(p.id); stmtPendingRemoved.push(p); }
         catch (e) { console.warn('從自動收到的對帳單拿掉失敗', e); }
       }

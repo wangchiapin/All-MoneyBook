@@ -117,3 +117,10 @@ tr.todo-banner button { margin-left: 8px; font-size: 0.78rem; padding: 2px 10px;
 .stmt-pending-skip { margin-top: 14px; padding: 10px 12px; border: 1px dashed #ddd5c4; border-radius: 8px; font-size: 0.82rem; color: #766c5a; }
 .mb-header-more.has-pending { position: relative; }
 .mb-header-more.has-pending::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: #d0522f; border: 1.5px solid #fff; }
+
+/* 銀行餘額寫到哪一欄（大字提醒）、匯入紀錄頁 */
+.stmt-colbig { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: #eef0e6; color: #3c362e; font-size: 1rem; line-height: 1.6; }
+.stmt-colbig b { font-size: 1.15rem; }
+.stmt-colbig.warn { background: #f6e1da; color: #a8543d; font-weight: 700; }
+.stmt-log-row .stmt-item-detail { word-break: break-all; }
+.stmt-log-undo { padding: 10px 12px; margin-bottom: 12px; border: 1px dashed #cbbfa8; border-radius: 8px; background: #fbf3e6; font-size: 0.85rem; }

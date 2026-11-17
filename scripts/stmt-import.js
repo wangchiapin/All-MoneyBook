@@ -135,6 +135,7 @@
       if (stmtStep === 'pick') { body.innerHTML = stmtPickHtml(); foot.innerHTML = stmtPickFoot(); }
       else if (stmtStep === 'pending') { body.innerHTML = stmtPendingHtml(); foot.innerHTML = stmtPendingFoot(); }
       else if (stmtStep === 'review') { body.innerHTML = stmtReviewHtml(); foot.innerHTML = stmtReviewFoot(); }
+      else if (stmtStep === 'log') { body.innerHTML = stmtLogHtml(); foot.innerHTML = `<button class="btn btn-primary" onclick="closeStmtImport()">關閉</button>`; }
       else { body.innerHTML = stmtDoneHtml(); foot.innerHTML = `<button class="btn btn-primary" onclick="closeStmtImport()">完成</button>`; }
     }
 
@@ -765,6 +766,10 @@
             ${dates.map((d, i) => `<option value="${i}" ${i === s.financeCol ? 'selected' : ''}>${stmtEsc(d)}</option>`).reverse().join('')}
           </select></div>
           <div class="stmt-set-tip">對帳單月份：${stmtEsc(periods.join('、'))}。要寫到新的日期，選上面的「➕ 新增日期欄」。</div>`);
+        const plan = stmtBalancePlan();
+        if (plan.total) {
+          rows.push(`<div class="stmt-colbig ${plan.overwrite.length ? 'warn' : ''}">這次勾選的銀行餘額（${plan.total} 個項目）會寫進日期欄：<b>${stmtEsc(plan.date)}</b>${plan.overwrite.length ? `<br>⚠️ 這一欄裡有 ${plan.overwrite.length} 個項目本來就有數字，寫入會直接蓋掉：${plan.overwrite.map(stmtEsc).join('、')}` : ''}</div>`);
+        }
       }
       if (need.lendUnit) {
         rows.push(`<div class="stmt-set-row ${s.lendUnit ? '' : 'need'}"><span>「出借張數」你平常填的是</span>
@@ -1153,6 +1158,40 @@
     }
 
     /* ================= 5. 寫入 ================= */
+    // 這次勾選的銀行餘額：會寫到哪一欄、哪幾個項目在那一欄本來就有數字（會被蓋掉）
+    function stmtBalancePlan() {
+      const out = { col: null, date: '', total: 0, overwrite: [] };
+      if (typeof state === 'undefined') return out;
+      const col = stmtSettingsObj().financeCol;
+      const dates = state.dates || [];
+      if (col == null || col < 0 || col >= dates.length) return out;
+      out.col = col; out.date = String(dates[col]);
+      const seen = new Set();
+      stmtItems.filter(it => it.checked && it.type === 'balance').forEach(it => {
+        const t = stmtBankTarget(it.res, it.acc);
+        if (!t || t.skip) return;
+        const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
+        if (!item) return;
+        const key = item.isUSD ? item.id + '_usd' : item.id;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.total++;
+        const cur = (state.values[key] || [])[col];
+        const has = cur !== undefined && cur !== null && cur !== '' && !(typeof cur === 'number' && cur === 0);
+        if (has) out.overwrite.push(item.name + (item.isUSD ? '（美元）' : ''));
+      });
+      return out;
+    }
+    // 沒勾的項目（新增／更新／請你確認那三區）：算「這份還沒處理完」。再讀一次的對帳單本來就是自己挑，不算
+    function stmtLeftoverBySid() {
+      const left = {};
+      stmtItems.forEach(it => {
+        if (it.checked || it.type === 'info' || it.group === 'skip' || it.reprocess || !it.sid) return;
+        left[it.sid] = (left[it.sid] || 0) + 1;
+      });
+      return left;
+    }
+
     function stmtApply() {
       const chosen = stmtItems.filter(it => it.checked);
       if (!chosen.length) return;
@@ -1164,6 +1203,18 @@
         if (!(state.dates || []).length || col == null || col < 0 || col >= state.dates.length) { showToast('財務總覽還沒有日期欄，請先在上面的日期欄選「➕ 新增日期欄」', 'error'); return; }
       }
 
+      // 寫入前再確認一次：蓋掉舊數字、還有沒勾的項目
+      {
+        const plan = stmtBalancePlan();
+        const leftover = stmtLeftoverBySid();
+        const leftTotal = Object.keys(leftover).reduce((a, k) => a + leftover[k], 0);
+        const msgs = [];
+        if (plan.total) msgs.push(`銀行餘額會寫進日期欄「${plan.date}」（${plan.total} 個項目）`);
+        if (plan.overwrite.length) msgs.push(`⚠️ 其中 ${plan.overwrite.length} 個項目這一欄本來就有數字，會被蓋掉：${plan.overwrite.join('、')}`);
+        if (leftTotal) msgs.push(`還有 ${leftTotal} 筆在「新增／更新／請你確認」沒有勾，不會寫入（那份對帳單會標成「只匯入一部分」）`);
+        if ((plan.overwrite.length || leftTotal) && !confirm('要寫入了，請再看一眼：\n\n' + msgs.join('\n') + '\n\n按「確定」寫入，按「取消」回去檢查。')) return;
+      }
+
       // 備份（復原用）：股票資料＋財務總覽
       const backup = { at: new Date().toISOString(), stock: JSON.parse(JSON.stringify(gatherAllData())), finance: JSON.parse(JSON.stringify(state)) };
       if (typeof retirementSettings !== 'undefined') backup.ret = JSON.parse(JSON.stringify(retirementSettings));
@@ -1172,8 +1223,19 @@
       recordSnapshot();
 
       const counts = {};
-      const bump = k => { counts[k] = (counts[k] || 0) + 1; };
+      const leftoverBySid = stmtLeftoverBySid();
+      const stat = {}; // 每一份對帳單：寫了幾筆、失敗幾筆
+      const st = sid => (stat[sid] = stat[sid] || { wrote: 0, failed: 0, counts: {}, problems: [] });
+      let curIt = null;
+      const bump = k => {
+        counts[k] = (counts[k] || 0) + 1;
+        if (curIt && curIt.sid) { const x = st(curIt.sid); x.wrote++; x.counts[k] = (x.counts[k] || 0) + 1; }
+      };
       const problems = [];
+      const prob = msg => { // 這一筆沒寫進去
+        problems.push(msg);
+        if (curIt && curIt.sid) { const x = st(curIt.sid); x.failed++; if (x.problems.length < 5) x.problems.push(msg); }
+      };
       // 寫入順序：餘額 → 依日期的買賣／股利／借券（同一天買進、配股先，賣出後）→ 出借張數 → 庫存修正
       const bucket = { balance: 0, pension: 0, lentShares: 2, holdingFix: 3 };
       const order = { buy: 1, stockDiv: 2, sell: 3, daytrade: 4, cashDiv: 5, lendIncome: 6 };
@@ -1183,6 +1245,7 @@
       const balanceSum = {}; // 同一個項目有好幾個帳戶 → 加總
 
       list.forEach(it => {
+        curIt = it;
         const d = it.data;
         const todo = it.flag ? (String(it.flagNote || '').trim() || '待修改') : '';
         try {
@@ -1219,7 +1282,7 @@
             bump('當沖');
           } else if (it.type === 'stockDiv') {
             const h = stmtMatchHolding(d.name, '', it.account).h;
-            if (!h) { problems.push(`配股 ${d.name} 找不到持股`); return; }
+            if (!h) { prob(`配股 ${d.name} 找不到持股`); return; }
             addStockDividendLot(h, stmtRoc(d.date), d.shares, '配股');
             h.dividendHistory = h.dividendHistory || [];
             h.dividendHistory.push({ year: Number(String(d.date).slice(0, 4)), cashDate: '', cash: 0, stockDate: d.date, stockShares: d.shares, source: it.sid });
@@ -1234,7 +1297,7 @@
             bump('媽的永豐 APP 成本');
           } else if (it.type === 'cashDiv') {
             const h = stocks.find(s => String(s.id) === String(it.holdingId)) || stmtMatchHolding(d.name, d.code || '', it.account).h;
-            if (!h) { problems.push(`現金股利 ${d.name} 找不到持股`); return; }
+            if (!h) { prob(`現金股利 ${d.name} 找不到持股`); return; }
             h.dividendHistory = h.dividendHistory || [];
             h.dividendHistory.push({ year: Number(String(d.date).slice(0, 4)), cashDate: d.date, cash: d.amount, stockDate: '', stockShares: 0, source: it.sid });
             stmtRecalcDividends(h);
@@ -1249,7 +1312,7 @@
             bump('出借張數');
           } else if (it.type === 'holdingNew') {
             if (stmtMatchHolding(d.name, d.code, it.account).h) { problems.push(`${d.name} 持股裡已經有這檔，沒有重複新增`); return; }
-            if (!it.account) { problems.push(`新增持股 ${d.name} 沒有對應的證券帳戶`); return; }
+            if (!it.account) { prob(`新增持股 ${d.name} 沒有對應的證券帳戶`); return; }
             const nh = {
               id: Date.now() + Math.floor(Math.random() * 100000), name: String(d.name).trim(), code: String(d.code || '').trim(),
               category: sbGuessCategory(it.account, d.code), account: it.account,
@@ -1271,7 +1334,7 @@
           } else if (it.type === 'balance') {
             const t = stmtBankTarget(it.res, it.acc);
             const item = (state.bankItems || []).find(b => String(b.id) === String(t.financeItemId));
-            if (!item) { problems.push(`財務總覽找不到帳戶 ${it.acc.accountNo} 對應的項目`); return; }
+            if (!item) { prob(`財務總覽找不到帳戶 ${it.acc.accountNo} 對應的項目`); return; }
             const bKey = item.isUSD ? item.id + '_usd' : item.id;
             balanceSum[bKey] = stmtR((balanceSum[bKey] || 0) + (Number(d.value) || 0));
             setRawVal(bKey, stmtSettingsObj().financeCol, balanceSum[bKey]);
@@ -1280,7 +1343,7 @@
           }
         } catch (e) {
           console.error(e);
-          problems.push(`${stmtDescribe(it).title.replace(/<[^>]+>/g, '')}：${e.message}`);
+          prob(`${stmtDescribe(it).title.replace(/<[^>]+>/g, '')}：${e.message}`);
         }
       });
 
@@ -1289,11 +1352,32 @@
       recalcSalesDayTotals();
 
       // 記下匯入過的對帳單（同一份不會再匯一次）
+      // 一筆都沒寫進去的不記；寫了一部分的記成「只匯入一部分」，留在「自動收到的對帳單」
       const sids = new Set(list.map(it => it.sid).filter(Boolean));
+      const balDate = (chosen.some(it => it.type === 'balance') && (state.dates || [])[stmtSettingsObj().financeCol]) || '';
+      const stmts = {};
       stmtResults().forEach(r => {
-        if (!sids.has(r.statementId)) return;
-        if (stmtImported.some(x => x.statementId === r.statementId)) return; // 再讀一次的不重複記
-        stmtImported.push({ statementId: r.statementId, label: r.label, period: r.period, importedAt: new Date().toISOString() });
+        const sid = r.statementId;
+        if (!sid) return;
+        const x = stat[sid] || { wrote: 0, failed: 0, counts: {}, problems: [] };
+        const left = leftoverBySid[sid] || 0;
+        const complete = x.failed === 0 && left === 0;
+        stmts[sid] = { label: r.label, period: r.period, wrote: x.wrote, left, failed: x.failed, complete };
+        if (!sids.has(sid) || x.wrote === 0) return;
+        const rec = stmtImported.find(y => y.statementId === sid);
+        if (rec) { // 再讀一次的：不重複記，只更新狀態
+          rec.wrote = (rec.wrote || 0) + x.wrote;
+          rec.counts = Object.assign({}, rec.counts || {});
+          Object.keys(x.counts).forEach(k => { rec.counts[k] = (rec.counts[k] || 0) + x.counts[k]; });
+          rec.left = left; rec.failed = x.failed; rec.partial = !complete;
+          rec.problems = x.problems.slice(0, 5);
+          rec.lastAt = new Date().toISOString();
+          return;
+        }
+        const nr = { statementId: sid, label: r.label, period: r.period, importedAt: new Date().toISOString(), wrote: x.wrote, counts: x.counts, left, failed: x.failed, partial: !complete };
+        if (x.problems.length) nr.problems = x.problems.slice(0, 5);
+        if (x.counts['銀行餘額'] && balDate) nr.balanceCol = String(balDate);
+        stmtImported.push(nr);
       });
 
       saveToStorage();
@@ -1301,7 +1385,7 @@
       renderTabs();
       renderTable();
 
-      stmtDoneInfo = { counts, problems, flagged: list.filter(it => it.flag && STMT_FLAG_TYPES.includes(it.type)).length };
+      stmtDoneInfo = { counts, problems, stmts, balDate, flagged: list.filter(it => it.flag && STMT_FLAG_TYPES.includes(it.type)).length };
       stmtStep = 'done';
       stmtItems = [];
       stmtRender();
@@ -1314,14 +1398,71 @@
       h.stockShares = (h.dividendHistory || []).reduce((s, x) => s + (Number(x.stockShares) || 0), 0);
     }
 
+    /* ---------------- 🧾 匯入紀錄 ---------------- */
+    function openStmtLog() {
+      openStmtImport();
+      stmtStep = 'log';
+      const t = document.querySelector('#stmtOverlay .stmt-title');
+      if (t) t.textContent = '🧾 匯入紀錄';
+      stmtRender();
+    }
+
+    function stmtLogTime(iso) {
+      const d = new Date(iso);
+      if (isNaN(d)) return String(iso || '');
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
+    function stmtLogHtml() {
+      const list = (stmtImported || []).map((r, i) => ({ r, i })).sort((a, b) => String(b.r.importedAt || '').localeCompare(String(a.r.importedAt || '')));
+      let backup = window.__stmtLastBackup;
+      if (!backup) { try { backup = JSON.parse(localStorage.getItem(STMT_BACKUP_KEY) || 'null'); } catch (e) { backup = null; } }
+      const undoHtml = backup ? `<div class="stmt-log-undo">最近一次匯入前的備份：${stmtEsc(stmtLogTime(backup.at))}　<button class="stmt-edit-btn" onclick="stmtLogUndo()">↩️ 復原那一次匯入</button><div class="stmt-set-tip">會把股票管理和財務總覽整個回到那個時間點，之後你自己改的也會不見。</div></div>` : '';
+      const rows = list.map(({ r, i }) => {
+        const cnt = r.counts ? Object.keys(r.counts).map(k => `${stmtEsc(k)} ${r.counts[k]}`).join('、') : '';
+        const detail = r.counts ? (cnt || '沒有寫入資料') : '（舊紀錄，沒有筆數）';
+        const status = r.partial
+          ? `<span class="stmt-tag bad">只匯入一部分：${r.left ? '還有 ' + r.left + ' 筆沒勾' : ''}${r.left && r.failed ? '、' : ''}${r.failed ? r.failed + ' 筆沒寫進去' : ''}</span>`
+          : '<span class="stmt-tag ok">已匯入</span>';
+        const probs = (r.problems || []).length ? `<div class="stmt-set-tip">沒寫進去：${r.problems.map(stmtEsc).join('；')}</div>` : '';
+        const col = r.balanceCol ? `<div class="stmt-set-tip">銀行餘額寫在財務總覽的日期欄：${stmtEsc(r.balanceCol)}</div>` : '';
+        return `<div class="stmt-item stmt-log-row">
+          <div class="stmt-item-main">
+            <div class="stmt-item-title">${stmtEsc(r.label || '')} ${stmtEsc(r.period || '')}</div>
+            <div class="stmt-item-detail">${stmtEsc(stmtLogTime(r.importedAt))}・${stmtEsc(detail)}</div>
+            <div style="margin-top:4px;">${status}</div>${col}${probs}
+          </div>
+          <button class="stmt-edit-btn" onclick="stmtLogUnmark(${i})">取消已匯入標記</button>
+        </div>`;
+      }).join('');
+      return `<div class="stmt-step-hint">這裡是每一份匯入過的對帳單。「取消已匯入標記」只會拿掉標記，已經寫進去的資料不會被刪掉；取消後再匯入同一份，買賣、現金股利會被判斷成「可能已輸入過」，但銀行餘額、配股、借券收入不會，要自己小心別重複。</div>${undoHtml}${rows || '<div class="stmt-empty">還沒有匯入紀錄</div>'}`;
+    }
+
+    function stmtLogUnmark(i) {
+      const r = (stmtImported || [])[i];
+      if (!r) return;
+      if (!confirm(`確定取消「${r.label || ''} ${r.period || ''}」的已匯入標記嗎？\n已經寫進去的資料不會被刪掉。取消後可以再匯入這一份，請注意銀行餘額、配股、借券收入不要重複寫入。`)) return;
+      stmtImported.splice(i, 1);
+      saveToStorage();
+      stmtRender();
+      showToast('已取消已匯入標記');
+    }
+
+    function stmtLogUndo() { stmtUndoLast(); }
+
     function stmtDoneHtml() {
       const c = stmtDoneInfo ? stmtDoneInfo.counts : {};
       const p = stmtDoneInfo ? stmtDoneInfo.problems : [];
       const lines = Object.keys(c).map(k => `<li>${stmtEsc(k)}：${c[k]} 筆</li>`).join('');
+      const part = stmtDoneInfo && stmtDoneInfo.stmts ? Object.keys(stmtDoneInfo.stmts).map(k => stmtDoneInfo.stmts[k]).filter(x => !x.complete) : [];
+      const partialHtml = part.length ? `<div class="stmt-item-note">⚠️ 這幾份還沒全部處理完，會留在「📬 自動收到的對帳單」，也可以在「🧾 匯入紀錄」看：<br>${part.map(x => `${stmtEsc(x.label)} ${stmtEsc(x.period || '')}：${x.left ? '還有 ' + x.left + ' 筆沒勾' : ''}${x.left && x.failed ? '、' : ''}${x.failed ? x.failed + ' 筆沒寫進去' : ''}`).join('<br>')}</div>` : '';
       return `
         <div class="stmt-done">
           <div class="stmt-done-big">✅ 匯入完成</div>
           <ul>${lines || '<li>沒有寫入任何資料</li>'}</ul>
+          ${stmtDoneInfo && stmtDoneInfo.balDate && c['銀行餘額'] ? `<div class="stmt-colbig">銀行餘額寫在財務總覽的日期欄：<b>${stmtEsc(stmtDoneInfo.balDate)}</b></div>` : ''}
+          ${partialHtml}
           ${stmtDoneInfo && stmtDoneInfo.flagged ? `<div class="stmt-item-note">⚠️ 有 ${stmtDoneInfo.flagged} 筆標了「待修改」，在各分頁會整列標紅，改好後點那一列的 ⚠️ 取消</div>` : ''}
           ${p.length ? `<div class="stmt-item-note">有 ${p.length} 個地方沒寫進去：<br>${p.map(stmtEsc).join('<br>')}</div>` : ''}
           <button class="btn" style="margin-top:14px;" onclick="stmtUndoLast()">↩️ 復原這次匯入</button>
