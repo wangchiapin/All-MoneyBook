@@ -1094,6 +1094,8 @@
 
     container.addEventListener('keydown', (e) => {
       if (selection.isEditing) return;
+      // 在表頭日期、項目名稱這類輸入框裡打字時，不要當成表格的快速鍵（否則數字、Backspace、Enter 都會被吃掉）
+      if (e.target && e.target !== container && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
